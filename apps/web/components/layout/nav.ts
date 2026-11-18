@@ -1,13 +1,20 @@
-import { BellRing, CalendarDays, FileUp, Hourglass, KeyRound, LayoutDashboard, ListChecks, Server, ShieldCheck, Stethoscope, Building2, UserCog, Users } from 'lucide-react';
+import { BellRing, CalendarDays, FileUp, LayoutDashboard, Server, ShieldCheck, Stethoscope, Building2, UserCog, Users } from 'lucide-react';
 import type { Permission } from '@clinagenda/schemas';
 
-export interface NavItem {
+export interface NavLink {
   href: string;
   label: string;
-  icon: typeof CalendarDays;
   /** Sin permiso: lo ve cualquiera con sesión. */
   permission?: Permission;
+  /** Fuera de la aplicación (se abre en otra pestaña), como la documentación de la API. */
+  external?: boolean;
+}
+
+/** Un menú: enlace directo, o con submenú cuando tiene `children`. */
+export interface NavItem extends NavLink {
+  icon: typeof CalendarDays;
   hint: string;
+  children?: NavLink[];
 }
 
 export interface NavGroup {
@@ -15,34 +22,92 @@ export interface NavGroup {
   items: NavItem[];
 }
 
-/** Navegación por permisos: cada persona ve solo lo que su rol le deja usar. */
+/**
+ * Navegación por permisos: cada persona ve solo lo que su rol le deja usar.
+ * Los submenús con `?nueva=1`, `?nuevo=1`, etc. abren esa acción en la pantalla (ver QueryAction).
+ */
 export const NAV: NavGroup[] = [
   {
     label: 'Día a día',
     items: [
-      { href: '/agenda', label: 'Agenda del día', icon: CalendarDays, hint: 'Ver y dar citas' },
-      { href: '/citas', label: 'Buscar citas', icon: ListChecks, hint: 'Todas las citas con filtros' },
-      { href: '/pacientes', label: 'Pacientes', icon: Users, hint: 'Buscar o registrar pacientes' },
+      {
+        href: '/agenda',
+        label: 'Citas',
+        icon: CalendarDays,
+        hint: 'Agenda, búsqueda y solicitudes',
+        children: [
+          { href: '/agenda', label: 'Agenda del día' },
+          { href: '/agenda?nueva=1', label: 'Dar una cita', permission: 'citas.agendar' },
+          { href: '/citas', label: 'Buscar citas' },
+          { href: '/lista-espera', label: 'Lista de espera', permission: 'lista_espera.gestionar' },
+        ],
+      },
+      {
+        href: '/pacientes',
+        label: 'Pacientes',
+        icon: Users,
+        hint: 'Buscar o registrar',
+        children: [
+          { href: '/pacientes', label: 'Buscar pacientes' },
+          { href: '/pacientes?nuevo=1', label: 'Registrar paciente', permission: 'pacientes.editar' },
+        ],
+      },
       { href: '/recordatorios', label: 'Recordatorios', icon: BellRing, permission: 'recordatorios.gestionar', hint: 'Avisar las citas de mañana' },
-      { href: '/lista-espera', label: 'Lista de espera', icon: Hourglass, permission: 'lista_espera.gestionar', hint: 'Pacientes que esperan un espacio' },
     ],
   },
   {
     label: 'Clínicas',
     items: [
       { href: '/panel', label: 'Panel', icon: LayoutDashboard, permission: 'panel.ver', hint: 'Cifras del mes' },
-      { href: '/medicos', label: 'Médicos', icon: Stethoscope, hint: 'Horarios por clínica' },
-      { href: '/clinicas', label: 'Clínicas', icon: Building2, hint: 'Horarios y cierres' },
+      {
+        href: '/clinicas',
+        label: 'Clínicas',
+        icon: Building2,
+        hint: 'Horarios, cierres y nuevas sedes',
+        children: [
+          { href: '/clinicas', label: 'Horarios y cierres' },
+          { href: '/clinicas?nueva=1', label: 'Agregar clínica', permission: 'clinicas.gestionar' },
+        ],
+      },
+      {
+        href: '/medicos',
+        label: 'Médicos',
+        icon: Stethoscope,
+        hint: 'Horarios por clínica',
+        children: [
+          { href: '/medicos', label: 'Horarios semanales' },
+          { href: '/medicos?nuevo=1', label: 'Registrar médico', permission: 'medicos.gestionar' },
+          { href: '/medicos?autodistribuir=1', label: 'Autodistribuir horario', permission: 'medicos.gestionar' },
+        ],
+      },
     ],
   },
   {
     label: 'Administración',
     items: [
-      { href: '/usuarios', label: 'Usuarios', icon: UserCog, permission: 'usuarios.gestionar', hint: 'Cuentas, accesos y contraseñas' },
-      { href: '/roles', label: 'Roles y permisos', icon: KeyRound, permission: 'roles.gestionar', hint: 'Qué puede hacer cada rol' },
+      {
+        href: '/usuarios',
+        label: 'Accesos',
+        icon: UserCog,
+        hint: 'Usuarios, roles y permisos',
+        children: [
+          { href: '/usuarios', label: 'Usuarios', permission: 'usuarios.gestionar' },
+          { href: '/roles', label: 'Roles y permisos', permission: 'roles.gestionar' },
+        ],
+      },
       { href: '/auditoria', label: 'Bitácora', icon: ShieldCheck, permission: 'auditoria.ver', hint: 'Quién cambió qué' },
       { href: '/importar', label: 'Importar datos', icon: FileUp, permission: 'datos.importar', hint: 'Cargar archivos CSV' },
-      { href: '/sistema', label: 'Sistema', icon: Server, permission: 'sistema.ver', hint: 'Respaldos y estado' },
+      {
+        href: '/sistema',
+        label: 'Sistema',
+        icon: Server,
+        permission: 'sistema.ver',
+        hint: 'Respaldos, estado y API',
+        children: [
+          { href: '/sistema', label: 'Estado y respaldos' },
+          { href: '/api/docs', label: 'Documentación de la API', external: true },
+        ],
+      },
     ],
   },
 ];

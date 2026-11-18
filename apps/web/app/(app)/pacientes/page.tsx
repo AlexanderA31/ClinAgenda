@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { EmptyState, PageHeader } from '@/components/ui/misc';
 import { PatientForm } from '@/components/forms/patient-form';
+import { QueryAction } from '@/components/layout/query-action';
 
 export default function PacientesPage() {
   const router = useRouter();
@@ -60,6 +61,7 @@ export default function PacientesPage() {
 
   return (
     <>
+      {canCreate && <QueryAction name="nuevo" onMatch={() => setCreating(true)} />}
       <PageHeader
         title="Pacientes"
         description="Busque por nombre (con o sin tildes), cédula, teléfono o código. Antes de registrar a alguien, búsquelo: así no se duplica."

@@ -14,6 +14,7 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { EmptyState, PageHeader, Skeleton } from '@/components/ui/misc';
 import { DoctorForm } from '@/components/forms/doctor-form';
 import { AutoSchedule } from '@/components/doctors/auto-schedule';
+import { QueryAction } from '@/components/layout/query-action';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 const DAYS = [1, 2, 3, 4, 5, 6];
@@ -28,6 +29,8 @@ export default function DoctorsPage() {
   const clinics = useClinics();
   return (
     <>
+      {isAdmin && <QueryAction name="nuevo" onMatch={() => setEditing('new')} />}
+      {isAdmin && <QueryAction name="autodistribuir" onMatch={() => setAuto(true)} />}
       <PageHeader
         title="Médicos"
         description="Horario semanal de cada médico y en qué clínica atiende cada día."

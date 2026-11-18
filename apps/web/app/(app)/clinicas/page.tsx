@@ -16,6 +16,7 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Field } from '@/components/ui/field';
 import { Input, Select } from '@/components/ui/input';
 import { Notice, PageHeader, Skeleton } from '@/components/ui/misc';
+import { QueryAction } from '@/components/layout/query-action';
 
 /** Lunes primero, domingo al final: como se lee una semana de trabajo. */
 const WEEK = [1, 2, 3, 4, 5, 6, 0];
@@ -28,6 +29,7 @@ export default function ClinicsPage() {
   const [orphans, setOrphans] = useState<{ clinic: string; items: OrphanAppointment[] } | null>(null);
   return (
     <>
+      {canEdit && <QueryAction name="nueva" onMatch={() => setEditing('new')} />}
       <PageHeader
         title="Clínicas"
         description="Cada clínica tiene su propio horario. Los días cerrados (feriados) no permiten agendar. Un cambio de horario nunca cancela citas: le mostramos cuáles hay que mover."

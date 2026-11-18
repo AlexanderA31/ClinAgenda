@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, LogOut, Save } from 'lucide-react';
+import { Check, KeyRound, LogOut, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import { PERMISSIONS, type MyProfile } from '@clinagenda/schemas';
 import { ApiRequestError, api, errorMessage } from '@/lib/api';
@@ -44,6 +44,7 @@ function MyAccount() {
     onSuccess: () => toast.success('Listo: en los demás equipos tendrá que volver a ingresar.'),
     onError: (e) => toast.error(errorMessage(e)),
   });
+  const [changing, setChanging] = useState(false);
   const allowed = PERMISSIONS.filter((p) => user.permissions.includes(p.key));
   const p = profile.data;
 
@@ -114,8 +115,16 @@ function MyAccount() {
       </section>
 
       <section className="flex flex-col gap-3">
-        <h3 className="font-display text-xl font-bold">Cambiar contraseña</h3>
-        <ChangePasswordForm />
+        <h3 className="font-display text-xl font-bold">Contraseña</h3>
+        <p className="text-ink-2">Le pediremos la actual y la nueva dos veces. Cámbiela si cree que alguien más la conoce.</p>
+        <Button variant="secondary" className="w-fit" onClick={() => setChanging(true)} aria-haspopup="dialog">
+          <KeyRound /> Cambiar contraseña
+        </Button>
+        <Dialog open={changing} onOpenChange={setChanging}>
+          <DialogContent title="Cambiar contraseña" description="Al terminar, la nueva sirve desde el próximo ingreso.">
+            {changing && <ChangePasswordForm onDone={() => setChanging(false)} />}
+          </DialogContent>
+        </Dialog>
       </section>
 
       <section className="flex flex-col gap-3">

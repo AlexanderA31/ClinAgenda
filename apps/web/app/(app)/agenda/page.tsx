@@ -10,6 +10,7 @@ import { discard, listPending, onQueueChange, type PendingAppointment } from '@/
 import { useCan, useSession } from '@/lib/session';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { QueryAction } from '@/components/layout/query-action';
 import { Input, Select } from '@/components/ui/input';
 import { EmptyState, Notice, Skeleton } from '@/components/ui/misc';
 import { Stat, StatGrid } from '@/components/ui/stat';
@@ -230,6 +231,7 @@ function Agenda() {
 
   return (
     <>
+      {canBook && <QueryAction name="nueva" onMatch={() => setWizard({ clinicId, date: isPastDay ? todayIso() : date })} />}
       {/* Encabezado: día, navegación, clínica y la acción principal */}
       <div className="flex flex-col gap-4">
         <div className="flex flex-wrap items-end justify-between gap-4">

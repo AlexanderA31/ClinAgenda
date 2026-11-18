@@ -1,23 +1,19 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CalendarCheck, CalendarPlus, CalendarX, CheckCircle2, ExternalLink, FileDown, Globe, Hourglass, MapPin, Phone, UserRound, XCircle } from 'lucide-react';
-import { toast } from 'sonner';
+import { CalendarCheck, CalendarPlus, CalendarX, CheckCircle2, Globe, History, Hourglass, MapPin, Phone, UserRound } from 'lucide-react';
 import { PORTAL_LIMITS, type PortalAppointment } from '@clinagenda/schemas';
-import { api, errorMessage } from '@/lib/api';
+import { errorMessage } from '@/lib/api';
 import { localDate, longDate, time, todayIso } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { EmptyState, Notice, Skeleton } from '@/components/ui/misc';
+import { Notice, Skeleton } from '@/components/ui/misc';
 import { Stat, StatGrid } from '@/components/ui/stat';
 import { StatusBadge } from '@/components/appointments/status-badge';
 import { PortalHeader, usePortalMe } from '@/components/portal/portal-header';
+import { AppointmentActions, splitAppointments, usePortalAppointments } from '@/components/portal/appointments';
 import landing from '@/components/landing/landing.module.css';
 import { toneClass } from '@/components/landing/tone';
-
-const pdfHref = (a: PortalAppointment) => `/api/portal/appointments/${a.id}/comprobante.pdf`;
 
 /** "Hoy", "Mañana", "En 5 días": cuánto falta, en palabras. */
 function whenLabel(iso: string) {
@@ -27,15 +23,11 @@ function whenLabel(iso: string) {
   return `En ${days} días`;
 }
 
-/** Inicio del paciente: su próxima cita destacada, accesos rápidos, sus cifras y su historial. */
+/** Inicio del paciente: su próxima cita destacada, accesos rápidos y sus cifras. La lista completa está en Historial. */
 export default function PatientHomePage() {
   const me = usePortalMe();
-  const list = useQuery({ queryKey: ['portal', 'appointments'], queryFn: () => api<PortalAppointment[]>('/portal/appointments') });
-  const [tab, setTab] = useState<'proximas' | 'historial'>('proximas');
-  const now = Date.now();
-  const all = list.data ?? [];
-  const upcoming = all.filter((a) => (a.status === 'SCHEDULED' || a.status === 'REQUESTED') && new Date(a.startsAt).getTime() > now).sort((a, b) => a.startsAt.localeCompare(b.startsAt));
-  const past = all.filter((a) => !upcoming.includes(a));
+  const list = usePortalAppointments();
+  const { all, upcoming } = splitAppointments(list.data);
   const next = upcoming[0];
   const atLimit = upcoming.length >= PORTAL_LIMITS.maxUpcoming;
   const count = (s: PortalAppointment['status']) => all.filter((a) => a.status === s).length;
@@ -67,72 +59,6 @@ export default function PatientHomePage() {
             <Stat label="Atendidas" value={count('ATTENDED')} icon={CheckCircle2} tone="good" note="Citas a las que asistió" />
             <Stat label="Canceladas" value={count('CANCELLED')} icon={CalendarX} note="Por usted o por la clínica" />
           </StatGrid>
-
-          <section className="flex flex-col gap-4">
-            <div role="tablist" aria-label="Mis citas" className="flex w-fit gap-1 rounded-lg border border-rule bg-surface p-1.5">
-              {(
-                [
-                  ['proximas', `Próximas (${upcoming.length})`],
-                  ['historial', `Historial (${past.length})`],
-                ] as const
-              ).map(([value, label]) => (
-                <button
-                  key={value}
-                  type="button"
-                  role="tab"
-                  aria-selected={tab === value}
-                  onClick={() => setTab(value)}
-                  className={cn('min-h-11 rounded-md px-4 font-bold', tab === value ? 'bg-ballpoint text-ballpoint-ink' : 'text-ink-2 hover:bg-surface-2 hover:text-ink')}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-
-            {tab === 'proximas' ? (
-              upcoming.length ? (
-                <ul className="grid auto-rows-fr gap-4 md:grid-cols-2">
-                  {upcoming.map((a) => (
-                    <UpcomingCard key={a.id} appt={a} />
-                  ))}
-                </ul>
-              ) : (
-                <EmptyState title="No tiene citas por venir">
-                  <Link href="/paciente/agendar" className="font-bold text-ballpoint underline underline-offset-4">
-                    Agende una ahora
-                  </Link>
-                  : elija clínica, médico y hora.
-                </EmptyState>
-              )
-            ) : past.length ? (
-              <ul className="flex flex-col divide-y divide-rule overflow-hidden rounded-lg border border-rule bg-surface">
-                {past.map((a) => (
-                  <li key={a.id} className="grid gap-3 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center">
-                    <span className="flex min-w-0 items-start gap-3">
-                      <span className={cn(landing.dot, toneClass(a.clinic.name), 'mt-2')} aria-hidden />
-                      <span className="flex min-w-0 flex-col">
-                        <span className="font-bold first-letter:uppercase">
-                          {longDate(a.startsAt)}, {time(a.startsAt)}
-                        </span>
-                        <span className="text-ink-2">
-                          {a.doctorName} ({a.specialty.toLowerCase()}) · {a.clinic.name}
-                        </span>
-                        {a.rejectedNote !== null && <span className="text-sm text-ink-2">La clínica no pudo aceptarla{a.rejectedNote ? `: ${a.rejectedNote}` : '.'}</span>}
-                      </span>
-                    </span>
-                    <StatusBadge status={a.status} />
-                    <Button variant="ghost" size="sm" asChild>
-                      <a href={pdfHref(a)} download={`comprobante-${a.code}.pdf`}>
-                        <FileDown /> PDF
-                      </a>
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <EmptyState title="Todavía no hay historial">Aquí aparecerán sus citas pasadas y canceladas.</EmptyState>
-            )}
-          </section>
 
           <BeforeYourVisit />
         </div>
@@ -204,6 +130,7 @@ function QuickActions({ next, atLimit }: { next?: PortalAppointment; atLimit: bo
     atLimit
       ? { key: 'agendar', icon: CalendarPlus, label: 'Agendar una cita', hint: `Ya tiene ${PORTAL_LIMITS.maxUpcoming} por venir: cancele una o llame` }
       : { key: 'agendar', icon: CalendarPlus, label: 'Agendar una cita', hint: 'Clínica, médico y hora', href: '/paciente/agendar' },
+    { key: 'historial', icon: History, label: 'Mi historial', hint: 'Todas mis citas y comprobantes', href: '/paciente/historial' },
     { key: 'perfil', icon: UserRound, label: 'Mis datos', hint: 'Celular, correo y contraseña', href: '/paciente/perfil' },
     ...(next?.clinic.phone ? [{ key: 'llamar', icon: Phone, label: `Llamar a ${next.clinic.name}`, hint: next.clinic.phone, href: `tel:${next.clinic.phone.replace(/\D/g, '')}` }] : []),
     { key: 'clinicas', icon: Globe, label: 'Horarios y médicos', hint: 'Página de las clínicas', href: '/' },
@@ -234,81 +161,6 @@ function QuickActions({ next, atLimit }: { next?: PortalAppointment; atLimit: bo
         );
       })}
     </nav>
-  );
-}
-
-function UpcomingCard({ appt: a }: { appt: PortalAppointment }) {
-  return (
-    <li className={cn(toneClass(a.clinic.name), 'flex min-w-0 flex-col overflow-hidden rounded-2xl border border-rule bg-surface')}>
-      <div className="flex items-center gap-4 border-b border-rule px-5 py-4">
-        <span className="flex w-16 shrink-0 flex-col items-center rounded-xl bg-[var(--tone)] py-1.5 text-[var(--tone-ink)]">
-          <span className="text-xs font-bold">{new Intl.DateTimeFormat('es-EC', { month: 'short', timeZone: 'America/Guayaquil' }).format(new Date(a.startsAt))}</span>
-          <span className="tabular font-display text-2xl font-extrabold leading-none">{Number(localDate(a.startsAt).slice(8, 10))}</span>
-        </span>
-        <span className="flex min-w-0 flex-col">
-          <span className="font-bold first-letter:uppercase">
-            {longDate(a.startsAt)}, {time(a.startsAt)}
-          </span>
-          <span className="truncate text-ink-2">
-            {a.doctorName} · {a.clinic.name}
-          </span>
-        </span>
-      </div>
-      <div className="flex flex-1 flex-col gap-3 p-5">
-        <div className="flex flex-wrap items-center gap-2">
-          <StatusBadge status={a.status} />
-          <span className="text-sm text-ink-3">Código {a.code}</span>
-        </div>
-        <AppointmentActions appt={a} />
-      </div>
-    </li>
-  );
-}
-
-/** Descargar el comprobante, verlo en línea o cancelar (con confirmación). */
-function AppointmentActions({ appt: a, primary = false }: { appt: PortalAppointment; primary?: boolean }) {
-  const qc = useQueryClient();
-  const [confirm, setConfirm] = useState(false);
-  const size = primary ? 'md' : 'sm';
-  const cancel = useMutation({
-    mutationFn: () => api(`/portal/appointments/${a.id}/cancel`, { method: 'POST' }),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ['portal', 'appointments'] });
-      toast.success('Cita cancelada. Gracias por avisar: el espacio pasa a otro paciente.');
-    },
-    onError: (e) => toast.error(errorMessage(e)),
-  });
-  return (
-    <div className="mt-auto flex flex-wrap items-center gap-2 border-t border-rule pt-4">
-      <Button size={size} asChild>
-        <a href={pdfHref(a)} download={`comprobante-${a.code}.pdf`}>
-          <FileDown /> Descargar PDF
-        </a>
-      </Button>
-      <Button variant="secondary" size={size} asChild>
-        <a href={a.link} target="_blank" rel="noreferrer">
-          <ExternalLink /> Ver en línea
-        </a>
-      </Button>
-      {a.canCancel ? (
-        confirm ? (
-          <span className="flex flex-wrap items-center gap-2">
-            <Button variant="danger" size={size} disabled={cancel.isPending} onClick={() => cancel.mutate()}>
-              <XCircle /> Sí, cancelar
-            </Button>
-            <Button variant="ghost" size={size} onClick={() => setConfirm(false)}>
-              No
-            </Button>
-          </span>
-        ) : (
-          <Button variant="ghost" size={size} onClick={() => setConfirm(true)}>
-            <XCircle /> Cancelar cita
-          </Button>
-        )
-      ) : (
-        <span className="text-sm text-ink-3">Falta poco: para cancelar, llame a la clínica.</span>
-      )}
-    </div>
   );
 }
 

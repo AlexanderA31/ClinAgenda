@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { CalendarPlus, Home, LogOut, UserRound } from 'lucide-react';
+import { CalendarPlus, History, Home, LogOut, UserRound } from 'lucide-react';
 import type { PortalMe } from '@clinagenda/schemas';
 import s from '@/components/landing/landing.module.css';
 import { api } from '@/lib/api';
@@ -13,14 +13,14 @@ export function usePortalMe() {
   return useQuery({ queryKey: ['portal', 'me'], queryFn: () => api<PortalMe>('/portal/me'), staleTime: 5 * 60_000 });
 }
 
-/** Cabecera del portal: la marca, "Mis citas", "Agendar" y salir. */
 const LINKS = [
   { href: '/paciente', label: 'Inicio', icon: Home },
   { href: '/paciente/agendar', label: 'Agendar', icon: CalendarPlus },
+  { href: '/paciente/historial', label: 'Historial', icon: History },
   { href: '/paciente/perfil', label: 'Mi perfil', icon: UserRound },
 ];
 
-/** Cabecera del portal: la marca, el saludo, Inicio, Agendar, Mi perfil y salir. */
+/** Cabecera del portal: la marca, el saludo, Inicio, Agendar, Historial, Mi perfil y salir. */
 export function PortalHeader() {
   const me = usePortalMe();
   const pathname = usePathname();
@@ -37,7 +37,7 @@ export function PortalHeader() {
         <Link href="/" className="font-display text-2xl font-extrabold">
           Clínicas Paredes
         </Link>
-        <nav aria-label="Portal del paciente" className="order-3 grid w-full grid-cols-3 gap-1 sm:order-none sm:flex sm:w-auto sm:items-center">
+        <nav aria-label="Portal del paciente" className="order-3 grid w-full grid-cols-4 gap-1 sm:order-none sm:flex sm:w-auto sm:items-center">
           {LINKS.map(({ href, label, icon: Icon }) => {
             const active = pathname === href;
             return (
@@ -46,7 +46,7 @@ export function PortalHeader() {
                 href={href}
                 aria-current={active ? 'page' : undefined}
                 className={cn(
-                  'flex min-h-11 items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-2 text-sm font-bold sm:gap-2 sm:px-4 sm:text-base',
+                  'flex min-h-12 flex-col items-center justify-center gap-0.5 whitespace-nowrap rounded-2xl px-1 text-xs font-bold sm:min-h-11 sm:flex-row sm:gap-2 sm:rounded-full sm:px-4 sm:text-base',
                   active ? 'bg-[var(--maiz)] text-[var(--maiz-ink)]' : 'text-[var(--hero-ink)] opacity-85 hover:opacity-100',
                 )}
               >
