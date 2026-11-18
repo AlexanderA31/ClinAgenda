@@ -81,6 +81,11 @@ export function toAppointmentView(
     createdBy: a.createdById ? (names.get(a.createdById) ?? null) : null,
     createdAt: a.createdAt.toISOString(),
     updatedAt: a.updatedAt.toISOString(),
+    patientLink: `/c/${a.publicToken}`,
+    remindedAt: a.remindedAt?.toISOString() ?? null,
+    remindedBy: a.remindedById ? (names.get(a.remindedById) ?? null) : null,
+    contactPhone: a.patient.phone ?? a.patient.guardianPhone,
+    contactNote: a.patient.contactNote,
   };
   if (canSeeClinicalNote(user, a)) view.clinicalNote = a.clinicalNote;
   return view;

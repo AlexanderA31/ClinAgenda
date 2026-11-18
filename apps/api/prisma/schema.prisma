@@ -45,6 +45,7 @@ enum CancelReason {
   MEDICO_NO_DISPONIBLE
   ERROR_AL_AGENDAR
   REPROGRAMADA
+  PACIENTE_WEB
   OTRO
 }
 
@@ -210,6 +211,11 @@ model Appointment {
   idempotencyKey String?           @unique
   /// "import" cuando vino del archivo de datos de prueba.
   source         String            @default("app")
+  /// Clave secreta del enlace que recibe el paciente para ver o cancelar su cita sin usuario.
+  publicToken    String            @unique @default(dbgenerated("encode(gen_random_bytes(18), 'hex')"))
+  /// Cuándo y quién recordó la cita al paciente (llamada o WhatsApp).
+  remindedAt     DateTime?         @db.Timestamptz(3)
+  remindedById   String?           @db.Uuid
   createdAt      DateTime          @default(now()) @db.Timestamptz(3)
   updatedAt      DateTime          @updatedAt @db.Timestamptz(3)
 

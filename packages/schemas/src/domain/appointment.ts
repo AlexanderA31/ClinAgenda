@@ -30,7 +30,7 @@ export type AppointmentRescheduleInput = z.infer<typeof AppointmentRescheduleSch
 
 export const AppointmentCancelSchema = z
   .object({
-    reason: CancelReasonSchema,
+    reason: CancelReasonSchema.exclude(['PACIENTE_WEB']),
     note: optionalCleanString(200, 'La nota'),
   })
   .refine((v) => v.reason !== 'OTRO' || Boolean(v.note), { path: ['note'], message: 'Escriba brevemente el motivo.' });
@@ -100,7 +100,43 @@ export interface AppointmentView {
   clinicalNote?: string | null;
   /** true cuando la cita cancelada todavía puede reactivarse (el horario sigue libre y no ha pasado). */
   canUndoCancel?: boolean;
+  /** Ruta del enlace del paciente (/c/<token>): ver su cita y cancelarla sin llamar. Solo para el personal. */
+  patientLink?: string;
+  remindedAt?: string | null;
+  remindedBy?: string | null;
+  /** Teléfono a usar para avisar: el del paciente o, si no tiene, el del representante. */
+  contactPhone?: string | null;
+  contactNote?: string | null;
 }
+
+/** Lo único que ve quien abre el enlace del paciente: sin cédula, sin teléfono, sin datos médicos. */
+export interface PublicAppointmentView {
+  code: string;
+  status: z.infer<typeof AppointmentStatusSchema>;
+  startsAt: string;
+  endsAt: string;
+  patientFirstName: string;
+  doctorName: string;
+  specialty: string;
+  clinic: { name: string; address: string | null; phone: string | null };
+  /** Se puede cancelar desde el enlace hasta CANCEL_LINK_HOURS horas antes. */
+  canCancel: boolean;
+  cancelDeadline: string;
+}
+
+export const CANCEL_LINK_HOURS = 2;
+
+export const PublicCancelSchema = z.object({
+  /** Confirmación explícita: evita que un previsualizador de enlaces (WhatsApp) cancele solo. */
+  confirm: z.literal(true, { errorMap: () => ({ message: 'Confirme que desea cancelar.' }) }),
+});
+export type PublicCancelInput = z.infer<typeof PublicCancelSchema>;
+
+export const ReminderQuerySchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use el formato AAAA-MM-DD.'),
+  clinicId: z.string().uuid().optional(),
+});
+export type ReminderQuery = z.infer<typeof ReminderQuerySchema>;
 
 export interface AppointmentEventView {
   id: string;

@@ -19,6 +19,8 @@ import { WaitlistModule } from './modules/waitlist/waitlist.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { ImportsModule } from './modules/imports/imports.module';
 import { HealthModule } from './modules/health/health.module';
+import { PublicModule } from './modules/public/public.module';
+import { SystemModule } from './modules/system/system.module';
 
 @Module({
   imports: [
@@ -36,6 +38,8 @@ import { HealthModule } from './modules/health/health.module';
     ReportsModule,
     ImportsModule,
     HealthModule,
+    PublicModule,
+    SystemModule,
   ],
   providers: [
     // Orden: límite de peticiones -> sesión -> rol.

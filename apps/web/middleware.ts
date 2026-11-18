@@ -5,7 +5,8 @@ const PUBLIC = ['/', '/ingresar'];
 /** Si no hay cookie de sesión, las pantallas internas mandan al ingreso. La API valida la sesión de verdad. */
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  if (PUBLIC.includes(pathname)) return NextResponse.next();
+  // /c/<token>: enlace que recibe el paciente para ver o cancelar su cita, sin usuario.
+  if (PUBLIC.includes(pathname) || pathname.startsWith('/c/')) return NextResponse.next();
   if (!req.cookies.has('clinagenda_session')) {
     const url = req.nextUrl.clone();
     url.pathname = '/ingresar';

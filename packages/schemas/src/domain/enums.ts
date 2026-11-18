@@ -25,15 +25,19 @@ export const APPOINTMENT_STATUS_LABELS: Record<AppointmentStatus, string> = {
   CANCELLED: 'Cancelada',
 };
 
-export const CancelReasonSchema = z.enum(['PACIENTE_LLAMO', 'MEDICO_NO_DISPONIBLE', 'ERROR_AL_AGENDAR', 'REPROGRAMADA', 'OTRO']);
+export const CancelReasonSchema = z.enum(['PACIENTE_LLAMO', 'MEDICO_NO_DISPONIBLE', 'ERROR_AL_AGENDAR', 'REPROGRAMADA', 'PACIENTE_WEB', 'OTRO']);
 export type CancelReason = z.infer<typeof CancelReasonSchema>;
 export const CANCEL_REASON_LABELS: Record<CancelReason, string> = {
   PACIENTE_LLAMO: 'El paciente avisó que no viene',
   MEDICO_NO_DISPONIBLE: 'El médico no puede atender',
   ERROR_AL_AGENDAR: 'Se agendó por error',
   REPROGRAMADA: 'Se cambió a otra fecha',
+  PACIENTE_WEB: 'El paciente canceló desde su enlace',
   OTRO: 'Otro motivo',
 };
+
+/** Motivos que el personal puede elegir (PACIENTE_WEB lo pone solo el sistema). */
+export const STAFF_CANCEL_REASONS = ['PACIENTE_LLAMO', 'MEDICO_NO_DISPONIBLE', 'ERROR_AL_AGENDAR', 'REPROGRAMADA', 'OTRO'] as const;
 
 export const SexSchema = z.enum(['F', 'M', 'X']);
 export type Sex = z.infer<typeof SexSchema>;
