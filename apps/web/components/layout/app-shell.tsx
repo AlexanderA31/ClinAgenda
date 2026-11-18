@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { NAV } from './nav';
 import { ConnectionBanner } from './connection-banner';
+import { BackupAlert } from './backup-status';
 import { Preferences } from './preferences';
 
 function NavList({ onNavigate }: { onNavigate?: () => void }) {
@@ -90,6 +91,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
         <ConnectionBanner />
+        <BackupAlert />
         <main className="flex-1 py-6" style={{ paddingLeft: 'max(16px, env(safe-area-inset-left))', paddingRight: 'max(16px, env(safe-area-inset-right))' }}>
           <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">{children}</div>
         </main>

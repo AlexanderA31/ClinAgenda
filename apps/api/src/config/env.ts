@@ -7,6 +7,7 @@ const EnvSchema = z.object({
   JWT_SECRET: z.string().min(32, 'JWT_SECRET debe tener al menos 32 caracteres (genere uno con: openssl rand -hex 32)'),
   JWT_EXPIRES_IN: z.string().default('8h'),
   WEB_ORIGIN: z.string().default('http://localhost:3000'),
+  BACKUP_STATUS_FILE: z.string().default('/backups/estado.json'),
   COOKIE_SECURE: z
     .enum(['true', 'false'])
     .default('false')

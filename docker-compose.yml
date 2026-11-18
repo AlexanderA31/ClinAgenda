@@ -39,9 +39,14 @@ services:
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       SEED_ON_START: ${SEED_ON_START:-true}
       SEED_DEMO_PASSWORD: ${SEED_DEMO_PASSWORD:-Demo2026!}
+      BACKUP_STATUS_FILE: /backups/estado.json
       TZ: America/Guayaquil
+    volumes:
+      # Solo lectura: la API únicamente revisa si el último respaldo salió bien.
+      - ./backups:/backups:ro,z
     ports:
-      - '4000:4000'
+      # Solo accesible desde el propio servidor; la gente entra por la web (que reenvía /api).
+      - '127.0.0.1:4000:4000'
     healthcheck:
       test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:4000/api/health']
       interval: 10s
@@ -83,8 +88,28 @@ services:
       TZ: America/Guayaquil
     volumes:
       - ./backups:/backups:z
+      # Carpeta FUERA del servidor: un disco externo o una carpeta sincronizada con la nube.
+      - ${BACKUP_COPY_PATH:-./backups-copia}:/backups-copy:z
       - ./docker/backup.sh:/backup.sh:ro,z
     entrypoint: ['sh', '/backup.sh']
 
+  # Solo en producción:  docker compose --profile produccion up -d
+  # Requiere DOMAIN en .env (ej. agenda.clinicasparedes.ec) apuntando a este servidor y COOKIE_SECURE=true.
+  https:
+    image: caddy:2-alpine
+    profiles: ['produccion']
+    restart: unless-stopped
+    depends_on:
+      - web
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro,z
+      - caddy-data:/data
+
 volumes:
   db-data:
+  caddy-data:

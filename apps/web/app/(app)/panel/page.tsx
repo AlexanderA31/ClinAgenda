@@ -13,6 +13,7 @@ import { Select } from '@/components/ui/input';
 import { Notice, PageHeader, Skeleton } from '@/components/ui/misc';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
+import { BackupLine } from '@/components/layout/backup-status';
 
 const { Bar, BarChart, CartesianGrid, LabelList, Tooltip, XAxis, YAxis } = Recharts;
 
@@ -83,6 +84,7 @@ export default function PanelPage() {
         </p>
       </div>
 
+      {user.role === 'ADMIN' && <BackupLine />}
       {report.isError && <Notice tone="danger" title="No se pudo cargar el panel">{errorMessage(report.error)}</Notice>}
       {!r ? (
         <Skeleton className="h-96" />

@@ -15,6 +15,7 @@ next-env.d.ts
 
 # Respaldos de base de datos (contienen datos de pacientes)
 backups/
+backups-copia/
 *.sql.gz
 *.dump
 

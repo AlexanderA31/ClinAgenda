@@ -1,0 +1,9 @@
+# HTTPS automático (Let's Encrypt) para cuando el sistema se publique en un dominio.
+# Las tres clínicas entran por https://$DOMAIN; la API no queda expuesta directamente.
+{$DOMAIN} {
+	encode gzip
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+	}
+	reverse_proxy web:3000
+}
