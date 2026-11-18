@@ -1,0 +1,119 @@
+/* Landing: del cuaderno de papel a la agenda. Un solo momento animado: la corrección en rojo
+   queda sobre la cita cruzada y la agenda limpia se asienta encima. Estado final siempre visible. */
+
+.gutter {
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+.notebook {
+  --nb-line: color-mix(in oklab, var(--ballpoint) 25%, var(--rule));
+  --nb-margin: color-mix(in oklab, var(--redpen) 55%, transparent);
+  position: relative;
+  background-color: var(--surface);
+  /* Margen rojo + renglones azules, como un cuaderno escolar */
+  background-image:
+    linear-gradient(var(--nb-margin), var(--nb-margin)),
+    linear-gradient(to bottom, transparent calc(100% - 1px), var(--nb-line) calc(100% - 1px));
+  background-size:
+    2px 100%,
+    100% 2.4rem;
+  background-position:
+    3.25rem 0,
+    0 1.25rem;
+  background-repeat: no-repeat, repeat;
+  border: 1px solid var(--rule-strong);
+  border-radius: 4px 10px 10px 4px;
+  box-shadow:
+    0 1px 0 var(--rule),
+    0 18px 40px -24px color-mix(in oklab, var(--ink) 45%, transparent);
+  transform: rotate(-1.4deg);
+}
+
+.hand {
+  font-family: var(--font-hand);
+  color: var(--ballpoint);
+  line-height: 2.4rem;
+  font-size: 1.55rem;
+}
+
+.strike {
+  position: absolute;
+  left: -4%;
+  top: 50%;
+  width: 108%;
+  height: 0.9rem;
+  transform: translateY(-50%) rotate(-2deg);
+  overflow: visible;
+  pointer-events: none;
+}
+
+.strike path {
+  fill: none;
+  stroke: var(--redpen);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.margin-note {
+  font-family: var(--font-hand);
+  color: var(--redpen);
+  font-size: 1.35rem;
+  transform: rotate(-6deg);
+}
+
+.sticky {
+  background: var(--warn-soft);
+  border: 1px solid color-mix(in oklab, var(--warn) 35%, transparent);
+  transform: rotate(3deg);
+  box-shadow: 0 10px 20px -14px color-mix(in oklab, var(--ink) 60%, transparent);
+}
+
+.agenda {
+  animation: settle 0.8s 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+}
+
+/* Solo movimiento, sin desaparecer: la tarjeta siempre se ve, aunque la captura sea al cargar. */
+@keyframes settle {
+  from {
+    transform: translate(12px, 22px) rotate(1.5deg);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* La semana del Dr. Salazar */
+.week {
+  display: grid;
+  grid-template-columns: 6.5rem repeat(6, minmax(5.5rem, 1fr));
+  min-width: 46rem;
+}
+
+.block {
+  border-radius: 4px;
+  border: 2px solid var(--ballpoint);
+  background: var(--ballpoint-soft);
+  color: var(--ink);
+}
+
+.blockAlt {
+  border-style: dashed;
+  background: var(--surface);
+}
+
+/* Mensaje de programador tachado vs. mensaje para personas */
+.devError {
+  font-family: var(--font-mono);
+  color: var(--ink-3);
+  text-decoration: line-through;
+  text-decoration-color: var(--redpen);
+  text-decoration-thickness: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agenda {
+    animation: none;
+  }
+}
