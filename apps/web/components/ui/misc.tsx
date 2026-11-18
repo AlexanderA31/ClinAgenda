@@ -1,5 +1,6 @@
 import { AlertTriangle, CheckCircle2, Info, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { DocumentTitle } from './document-title';
 
 export function Skeleton({ className }: { className?: string }) {
   return <div className={cn('animate-pulse rounded-md bg-surface-2', className)} aria-hidden />;
@@ -38,6 +39,7 @@ export function EmptyState({ title, children }: { title: string; children?: Reac
 export function PageHeader({ title, description, actions }: { title: string; description?: React.ReactNode; actions?: React.ReactNode }) {
   return (
     <div className="flex flex-wrap items-end justify-between gap-4">
+      <DocumentTitle title={title} />
       <div className="flex min-w-0 flex-col gap-1">
         <h1 className="text-3xl font-extrabold">{title}</h1>
         {description && <p className="max-w-prose text-ink-2">{description}</p>}

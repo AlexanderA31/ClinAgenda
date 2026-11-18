@@ -16,6 +16,7 @@ import { PatientForm } from '@/components/forms/patient-form';
 import { StatusBadge } from '@/components/appointments/status-badge';
 import { AppointmentPanel } from '@/components/appointments/appointment-panel';
 import { BookingWizard } from '@/components/appointments/booking-wizard';
+import { DocumentTitle } from '@/components/ui/document-title';
 
 export default function PatientPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -46,6 +47,7 @@ export default function PatientPage({ params }: { params: Promise<{ id: string }
       <Link href="/pacientes" className="flex items-center gap-2 font-bold text-ballpoint">
         <ArrowLeft className="size-5" /> Pacientes
       </Link>
+      <DocumentTitle title={`Ficha ${p.code}`} />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <h1 className="text-3xl font-extrabold">{p.fullName}</h1>
         <div className="flex flex-wrap gap-2">

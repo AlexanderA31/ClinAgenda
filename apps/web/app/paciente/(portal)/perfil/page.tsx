@@ -12,40 +12,33 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { Notice, Skeleton } from '@/components/ui/misc';
-import { PortalHeader, usePortalMe } from '@/components/portal/portal-header';
-import landing from '@/components/landing/landing.module.css';
+import { Notice, PageHeader, Skeleton } from '@/components/ui/misc';
+import { usePortalMe } from '@/components/portal/patient-shell';
 
 /** Mi perfil: mis datos, cómo ubicarme, mi contraseña y mis sesiones. */
 export default function PatientProfilePage() {
   const me = usePortalMe();
   return (
     <>
-      <PortalHeader />
-      <main className={cn(landing.gutter, 'pb-28 pt-8')}>
-        <div className="mx-auto flex max-w-5xl flex-col gap-8">
-          <div className="flex flex-col gap-1">
-            <h1 className="font-display text-4xl font-extrabold tracking-tight sm:text-5xl">Mi perfil</h1>
-            <p className="text-lg text-ink-2">Sus datos en Clínicas Paredes. Los usamos solo para sus citas.</p>
-          </div>
-          {me.isPending ? (
-            <Skeleton className="h-96" />
-          ) : me.isError ? (
-            <Notice tone="danger">{errorMessage(me.error)}</Notice>
-          ) : (
-            <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
-              <div className="flex min-w-0 flex-col gap-5">
-                <Identity me={me.data} />
-                <Sessions me={me.data} />
-              </div>
-              <div className="flex min-w-0 flex-col gap-5">
-                <Contact me={me.data} />
-                <Password />
-              </div>
+      <div className="flex flex-col gap-8">
+        <PageHeader title="Mi perfil" description="Sus datos en Clínicas Paredes. Los usamos solo para sus citas." />
+        {me.isPending ? (
+          <Skeleton className="h-96" />
+        ) : me.isError ? (
+          <Notice tone="danger">{errorMessage(me.error)}</Notice>
+        ) : (
+          <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
+            <div className="flex min-w-0 flex-col gap-5">
+              <Identity me={me.data} />
+              <Sessions me={me.data} />
             </div>
-          )}
-        </div>
-      </main>
+            <div className="flex min-w-0 flex-col gap-5">
+              <Contact me={me.data} />
+              <Password />
+            </div>
+          </div>
+        )}
+      </div>
     </>
   );
 }
@@ -68,8 +61,8 @@ function Card({ title, icon: Icon, children, className }: { title: string; icon:
 function Identity({ me }: { me: PortalMe }) {
   return (
     <section className="flex flex-col overflow-hidden rounded-2xl border border-rule bg-surface">
-      <div className="flex items-center gap-4 bg-[var(--euc)] p-5 text-[var(--euc-ink)]">
-        <span className="grid size-16 shrink-0 place-items-center rounded-full bg-[var(--maiz)] font-display text-2xl font-extrabold text-[var(--maiz-ink)]" aria-hidden>
+      <div className="flex items-center gap-4 bg-ballpoint p-5 text-ballpoint-ink">
+        <span className="grid size-16 shrink-0 place-items-center rounded-full bg-ballpoint-ink font-display text-2xl font-extrabold text-ballpoint" aria-hidden>
           {`${me.firstNames[0] ?? ''}${me.lastNames[0] ?? ''}`.toUpperCase()}
         </span>
         <div className="min-w-0">

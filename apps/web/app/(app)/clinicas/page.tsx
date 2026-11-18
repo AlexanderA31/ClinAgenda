@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { CalendarX, Clock, Copy, MapPin, Pencil, Phone, Plus, Save, Trash2, X } from 'lucide-react';
+import { CalendarX, Clock, Copy, MapPin, Pencil, Phone, Plus, Save, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { WEEKDAY_LABELS, type ClinicView, type OrphanAppointment, type WeeklySlot } from '@clinagenda/schemas';
 import { ApiRequestError, api, errorMessage } from '@/lib/api';
@@ -11,6 +11,7 @@ import { useClinics } from '@/lib/queries';
 import { useCan } from '@/lib/session';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { ConfirmButton } from '@/components/ui/confirm-button';
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Field } from '@/components/ui/field';
@@ -151,9 +152,7 @@ function ClinicCard({ clinic, onEdit }: { clinic: ClinicView; onEdit: () => void
                     <span className="font-bold first-letter:uppercase">{dayLabel(c.date)}</span>: {c.reason}
                   </span>
                   {canEdit && (
-                    <Button variant="ghost" size="sm" className="shrink-0" disabled={reopen.isPending} onClick={() => reopen.mutate(c.id)} aria-label={`Quitar el cierre del ${dayLabel(c.date)}`}>
-                      <Trash2 /> Quitar
-                    </Button>
+                    <ConfirmButton label="Quitar" confirmLabel="Sí, quitar" busy={reopen.isPending} onConfirm={() => reopen.mutate(c.id)} ariaLabel={`Quitar el cierre del ${dayLabel(c.date)}`} />
                   )}
                 </li>
               ))}

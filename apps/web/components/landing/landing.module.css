@@ -397,3 +397,186 @@
   width: clamp(70px, 13vw, 190px);
   bottom: 40%;
 }
+
+/*
+  ---------- Página pública: el Pichincha se queda detrás mientras se lee ----------
+  La portada ocupa toda la pantalla y su paisaje queda fijo como fondo de toda la página.
+  La información sube por encima, sección por sección. Mientras se baja, el sol se pone detrás
+  del volcán y el cielo oscurece: es el único gesto animado de la página.
+  Un solo mundo oscuro, a propósito (no cambia con el tema): tinta clara sobre verde eucalipto
+  profundo; el maíz queda solo para la acción principal y para "abierta ahora".
+*/
+
+.night {
+  --night: #0a1d17;
+  --hero: #12352c;
+  --hero-ink: #eef4f0;
+  --hero-2: #b4c9bf;
+  --paper: #0a1d17;
+  --surface: #10291f;
+  --surface-2: #0d2219;
+  --ink: #eef4f0;
+  --ink-2: #b4c9bf;
+  --ink-3: #8ba79a;
+  --rule: #24463b;
+  --rule-strong: #3a6253;
+  --good: #8fdcab;
+  --focus: #f2b631;
+  --panel: rgb(11 33 26 / 0.88);
+  --land: clamp(150px, 30vh, 340px);
+  background: var(--night);
+  color: var(--ink);
+  color-scheme: dark;
+}
+/* Los colores de cada clínica, aclarados para leerse sobre el fondo oscuro. */
+.night .toneNorte {
+  --tone: #74c4a7;
+  --tone-ink: #072019;
+}
+.night .toneCentro {
+  --tone: #93acff;
+  --tone-ink: #0b1640;
+}
+.night .toneOtra {
+  --tone: #c9a2ea;
+  --tone-ink: #22103a;
+}
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background: linear-gradient(to bottom, #0a1d17 0%, #12352c 62%, #1b4739 100%);
+}
+.land {
+  position: absolute;
+  inset: auto 0 0;
+  height: var(--land);
+}
+.dusk {
+  position: absolute;
+  right: 8%;
+  bottom: calc(var(--land) * 0.5);
+  width: clamp(90px, 20vw, 300px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--maiz);
+}
+.veil {
+  position: absolute;
+  inset: 0;
+  background: #04110c;
+  opacity: 0;
+}
+
+.sticky {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background: rgb(10 29 23 / 0.78);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgb(238 244 240 / 0.08);
+}
+
+.cover {
+  min-height: calc(100svh - 76px);
+  padding-bottom: calc(var(--land) * 0.11 + 64px);
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: 1.25rem;
+  backdrop-filter: blur(8px);
+}
+/* La franja de color dice de qué clínica es el panel. */
+.toned {
+  border-top: 4px solid var(--tone);
+}
+.night .doctor {
+  background: var(--panel);
+  border-color: var(--rule);
+  backdrop-filter: blur(8px);
+}
+.night .step {
+  background: transparent;
+  border: 2px solid var(--maiz);
+  color: var(--maiz);
+}
+.night .phone {
+  border-color: #04100c;
+  rotate: 2deg;
+}
+.outline {
+  border: 2px solid var(--rule-strong);
+  color: var(--ink);
+}
+.outline:hover {
+  border-color: var(--ink);
+}
+.mark {
+  border: 2px solid var(--maiz);
+  color: var(--maiz);
+}
+.night :focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
+
+@keyframes sunset {
+  55% {
+    background: #ef9a3c;
+  }
+  to {
+    transform: translate(-38vw, calc(var(--land) * 0.75)) scale(0.85);
+    background: #d4603a;
+  }
+}
+@keyframes nightfall {
+  to {
+    opacity: 0.45;
+  }
+}
+@keyframes surface {
+  from {
+    opacity: 0;
+    transform: translateY(56px);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .dusk {
+    animation: sunrise 1.4s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+  }
+  @supports (animation-timeline: scroll()) {
+    .dusk {
+      animation: sunset linear both;
+      animation-timeline: scroll(root);
+    }
+    .veil {
+      animation: nightfall linear both;
+      animation-timeline: scroll(root);
+    }
+  }
+  @supports (animation-timeline: view()) {
+    .reveal {
+      animation: surface linear both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 30%;
+    }
+  }
+  /* Navegadores sin animaciones por scroll: lo mismo con un observador (ver Reveal). */
+  .revealJs {
+    opacity: 0;
+    transform: translateY(56px);
+    transition:
+      opacity 0.7s ease-out,
+      transform 0.7s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .revealJs.shown {
+    opacity: 1;
+    transform: none;
+  }
+}

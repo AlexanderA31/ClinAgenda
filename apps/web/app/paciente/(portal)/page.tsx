@@ -7,10 +7,10 @@ import { errorMessage } from '@/lib/api';
 import { localDate, longDate, time, todayIso } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Notice, Skeleton } from '@/components/ui/misc';
+import { Notice, PageHeader, Skeleton } from '@/components/ui/misc';
 import { Stat, StatGrid } from '@/components/ui/stat';
 import { StatusBadge } from '@/components/appointments/status-badge';
-import { PortalHeader, usePortalMe } from '@/components/portal/portal-header';
+import { usePortalMe } from '@/components/portal/patient-shell';
 import { AppointmentActions, splitAppointments, usePortalAppointments } from '@/components/portal/appointments';
 import landing from '@/components/landing/landing.module.css';
 import { toneClass } from '@/components/landing/tone';
@@ -34,35 +34,32 @@ export default function PatientHomePage() {
 
   return (
     <>
-      <PortalHeader />
-      <main className={cn(landing.gutter, 'pb-28 pt-8')}>
-        <div className="mx-auto flex max-w-5xl flex-col gap-8">
-          <div className="flex flex-col gap-1">
-            <h1 className="font-display text-4xl font-extrabold tracking-tight sm:text-5xl">Hola{me.data ? `, ${me.data.firstNames.split(' ')[0]}` : ''}.</h1>
-            <p className="text-lg text-ink-2">{next ? 'Esta es su próxima cita.' : 'No tiene citas por venir. Puede agendar una cuando quiera.'}</p>
+      <div className="flex flex-col gap-8">
+        <PageHeader
+          title={`Hola${me.data ? `, ${me.data.firstNames.split(' ')[0]}` : ''}`}
+          description={next ? 'Esta es su próxima cita.' : 'No tiene citas por venir. Puede agendar una cuando quiera.'}
+        />
+
+        {list.isPending ? (
+          <Skeleton className="h-64" />
+        ) : list.isError ? (
+          <Notice tone="danger">{errorMessage(list.error)}</Notice>
+        ) : (
+          <div className="grid gap-5 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
+            {next ? <NextAppointment appt={next} /> : <NoAppointment />}
+            <QuickActions next={next} atLimit={atLimit} />
           </div>
+        )}
 
-          {list.isPending ? (
-            <Skeleton className="h-64" />
-          ) : list.isError ? (
-            <Notice tone="danger">{errorMessage(list.error)}</Notice>
-          ) : (
-            <div className="grid gap-5 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
-              {next ? <NextAppointment appt={next} /> : <NoAppointment />}
-              <QuickActions next={next} atLimit={atLimit} />
-            </div>
-          )}
+        <StatGrid>
+          <Stat label="Por venir" value={upcoming.length} icon={CalendarCheck} tone="info" note={`Hasta ${PORTAL_LIMITS.maxUpcoming} a la vez en línea`} />
+          <Stat label="Por confirmar" value={count('REQUESTED')} icon={Hourglass} tone={count('REQUESTED') ? 'warn' : 'neutral'} note="La clínica las revisa" />
+          <Stat label="Atendidas" value={count('ATTENDED')} icon={CheckCircle2} tone="good" note="Citas a las que asistió" />
+          <Stat label="Canceladas" value={count('CANCELLED')} icon={CalendarX} note="Por usted o por la clínica" />
+        </StatGrid>
 
-          <StatGrid>
-            <Stat label="Por venir" value={upcoming.length} icon={CalendarCheck} tone="info" note={`Hasta ${PORTAL_LIMITS.maxUpcoming} a la vez en línea`} />
-            <Stat label="Por confirmar" value={count('REQUESTED')} icon={Hourglass} tone={count('REQUESTED') ? 'warn' : 'neutral'} note="La clínica las revisa" />
-            <Stat label="Atendidas" value={count('ATTENDED')} icon={CheckCircle2} tone="good" note="Citas a las que asistió" />
-            <Stat label="Canceladas" value={count('CANCELLED')} icon={CalendarX} note="Por usted o por la clínica" />
-          </StatGrid>
-
-          <BeforeYourVisit />
-        </div>
-      </main>
+        <BeforeYourVisit />
+      </div>
     </>
   );
 }
@@ -167,7 +164,7 @@ function QuickActions({ next, atLimit }: { next?: PortalAppointment; atLimit: bo
 /** Recordatorio de qué llevar, el mismo de la página pública. */
 function BeforeYourVisit() {
   return (
-    <section className="grid gap-4 rounded-2xl bg-[var(--euc)] p-6 text-[var(--euc-ink)] md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+    <section className="grid gap-4 rounded-lg border border-rule bg-surface p-6 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
       <h2 className="font-display text-2xl font-extrabold">Antes de su cita</h2>
       <ul className="grid gap-3 sm:grid-cols-2">
         <li>Llegue 10 minutos antes para registrarse con calma.</li>

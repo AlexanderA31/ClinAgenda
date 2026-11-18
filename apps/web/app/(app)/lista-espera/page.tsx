@@ -2,13 +2,14 @@
 
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CalendarPlus, Plus, Trash2 } from 'lucide-react';
+import { CalendarPlus, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import type { PatientView, WaitlistEntryView } from '@clinagenda/schemas';
 import { api, errorMessage } from '@/lib/api';
 import { dateTime, phone } from '@/lib/format';
 import { useClinics, useDebounced, useDoctors, usePatientSearch } from '@/lib/queries';
 import { Button } from '@/components/ui/button';
+import { ConfirmButton } from '@/components/ui/confirm-button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Field } from '@/components/ui/field';
 import { Input, Select } from '@/components/ui/input';
@@ -70,9 +71,7 @@ export default function WaitlistPage() {
                 <Button size="sm" onClick={() => setBooking({ clinicId: e.clinic.id, waitlistEntryId: e.id, patient: { id: e.patient.id, fullName: e.patient.fullName, phone: e.patient.phone } as PatientView })}>
                   <CalendarPlus /> Darle cita
                 </Button>
-                <Button variant="ghost" size="sm" onClick={() => remove.mutate(e.id)}>
-                  <Trash2 /> Quitar
-                </Button>
+                <ConfirmButton label="Quitar" confirmLabel="Sí, quitar de la lista" busy={remove.isPending} onConfirm={() => remove.mutate(e.id)} ariaLabel={`Quitar a ${e.patient.fullName} de la lista`} />
               </div>
             </li>
           ))}

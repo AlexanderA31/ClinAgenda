@@ -8,6 +8,8 @@ export interface NavLink {
   permission?: Permission;
   /** Fuera de la aplicación (se abre en otra pestaña), como la documentación de la API. */
   external?: boolean;
+  /** Solo se marca en su propia ruta, no en las de abajo (el "Inicio" del portal). */
+  exact?: boolean;
 }
 
 /** Un menú: enlace directo, o con submenú cuando tiene `children`. */
