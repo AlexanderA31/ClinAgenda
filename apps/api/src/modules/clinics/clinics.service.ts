@@ -1,11 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import type { Clinic, ClinicClosure, ClinicSchedule } from '@prisma/client';
-import type { ClinicCreateInput, ClinicUpdateInput, ClinicView, ClosureCreateInput, SessionUser } from '@clinagenda/schemas';
+import type { ClinicCreateInput, ClinicUpdateInput, ClinicView, ClosureCreateInput, OrphanAppointment, SessionUser } from '@clinagenda/schemas';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { DomainError } from '../../common/errors/domain-error';
 import type { RequestMeta } from '../../common/decorators/auth.decorators';
-import { isoDate } from '../../common/utils/time';
+import { hhmmToMinutes, inZone, isoDate, minutesOfDay, weekdayOf } from '../../common/utils/time';
+import { appointmentCode } from '../../common/utils/views';
 
 type ClinicFull = Clinic & { schedules: ClinicSchedule[]; closures: ClinicClosure[] };
 
@@ -66,9 +67,9 @@ export class ClinicsService {
     });
   }
 
-  async update(id: string, input: ClinicUpdateInput, actor: SessionUser, meta: RequestMeta) {
+  async update(id: string, input: ClinicUpdateInput, actor: SessionUser, meta: RequestMeta): Promise<ClinicView & { appointmentsOutsideSchedule: OrphanAppointment[] }> {
     const before = await this.get(id);
-    return this.prisma.$transaction(async (tx) => {
+    const view = await this.prisma.$transaction(async (tx) => {
       if (input.schedule) {
         await tx.clinicSchedule.deleteMany({ where: { clinicId: id } });
         await tx.clinicSchedule.createMany({ data: input.schedule.map((s) => ({ ...s, clinicId: id })) });
@@ -82,6 +83,58 @@ export class ClinicsService {
       await this.audit.log({ userId: actor.id, action: 'UPDATE', entity: 'Clinic', entityId: id, summary: `Actualizó la clínica ${clinic.name}`, before, after: view, meta }, tx);
       return view;
     });
+    return { ...view, appointmentsOutsideSchedule: await this.orphans(id) };
+  }
+
+  /**
+   * Citas futuras que ya no caben en el horario de la clínica (se acortó un día o se cerró).
+   * No se cancelan solas: se listan para que recepción llame a cada paciente y la reprograme.
+   */
+  async orphans(clinicId: string): Promise<OrphanAppointment[]> {
+    const clinic = await this.prisma.clinic.findUniqueOrThrow({ where: { id: clinicId }, include: { schedules: true } });
+    const future = await this.prisma.appointment.findMany({
+      where: { clinicId, status: 'SCHEDULED', startsAt: { gt: new Date() } },
+      include: { patient: true, doctor: true },
+      orderBy: { startsAt: 'asc' },
+    });
+    return future
+      .filter((a) => {
+        const local = inZone(a.startsAt, clinic.timezone);
+        const end = inZone(a.endsAt, clinic.timezone);
+        const from = minutesOfDay(local);
+        const to = end.hasSame(local, 'day') ? minutesOfDay(end) : 24 * 60;
+        return !clinic.schedules.some((s) => s.weekday === weekdayOf(local) && hhmmToMinutes(s.startTime) <= from && to <= hhmmToMinutes(s.endTime));
+      })
+      .map((a) => ({
+        id: a.id,
+        code: appointmentCode(a.code),
+        startsAt: a.startsAt.toISOString(),
+        patientName: `${a.patient.firstNames} ${a.patient.lastNames}`,
+        patientPhone: a.patient.phone ?? a.patient.guardianPhone,
+        clinicName: clinic.name,
+        doctorName: a.doctor.fullName,
+      }));
+  }
+
+  /** Quitar un cierre puesto por error: ese día se vuelve a poder agendar. */
+  async removeClosure(clinicId: string, closureId: string, actor: SessionUser, meta: RequestMeta) {
+    const closure = await this.prisma.clinicClosure.findFirst({ where: { id: closureId, clinicId }, include: { clinic: true } });
+    if (!closure) throw DomainError.notFound('ese cierre');
+    await this.prisma.$transaction(async (tx) => {
+      await tx.clinicClosure.delete({ where: { id: closureId } });
+      await this.audit.log(
+        {
+          userId: actor.id,
+          action: 'DELETE',
+          entity: 'ClinicClosure',
+          entityId: closureId,
+          summary: `Quitó el cierre de ${closure.clinic.name} del ${isoDate(closure.date)} (${closure.reason})`,
+          meta,
+        },
+        tx,
+      );
+    });
+    return { ok: true };
   }
 
   async addClosure(id: string, input: ClosureCreateInput, actor: SessionUser, meta: RequestMeta) {

@@ -201,6 +201,7 @@ model Patient {
 
   appointments Appointment[]
   waitlist     WaitlistEntry[]
+  account      PatientAccount?
 
   @@index([nameNormalized])
   @@index([phone])
@@ -245,6 +246,21 @@ model Appointment {
   @@index([clinicId, startsAt])
   @@index([patientId, startsAt])
   @@index([status, startsAt])
+}
+
+/// Cuenta del portal del paciente: ingresa con su cédula o pasaporte (el de su ficha) y una contraseña.
+model PatientAccount {
+  id             String    @id @default(uuid()) @db.Uuid
+  patientId      String    @unique @db.Uuid
+  patient        Patient   @relation(fields: [patientId], references: [id])
+  /// Copia normalizada del documento, para ingresar sin importar si la ficha se corrige después.
+  login          String    @unique
+  passwordHash   String
+  tokenVersion   Int       @default(0)
+  failedAttempts Int       @default(0)
+  lockedUntil    DateTime? @db.Timestamptz(3)
+  lastLoginAt    DateTime? @db.Timestamptz(3)
+  createdAt      DateTime  @default(now()) @db.Timestamptz(3)
 }
 
 /// Historia de cada cita: creada, reprogramada, cancelada, reactivada…

@@ -12,6 +12,7 @@ import { AuditModule } from './modules/audit/audit.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { RolesModule } from './modules/roles/roles.module';
+import { PortalModule } from './modules/portal/portal.module';
 import { ClinicsModule } from './modules/clinics/clinics.module';
 import { DoctorsModule } from './modules/doctors/doctors.module';
 import { PatientsModule } from './modules/patients/patients.module';
@@ -32,6 +33,7 @@ import { SystemModule } from './modules/system/system.module';
     AuthModule,
     UsersModule,
     RolesModule,
+    PortalModule,
     ClinicsModule,
     DoctorsModule,
     PatientsModule,

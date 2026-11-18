@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { ClinicCreateSchema, ClinicUpdateSchema, ClosureCreateSchema, type SessionUser } from '@clinagenda/schemas';
 import { createZodDto } from 'nestjs-zod';
@@ -40,5 +40,16 @@ export class ClinicsController {
   @Post(':id/closures')
   addClosure(@Param('id', ParseUUIDPipe) id: string, @Body() body: ClosureCreateDto, @CurrentUser() user: SessionUser, @ReqMeta() meta: RequestMeta) {
     return this.clinics.addClosure(id, body, user, meta);
+  }
+
+  @Can('clinicas.gestionar')
+  @Delete(':id/closures/:closureId')
+  removeClosure(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('closureId', ParseUUIDPipe) closureId: string,
+    @CurrentUser() user: SessionUser,
+    @ReqMeta() meta: RequestMeta,
+  ) {
+    return this.clinics.removeClosure(id, closureId, user, meta);
   }
 }

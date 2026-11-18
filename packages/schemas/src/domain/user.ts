@@ -49,3 +49,19 @@ export interface UserView {
   lastLoginAt: string | null;
   createdAt: string;
 }
+
+/** Lo que cada persona puede cambiar de sí misma: solo su nombre. El rol y la clínica los decide la dirección. */
+export const MyProfileUpdateSchema = z.object({ fullName });
+export type MyProfileUpdateInput = z.infer<typeof MyProfileUpdateSchema>;
+
+/** "Mi usuario": datos de la propia cuenta. */
+export interface MyProfile {
+  id: string;
+  username: string;
+  fullName: string;
+  roleName: string;
+  clinicName: string | null;
+  doctorName: string | null;
+  lastLoginAt: string | null;
+  createdAt: string;
+}

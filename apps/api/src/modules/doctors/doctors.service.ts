@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { Clinic, Doctor, DoctorAssignment } from '@prisma/client';
-import { DoctorCreateSchema, type DoctorCreateInput, type DoctorUpdateInput, type DoctorView, type SessionUser } from '@clinagenda/schemas';
+import { DoctorCreateSchema, type DoctorCreateInput, type DoctorUpdateInput, type DoctorView, type OrphanAppointment, type SessionUser } from '@clinagenda/schemas';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { DomainError } from '../../common/errors/domain-error';
@@ -8,15 +8,6 @@ import { fromZod } from '../../common/filters/all-exceptions.filter';
 import type { RequestMeta } from '../../common/decorators/auth.decorators';
 import { hhmmToMinutes, inZone, minutesOfDay, weekdayOf } from '../../common/utils/time';
 import { appointmentCode } from '../../common/utils/views';
-
-export interface OrphanAppointment {
-  id: string;
-  code: string;
-  startsAt: string;
-  patientName: string;
-  patientPhone: string | null;
-  clinicName: string;
-}
 
 type DoctorFull = Doctor & { assignments: (DoctorAssignment & { clinic: Clinic })[] };
 
@@ -130,6 +121,7 @@ export class DoctorsService {
         patientName: `${a.patient.firstNames} ${a.patient.lastNames}`,
         patientPhone: a.patient.phone ?? a.patient.guardianPhone,
         clinicName: a.clinic.name,
+        doctorName: doctor.fullName,
       }));
   }
 

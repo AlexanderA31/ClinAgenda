@@ -345,7 +345,7 @@ function describeEvent(type: string, data: Prisma.JsonValue): string {
   const d = (data ?? {}) as Record<string, string>;
   switch (type) {
     case 'CREATED':
-      return `Cita agendada con ${d.doctor} en ${d.clinic}`;
+      return d.via === 'web' ? `El paciente agendó en línea con ${d.doctor} en ${d.clinic}` : `Cita agendada con ${d.doctor} en ${d.clinic}`;
     case 'RESCHEDULED':
       return `Cambio de hora (${d.clinic}, ${d.doctor})`;
     case 'CANCELLED':

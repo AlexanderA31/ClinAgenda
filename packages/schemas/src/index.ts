@@ -16,3 +16,4 @@ export * from './domain/waitlist';
 export * from './domain/report';
 export * from './domain/audit';
 export * from './domain/import';
+export * from './domain/portal';

@@ -30,12 +30,15 @@ export class AuthGuard implements CanActivate {
     const token = (req.cookies?.[SESSION_COOKIE] as string | undefined) ?? (header?.startsWith('Bearer ') ? header.slice(7) : undefined);
     if (!token) throw new UnauthorizedException();
 
-    let payload: { sub: string; v?: number };
+    let payload: { sub: string; v?: number; kind?: string };
     try {
       payload = await this.jwt.verifyAsync(token);
     } catch {
       throw new UnauthorizedException();
     }
+
+    // Una sesión del portal del paciente nunca vale para el sistema interno.
+    if (payload.kind === 'patient') throw new UnauthorizedException();
 
     const user = await this.prisma.user.findUnique({ where: { id: payload.sub }, include: { accessRole: true } });
     if (!user || !user.active || (payload.v ?? 0) !== user.tokenVersion) throw new UnauthorizedException();

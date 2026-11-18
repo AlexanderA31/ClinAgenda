@@ -145,3 +145,14 @@ export interface AppointmentEventView {
   by: string | null;
   summary: string;
 }
+
+/** Cita futura que quedó fuera del horario (del médico o de la clínica) y hay que reprogramar. */
+export interface OrphanAppointment {
+  id: string;
+  code: string;
+  startsAt: string;
+  patientName: string;
+  patientPhone: string | null;
+  clinicName: string;
+  doctorName: string;
+}

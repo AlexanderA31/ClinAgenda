@@ -8,7 +8,7 @@ import { MAX_AGE_YEARS, ageOn, isRealIsoDate, todayIn } from '../validators/date
 
 export const ADULT_AGE = 18;
 
-const nameField = (label: string) =>
+export const nameField = (label: string) =>
   cleaned(
     toTitleCaseName,
     z

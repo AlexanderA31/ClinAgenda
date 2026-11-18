@@ -1,7 +1,7 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
-import { ErrorCodes, type ChangePasswordInput, type LoginInput, type SessionUser } from '@clinagenda/schemas';
+import { ErrorCodes, type ChangePasswordInput, type LoginInput, type MyProfile, type MyProfileUpdateInput, type SessionUser } from '@clinagenda/schemas';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { DomainError } from '../../common/errors/domain-error';
@@ -71,5 +71,37 @@ export class AuthService {
     });
     await this.audit.log({ userId: user.id, action: 'PASSWORD_CHANGED', entity: 'User', entityId: user.id, summary: 'Cambió su contraseña', meta });
     return { ok: true };
+  }
+
+  async profile(user: SessionUser): Promise<MyProfile> {
+    const u = await this.prisma.user.findUniqueOrThrow({ where: { id: user.id }, include: { accessRole: true, clinic: true, doctor: true } });
+    return {
+      id: u.id,
+      username: u.username,
+      fullName: u.fullName,
+      roleName: u.accessRole.name,
+      clinicName: u.clinic?.name ?? null,
+      doctorName: u.doctor?.fullName ?? null,
+      lastLoginAt: u.lastLoginAt?.toISOString() ?? null,
+      createdAt: u.createdAt.toISOString(),
+    };
+  }
+
+  async updateProfile(user: SessionUser, input: MyProfileUpdateInput, meta: RequestMeta): Promise<MyProfile> {
+    await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({ where: { id: user.id }, data: { fullName: input.fullName } });
+      await this.audit.log(
+        { userId: user.id, action: 'UPDATE', entity: 'User', entityId: user.id, summary: `Cambió su nombre de "${user.fullName}" a "${input.fullName}"`, meta },
+        tx,
+      );
+    });
+    return this.profile({ ...user, fullName: input.fullName });
+  }
+
+  /** Cierra la sesión en los demás equipos y entrega un token nuevo para este. */
+  async revokeOtherSessions(user: SessionUser, meta: RequestMeta): Promise<string> {
+    const updated = await this.prisma.user.update({ where: { id: user.id }, data: { tokenVersion: { increment: 1 } } });
+    await this.audit.log({ userId: user.id, action: 'SESSIONS_REVOKED', entity: 'User', entityId: user.id, summary: 'Cerró su sesión en los demás equipos', meta });
+    return this.jwt.signAsync({ sub: user.id, v: updated.tokenVersion });
   }
 }
