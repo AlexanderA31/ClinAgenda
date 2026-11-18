@@ -1,0 +1,348 @@
+import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
+import {
+  APPOINTMENT_STATUS_LABELS,
+  CANCEL_REASON_LABELS,
+  ErrorCodes,
+  type AppointmentCancelInput,
+  type AppointmentCreate,
+  type AppointmentEventView,
+  type AppointmentListQuery,
+  type AppointmentRescheduleInput,
+  type AppointmentStatusUpdateInput,
+  type AppointmentView,
+  type ClinicalNoteInput,
+  type Paginated,
+  type SessionUser,
+} from '@clinagenda/schemas';
+import { Db, PrismaService } from '../../prisma/prisma.service';
+import { AuditService } from '../audit/audit.service';
+import { DomainError } from '../../common/errors/domain-error';
+import { DEFAULT_TZ, formatLocal, rangeBoundsUtc } from '../../common/utils/time';
+import { AppointmentWithRelations, appointmentCode, canSeeClinicalNote, toAppointmentView } from '../../common/utils/views';
+import type { RequestMeta } from '../../common/decorators/auth.decorators';
+import { SchedulingService } from './scheduling.service';
+
+const include = { patient: true, doctor: true, clinic: { include: { schedules: true } } } as const;
+
+/** Tras cancelar, durante cuánto tiempo se ofrece el botón "Deshacer" de forma destacada. */
+export const UNDO_WINDOW_MINUTES = 10;
+
+@Injectable()
+export class AppointmentsService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+    private readonly scheduling: SchedulingService,
+  ) {}
+
+  async list(q: AppointmentListQuery, user: SessionUser): Promise<Paginated<AppointmentView>> {
+    const where: Prisma.AppointmentWhereInput = {
+      clinicId: q.clinicId,
+      doctorId: user.role === 'MEDICO' ? (user.doctorId ?? '00000000-0000-0000-0000-000000000000') : q.doctorId,
+      patientId: q.patientId,
+      status: q.status,
+    };
+    if (q.from || q.to) {
+      const { start, end } = rangeBoundsUtc(q.from ?? q.to!, q.to ?? q.from!, DEFAULT_TZ);
+      where.startsAt = { gte: start, lt: end };
+    }
+    if (q.q) {
+      const term = q.q.trim();
+      const codeMatch = /^c-?(\d+)$/i.exec(term);
+      where.OR = codeMatch
+        ? [{ code: Number(codeMatch[1]) }]
+        : [
+            { patient: { nameNormalized: { contains: term.toLowerCase().normalize('NFD').replace(/\p{M}/gu, '') } } },
+            { patient: { documentNumber: { startsWith: term } } },
+            { doctor: { fullName: { contains: term, mode: 'insensitive' } } },
+          ];
+    }
+
+    const [total, rows] = await this.prisma.$transaction([
+      this.prisma.appointment.count({ where }),
+      this.prisma.appointment.findMany({
+        where,
+        include,
+        orderBy: [{ [q.sortBy]: q.sortDir }, { startsAt: 'asc' }],
+        skip: (q.page - 1) * q.pageSize,
+        take: q.pageSize,
+      }),
+    ]);
+    const names = await this.userNames(rows);
+    return {
+      items: rows.map((r) => this.view(r, user, names)),
+      total,
+      page: q.page,
+      pageSize: q.pageSize,
+      pageCount: Math.max(1, Math.ceil(total / q.pageSize)),
+    };
+  }
+
+  async get(id: string, user: SessionUser): Promise<AppointmentView> {
+    const appt = await this.load(id, user);
+    if (canSeeClinicalNote(user, appt) && appt.clinicalNote) {
+      await this.audit.log({ userId: user.id, action: 'VIEW_CLINICAL', entity: 'Appointment', entityId: id, summary: `Consultó la nota clínica de ${appointmentCode(appt.code)}` });
+    }
+    return this.view(appt, user, await this.userNames([appt]));
+  }
+
+  async events(id: string, user: SessionUser): Promise<AppointmentEventView[]> {
+    await this.load(id, user);
+    const events = await this.prisma.appointmentEvent.findMany({ where: { appointmentId: id }, orderBy: { at: 'asc' } });
+    const users = await this.prisma.user.findMany({ where: { id: { in: events.map((e) => e.byId).filter((x): x is string => !!x) } } });
+    const names = new Map(users.map((u) => [u.id, u.fullName]));
+    return events.map((e) => ({ id: e.id, type: e.type, at: e.at.toISOString(), by: e.byId ? (names.get(e.byId) ?? null) : null, summary: describeEvent(e.type, e.data) }));
+  }
+
+  async create(input: AppointmentCreate, user: SessionUser, meta: RequestMeta): Promise<AppointmentView> {
+    if (user.role === 'MEDICO' && input.doctorId !== user.doctorId) throw DomainError.forbidden('Un médico solo puede agendar en su propia agenda.');
+
+    const [patient, doctor, clinic] = await Promise.all([
+      this.prisma.patient.findUnique({ where: { id: input.patientId } }),
+      this.prisma.doctor.findUnique({ where: { id: input.doctorId } }),
+      this.prisma.clinic.findUnique({ where: { id: input.clinicId }, include: { schedules: true } }),
+    ]);
+    if (!patient) throw DomainError.notFound('al paciente');
+    if (patient.mergedIntoId) throw DomainError.validation('Esa ficha de paciente fue unida a otra. Busque al paciente de nuevo.');
+    if (!doctor) throw DomainError.notFound('al médico');
+    if (!clinic) throw DomainError.notFound('la clínica');
+
+    const startsAt = new Date(input.startsAt);
+    const endsAt = new Date(startsAt.getTime() + (input.durationMinutes ?? clinic.slotMinutes) * 60000);
+
+    const created = await this.prisma.$transaction(async (tx) => {
+      await this.scheduling.assertBookable({ clinic, doctor, patientId: patient.id, startsAt, endsAt }, tx);
+      const appt = await tx.appointment.create({
+        data: { patientId: patient.id, doctorId: doctor.id, clinicId: clinic.id, startsAt, endsAt, reason: input.reason, createdById: user.id },
+        include,
+      });
+      await this.event(tx, appt.id, 'CREATED', user.id, { startsAt, clinic: clinic.name, doctor: doctor.fullName });
+      if (input.waitlistEntryId) {
+        await tx.waitlistEntry.updateMany({ where: { id: input.waitlistEntryId, status: { in: ['WAITING', 'OFFERED'] } }, data: { status: 'BOOKED', resolvedAt: new Date() } });
+      }
+      await this.audit.log(
+        {
+          userId: user.id,
+          action: 'CREATE',
+          entity: 'Appointment',
+          entityId: appt.id,
+          summary: `Agendó ${appointmentCode(appt.code)}: ${patient.firstNames} ${patient.lastNames} con ${doctor.fullName}, ${clinic.name}, ${formatLocal(startsAt, clinic.timezone)}`,
+          after: snapshot(appt),
+          meta,
+        },
+        tx,
+      );
+      return appt;
+    });
+    return this.view(created, user, new Map([[user.id, user.fullName]]));
+  }
+
+  async reschedule(id: string, input: AppointmentRescheduleInput, user: SessionUser, meta: RequestMeta): Promise<AppointmentView> {
+    const before = await this.load(id, user);
+    if (before.status !== 'SCHEDULED') {
+      throw DomainError.validation(`Esta cita está "${APPOINTMENT_STATUS_LABELS[before.status].toLowerCase()}" y ya no se puede cambiar de hora. Agende una nueva.`);
+    }
+    const doctorId = input.doctorId ?? before.doctorId;
+    if (user.role === 'MEDICO' && doctorId !== user.doctorId) throw DomainError.forbidden();
+    const [doctor, clinic] = await Promise.all([
+      this.prisma.doctor.findUniqueOrThrow({ where: { id: doctorId } }),
+      this.prisma.clinic.findUniqueOrThrow({ where: { id: input.clinicId ?? before.clinicId }, include: { schedules: true } }),
+    ]);
+    const startsAt = new Date(input.startsAt);
+    const duration = input.durationMinutes ?? (before.endsAt.getTime() - before.startsAt.getTime()) / 60000;
+    const endsAt = new Date(startsAt.getTime() + duration * 60000);
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      await this.scheduling.assertBookable({ clinic, doctor, patientId: before.patientId, startsAt, endsAt, ignoreAppointmentId: id }, tx);
+      const appt = await tx.appointment.update({ where: { id }, data: { startsAt, endsAt, doctorId: doctor.id, clinicId: clinic.id }, include });
+      await this.event(tx, id, 'RESCHEDULED', user.id, { from: before.startsAt, to: startsAt, clinic: clinic.name, doctor: doctor.fullName });
+      await this.audit.log(
+        {
+          userId: user.id,
+          action: 'RESCHEDULE',
+          entity: 'Appointment',
+          entityId: id,
+          summary: `Cambió ${appointmentCode(appt.code)} de ${formatLocal(before.startsAt, before.clinic.timezone)} a ${formatLocal(startsAt, clinic.timezone)}`,
+          before: snapshot(before),
+          after: snapshot(appt),
+          meta,
+        },
+        tx,
+      );
+      return appt;
+    });
+    return this.view(updated, user, await this.userNames([updated]));
+  }
+
+  /**
+   * Cancelar es fácil (cualquier usuario, un motivo de una lista) pero nunca destructivo:
+   * la cita queda guardada como cancelada, con quién y por qué, y se puede reactivar.
+   * Cancelar dos veces no es un error: la segunda vez simplemente informa que ya estaba cancelada.
+   */
+  async cancel(id: string, input: AppointmentCancelInput, user: SessionUser, meta: RequestMeta) {
+    const before = await this.load(id, user);
+    if (before.status === 'CANCELLED') {
+      return { appointment: this.view(before, user, await this.userNames([before])), alreadyCancelled: true, waitlistMatches: 0 };
+    }
+    if (before.status !== 'SCHEDULED') {
+      throw DomainError.validation(`Esta cita ya fue marcada como "${APPOINTMENT_STATUS_LABELS[before.status].toLowerCase()}"; no se puede cancelar.`);
+    }
+
+    // Actualización condicional: si dos personas cancelan a la vez, solo una registra la cancelación.
+    const result = await this.prisma.$transaction(async (tx) => {
+      const { count } = await tx.appointment.updateMany({
+        where: { id, status: 'SCHEDULED' },
+        data: { status: 'CANCELLED', cancelReason: input.reason, cancelNote: input.note, cancelledAt: new Date(), cancelledById: user.id },
+      });
+      if (count === 0) return null;
+      await this.event(tx, id, 'CANCELLED', user.id, { reason: input.reason, note: input.note });
+      await this.audit.log(
+        {
+          userId: user.id,
+          action: 'CANCEL',
+          entity: 'Appointment',
+          entityId: id,
+          summary: `Canceló ${appointmentCode(before.code)} (${CANCEL_REASON_LABELS[input.reason]}${input.note ? ': ' + input.note : ''})`,
+          before: snapshot(before),
+          meta,
+        },
+        tx,
+      );
+      return tx.appointment.findUniqueOrThrow({ where: { id }, include });
+    });
+
+    const appt = result ?? (await this.load(id, user));
+    // ¿Qué pasa con la hora que quedó libre? Se avisa si hay pacientes esperando en esa clínica.
+    const waitlistMatches = await this.prisma.waitlistEntry.count({
+      where: { clinicId: appt.clinicId, status: 'WAITING', OR: [{ doctorId: null }, { doctorId: appt.doctorId }] },
+    });
+    return { appointment: this.view(appt, user, await this.userNames([appt])), alreadyCancelled: result === null, waitlistMatches };
+  }
+
+  /** "Deshacer" una cancelación: solo si la hora no ha pasado y nadie más ocupó ese espacio. */
+  async restore(id: string, user: SessionUser, meta: RequestMeta): Promise<AppointmentView> {
+    const before = await this.load(id, user);
+    if (before.status !== 'CANCELLED') return this.view(before, user, await this.userNames([before]));
+    if (before.startsAt.getTime() < Date.now()) {
+      throw DomainError.conflict(ErrorCodes.UNDO_NOT_POSSIBLE, 'Esta cita ya pasó; no se puede reactivar. Agende una nueva.');
+    }
+    const restored = await this.prisma.$transaction(async (tx) => {
+      try {
+        await this.scheduling.assertBookable(
+          { clinic: before.clinic, doctor: before.doctor, patientId: before.patientId, startsAt: before.startsAt, endsAt: before.endsAt, ignoreAppointmentId: id },
+          tx,
+        );
+      } catch (e) {
+        if (e instanceof DomainError && (e.code === ErrorCodes.SLOT_TAKEN || e.code === ErrorCodes.PATIENT_OVERLAP)) {
+          throw DomainError.conflict(ErrorCodes.UNDO_NOT_POSSIBLE, `No se puede reactivar: ${e.message}`);
+        }
+        throw e;
+      }
+      const appt = await tx.appointment.update({
+        where: { id },
+        data: { status: 'SCHEDULED', cancelReason: null, cancelNote: null, cancelledAt: null, cancelledById: null },
+        include,
+      });
+      await this.event(tx, id, 'RESTORED', user.id, null);
+      await this.audit.log(
+        { userId: user.id, action: 'RESTORE', entity: 'Appointment', entityId: id, summary: `Reactivó ${appointmentCode(appt.code)} (deshizo la cancelación)`, before: snapshot(before), after: snapshot(appt), meta },
+        tx,
+      );
+      return appt;
+    });
+    return this.view(restored, user, await this.userNames([restored]));
+  }
+
+  async setStatus(id: string, input: AppointmentStatusUpdateInput, user: SessionUser, meta: RequestMeta): Promise<AppointmentView> {
+    const before = await this.load(id, user);
+    if (before.status === 'CANCELLED') throw DomainError.validation('La cita está cancelada. Si fue un error, primero reactívela.');
+    if (before.startsAt.getTime() > Date.now() + 15 * 60000) {
+      throw DomainError.validation('Solo se puede marcar la asistencia cuando llega la hora de la cita.');
+    }
+    const appt = await this.prisma.$transaction(async (tx) => {
+      const a = await tx.appointment.update({ where: { id }, data: { status: input.status }, include });
+      await this.event(tx, id, input.status, user.id, { from: before.status });
+      await this.audit.log(
+        { userId: user.id, action: 'STATUS', entity: 'Appointment', entityId: id, summary: `Marcó ${appointmentCode(a.code)} como "${APPOINTMENT_STATUS_LABELS[input.status]}"`, before: { status: before.status }, after: { status: input.status }, meta },
+        tx,
+      );
+      return a;
+    });
+    return this.view(appt, user, await this.userNames([appt]));
+  }
+
+  async setClinicalNote(id: string, input: ClinicalNoteInput, user: SessionUser, meta: RequestMeta): Promise<AppointmentView> {
+    const before = await this.load(id, user);
+    if (!canSeeClinicalNote(user, before)) throw DomainError.forbidden('Solo el médico de la cita puede escribir la nota clínica.');
+    const appt = await this.prisma.$transaction(async (tx) => {
+      const a = await tx.appointment.update({ where: { id }, data: { clinicalNote: input.clinicalNote }, include });
+      await this.event(tx, id, 'NOTE_UPDATED', user.id, null);
+      // El contenido clínico no se copia a la bitácora: solo que hubo un cambio.
+      await this.audit.log({ userId: user.id, action: 'CLINICAL_NOTE', entity: 'Appointment', entityId: id, summary: `Actualizó la nota clínica de ${appointmentCode(a.code)}`, meta }, tx);
+      return a;
+    });
+    return this.view(appt, user, await this.userNames([appt]));
+  }
+
+  private async load(id: string, user: SessionUser) {
+    const appt = await this.prisma.appointment.findUnique({ where: { id }, include });
+    if (!appt) throw DomainError.notFound('la cita');
+    if (user.role === 'MEDICO' && appt.doctorId !== user.doctorId) throw DomainError.forbidden('Esta cita no es de su agenda.');
+    return appt;
+  }
+
+  private view(appt: AppointmentWithRelations, user: SessionUser, names: Map<string, string>): AppointmentView {
+    const v = toAppointmentView(appt, user, names);
+    if (appt.status === 'CANCELLED') v.canUndoCancel = appt.startsAt.getTime() > Date.now();
+    return v;
+  }
+
+  private async userNames(rows: { createdById: string | null; cancelledById: string | null }[]) {
+    const ids = [...new Set(rows.flatMap((r) => [r.createdById, r.cancelledById]).filter((x): x is string => !!x))];
+    if (!ids.length) return new Map<string, string>();
+    const users = await this.prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, fullName: true } });
+    return new Map(users.map((u) => [u.id, u.fullName]));
+  }
+
+  private event(db: Db, appointmentId: string, type: string, byId: string, data: unknown) {
+    return db.appointmentEvent.create({ data: { appointmentId, type, byId, data: data == null ? Prisma.JsonNull : (JSON.parse(JSON.stringify(data)) as Prisma.InputJsonValue) } });
+  }
+}
+
+function snapshot(a: AppointmentWithRelations) {
+  return {
+    code: appointmentCode(a.code),
+    status: a.status,
+    startsAt: a.startsAt.toISOString(),
+    endsAt: a.endsAt.toISOString(),
+    patient: `${a.patient.firstNames} ${a.patient.lastNames}`,
+    doctor: a.doctor.fullName,
+    clinic: a.clinic.name,
+    reason: a.reason,
+  };
+}
+
+function describeEvent(type: string, data: Prisma.JsonValue): string {
+  const d = (data ?? {}) as Record<string, string>;
+  switch (type) {
+    case 'CREATED':
+      return `Cita agendada con ${d.doctor} en ${d.clinic}`;
+    case 'RESCHEDULED':
+      return `Cambio de hora (${d.clinic}, ${d.doctor})`;
+    case 'CANCELLED':
+      return `Cancelada: ${CANCEL_REASON_LABELS[d.reason as keyof typeof CANCEL_REASON_LABELS] ?? d.reason}${d.note ? ' — ' + d.note : ''}`;
+    case 'RESTORED':
+      return 'Se deshizo la cancelación';
+    case 'ATTENDED':
+      return 'El paciente fue atendido';
+    case 'NO_SHOW':
+      return 'El paciente no asistió';
+    case 'NOTE_UPDATED':
+      return 'Nota clínica actualizada';
+    case 'IMPORTED':
+      return 'Importada desde archivo';
+    default:
+      return type;
+  }
+}
