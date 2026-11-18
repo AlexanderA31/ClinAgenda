@@ -10,7 +10,12 @@ import {
   type PatientRegister,
   type PortalAppointment,
   type PortalBookInput,
+
   type PortalMe,
+  type PortalProfileUpdate,
+  type ChangePasswordInput,
+  ageOn,
+  todayIn,
   type PortalSlot,
 } from '@clinagenda/schemas';
 import type { Appointment, Clinic, Doctor } from '@prisma/client';
@@ -126,16 +131,69 @@ export class PortalService {
   }
 
   async me(session: PatientSession): Promise<PortalMe> {
-    const p = await this.prisma.patient.findUniqueOrThrow({ where: { id: session.patientId } });
+    const p = await this.prisma.patient.findUniqueOrThrow({ where: { id: session.patientId }, include: { account: true } });
+    const birthDate = p.birthDate.toISOString().slice(0, 10);
     return {
       firstNames: p.firstNames,
       lastNames: p.lastNames,
       documentType: p.documentType === 'PASAPORTE' ? 'PASAPORTE' : 'CEDULA',
       documentNumber: p.documentNumber ?? '',
+      birthDate,
+      age: ageOn(birthDate, todayIn()),
       phone: p.phone,
       email: p.email,
+      address: p.address,
       patientCode: patientCode(p.code),
+      accountSince: (p.account?.createdAt ?? p.createdAt).toISOString(),
+      lastLoginAt: p.account?.lastLoginAt?.toISOString() ?? null,
     };
+  }
+
+  /** El paciente corrige cómo ubicarlo (celular, correo, dirección). Queda en la bitácora. */
+  async updateProfile(session: PatientSession, input: PortalProfileUpdate, meta: RequestMeta): Promise<PortalMe> {
+    const before = await this.prisma.patient.findUniqueOrThrow({ where: { id: session.patientId } });
+    await this.prisma.$transaction(async (tx) => {
+      await tx.patient.update({
+        where: { id: session.patientId },
+        data: { phone: input.phone, email: input.email === undefined ? undefined : input.email, address: input.address === undefined ? undefined : input.address },
+      });
+      await this.audit.log(
+        {
+          userId: null,
+          action: 'PORTAL_PROFILE',
+          entity: 'Patient',
+          entityId: session.patientId,
+          summary: `El paciente ${patientCode(before.code)} actualizó sus datos de contacto en línea`,
+          before: { phone: before.phone, email: before.email, address: before.address },
+          after: { phone: input.phone, email: input.email ?? before.email, address: input.address ?? before.address },
+          meta,
+        },
+        tx,
+      );
+    });
+    return this.me(session);
+  }
+
+  async changePassword(session: PatientSession, input: ChangePasswordInput, meta: RequestMeta): Promise<string> {
+    const account = await this.prisma.patientAccount.findUniqueOrThrow({ where: { id: session.accountId } });
+    if (!(await argon2.verify(account.passwordHash, input.currentPassword))) {
+      throw DomainError.validation('La contraseña actual no es correcta.', { currentPassword: 'La contraseña actual no es correcta.' });
+    }
+    if (input.currentPassword === input.newPassword) throw DomainError.validation('La nueva contraseña debe ser distinta de la actual.', { newPassword: 'Debe ser distinta de la actual.' });
+    // Cambiar la contraseña cierra las sesiones de otros equipos; este recibe un ingreso nuevo.
+    const updated = await this.prisma.patientAccount.update({
+      where: { id: account.id },
+      data: { passwordHash: await argon2.hash(input.newPassword), tokenVersion: { increment: 1 } },
+    });
+    await this.audit.log({ userId: null, action: 'PORTAL_PASSWORD', entity: 'Patient', entityId: session.patientId, summary: 'El paciente cambió su contraseña en línea', meta });
+    return this.sign(account.id, updated.tokenVersion);
+  }
+
+  /** Cierra la sesión en los demás equipos (por ejemplo, si ingresó desde una computadora prestada). */
+  async revokeOtherSessions(session: PatientSession, meta: RequestMeta): Promise<string> {
+    const updated = await this.prisma.patientAccount.update({ where: { id: session.accountId }, data: { tokenVersion: { increment: 1 } } });
+    await this.audit.log({ userId: null, action: 'PORTAL_SESSIONS', entity: 'Patient', entityId: session.patientId, summary: 'El paciente cerró su sesión en los demás equipos', meta });
+    return this.sign(updated.id, updated.tokenVersion);
   }
 
   /** Solo horarios libres: nunca datos de otros pacientes. */

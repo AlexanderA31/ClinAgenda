@@ -170,6 +170,30 @@ describe('Portal del paciente', () => {
   });
 });
 
+describe('Mi perfil', () => {
+  it('el paciente ve sus datos y corrige su celular, correo y dirección', async () => {
+    const me = (await http.get('/api/portal/me').set(bearer(patient)).expect(200)).body;
+    expect(me.documentNumber).toBe(CEDULA);
+    expect(me.age).toBeGreaterThan(18);
+    const res = await http.patch('/api/portal/me').set(bearer(patient)).send({ phone: '099 765 4321', email: 'Prueba@Correo.ec', address: '  Av.  Amazonas  ' }).expect(200);
+    expect(res.body.phone).toBe('+593997654321');
+    expect(res.body.email).toBe('prueba@correo.ec');
+    expect(res.body.address).toBe('Av. Amazonas');
+    await http.patch('/api/portal/me').set(bearer(patient)).send({ phone: '12345' }).expect(400);
+    await http.patch('/api/portal/me').set(bearer(patient)).send({ phone: PATIENT.phone }).expect(200);
+  });
+
+  it('cambiar la contraseña exige la actual y cierra las demás sesiones', async () => {
+    await http.post('/api/portal/me/password').set(bearer(patient)).send({ currentPassword: 'equivocada1', newPassword: 'Nueva2026x' }).expect(400);
+    const res = await http.post('/api/portal/me/password').set(bearer(patient)).send({ currentPassword: PASSWORD, newPassword: 'Nueva2026x' }).expect(200);
+    const fresh = String(res.headers['set-cookie']).match(/clinagenda_paciente=([^;]+)/)![1];
+    await http.get('/api/portal/me').set(bearer(patient)).expect(401);
+    // Vuelve a la contraseña de siempre para que las pruebas se puedan repetir.
+    await http.post('/api/portal/me/password').set(bearer(fresh)).send({ currentPassword: 'Nueva2026x', newPassword: PASSWORD }).expect(200);
+    patient = (await http.post('/api/portal/login').send({ documentNumber: CEDULA, password: PASSWORD }).expect(200)).body.accessToken;
+  });
+});
+
 describe('Ingreso único', () => {
   it('el mismo formulario abre la sesión del personal o la del paciente', async () => {
     const staff = await http.post('/api/auth/sign-in').send({ identifier: 'Paredes', password: STAFF_PASSWORD }).expect(200);

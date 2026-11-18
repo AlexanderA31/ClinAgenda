@@ -1,7 +1,7 @@
-import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Query, Res, StreamableFile, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Query, Res, StreamableFile, UseGuards } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import { PatientLoginSchema, PatientRegisterSchema, PortalAvailabilityQuerySchema, PortalBookSchema } from '@clinagenda/schemas';
+import { ChangePasswordSchema, PatientLoginSchema, PatientRegisterSchema, PortalAvailabilityQuerySchema, PortalBookSchema, PortalProfileUpdateSchema } from '@clinagenda/schemas';
 import { createZodDto } from 'nestjs-zod';
 import type { Response } from 'express';
 import { Public, ReqMeta, type RequestMeta } from '../../common/decorators/auth.decorators';
@@ -12,6 +12,8 @@ class PatientRegisterDto extends createZodDto(PatientRegisterSchema) {}
 class PatientLoginDto extends createZodDto(PatientLoginSchema) {}
 class PortalBookDto extends createZodDto(PortalBookSchema) {}
 class PortalAvailabilityQueryDto extends createZodDto(PortalAvailabilityQuerySchema) {}
+class PortalProfileUpdateDto extends createZodDto(PortalProfileUpdateSchema) {}
+class PortalPasswordDto extends createZodDto(ChangePasswordSchema) {}
 
 
 /** Portal del paciente. @Public frente al guard del personal; las rutas privadas usan PatientAuthGuard. */
@@ -49,6 +51,29 @@ export class PortalController {
   @Get('me')
   me(@CurrentPatient() session: PatientSession) {
     return this.portal.me(session);
+  }
+
+  @UseGuards(PatientAuthGuard)
+  @Patch('me')
+  updateProfile(@CurrentPatient() session: PatientSession, @Body() body: PortalProfileUpdateDto, @ReqMeta() meta: RequestMeta) {
+    return this.portal.updateProfile(session, body, meta);
+  }
+
+  @UseGuards(PatientAuthGuard)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Post('me/password')
+  @HttpCode(200)
+  async changePassword(@CurrentPatient() session: PatientSession, @Body() body: PortalPasswordDto, @ReqMeta() meta: RequestMeta, @Res({ passthrough: true }) res: Response) {
+    setPatientCookie(res, await this.portal.changePassword(session, body, meta));
+    return { ok: true };
+  }
+
+  @UseGuards(PatientAuthGuard)
+  @Post('me/revoke-other-sessions')
+  @HttpCode(200)
+  async revokeOtherSessions(@CurrentPatient() session: PatientSession, @ReqMeta() meta: RequestMeta, @Res({ passthrough: true }) res: Response) {
+    setPatientCookie(res, await this.portal.revokeOtherSessions(session, meta));
+    return { ok: true };
   }
 
   @UseGuards(PatientAuthGuard)

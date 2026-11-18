@@ -94,10 +94,28 @@ export interface PortalMe {
   lastNames: string;
   documentType: 'CEDULA' | 'PASAPORTE';
   documentNumber: string;
+  birthDate: string;
+  age: number;
   phone: string | null;
   email: string | null;
+  address: string | null;
   patientCode: string;
+  /** Desde cuándo tiene cuenta en línea y su último ingreso. */
+  accountSince: string;
+  lastLoginAt: string | null;
 }
+
+/**
+ * Lo que el paciente puede corregir por su cuenta: cómo ubicarlo. El nombre, el documento y la fecha
+ * de nacimiento identifican su ficha médica; esos se corrigen en la clínica, con el documento a la vista.
+ */
+export const PortalProfileUpdateSchema = z.object({
+  phone: RequiredPhoneSchema,
+  email: OptionalEmailSchema.optional(),
+  address: z.preprocess((v) => (typeof v === 'string' ? v.trim().replace(/\s+/g, ' ') || null : (v ?? null)), z.string().max(200, 'Máximo 200 caracteres.').nullable()).optional(),
+});
+export type PortalProfileUpdateInput = z.input<typeof PortalProfileUpdateSchema>;
+export type PortalProfileUpdate = z.output<typeof PortalProfileUpdateSchema>;
 
 export interface PortalAppointment {
   id: string;

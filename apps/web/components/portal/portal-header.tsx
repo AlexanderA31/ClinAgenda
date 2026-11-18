@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { CalendarPlus, ListChecks, LogOut } from 'lucide-react';
+import { CalendarPlus, Home, LogOut, UserRound } from 'lucide-react';
 import type { PortalMe } from '@clinagenda/schemas';
 import s from '@/components/landing/landing.module.css';
 import { api } from '@/lib/api';
@@ -14,6 +14,13 @@ export function usePortalMe() {
 }
 
 /** Cabecera del portal: la marca, "Mis citas", "Agendar" y salir. */
+const LINKS = [
+  { href: '/paciente', label: 'Inicio', icon: Home },
+  { href: '/paciente/agendar', label: 'Agendar', icon: CalendarPlus },
+  { href: '/paciente/perfil', label: 'Mi perfil', icon: UserRound },
+];
+
+/** Cabecera del portal: la marca, el saludo, Inicio, Agendar, Mi perfil y salir. */
 export function PortalHeader() {
   const me = usePortalMe();
   const pathname = usePathname();
@@ -22,32 +29,48 @@ export function PortalHeader() {
     await api('/portal/logout', { method: 'POST' }).catch(() => undefined);
     router.replace('/');
   };
-  const link = (href: string, active: boolean) =>
-    cn('flex min-h-11 items-center justify-center gap-2 rounded-full px-4 font-bold', active ? 'bg-[var(--maiz)] text-[var(--maiz-ink)]' : 'text-[var(--hero-ink)] opacity-85 hover:opacity-100');
+  const initials = me.data ? `${me.data.firstNames[0] ?? ''}${me.data.lastNames[0] ?? ''}`.toUpperCase() : '';
 
   return (
-    <header className={cn(s.hero, s.gutter, 'py-4')}>
+    <header className={cn(s.hero, s.gutter, 'py-3')}>
       <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3">
-        <div className="flex min-w-0 flex-col leading-tight">
-          <Link href="/" className="font-display text-2xl font-extrabold">
-            Clínicas Paredes
-          </Link>
-          {me.data && <span className={cn(s.lede, 'text-sm')}>Hola, {me.data.firstNames.split(' ')[0]}</span>}
-        </div>
-        <nav aria-label="Portal del paciente" className="order-3 grid w-full grid-cols-2 gap-1 sm:order-none sm:flex sm:w-auto sm:items-center">
-          <Link href="/paciente" className={link('/paciente', pathname === '/paciente')} aria-current={pathname === '/paciente' ? 'page' : undefined}>
-            <ListChecks className="size-5" aria-hidden /> Mis citas
-          </Link>
-          <Link href="/paciente/agendar" className={link('/paciente/agendar', pathname === '/paciente/agendar')} aria-current={pathname === '/paciente/agendar' ? 'page' : undefined}>
-            <CalendarPlus className="size-5" aria-hidden /> Agendar
-          </Link>
-          <button type="button" onClick={() => void logout()} className={cn(s.ghost, 'ml-1 hidden min-h-11 items-center gap-2 rounded-full px-4 text-sm font-bold sm:flex')}>
+        <Link href="/" className="font-display text-2xl font-extrabold">
+          Clínicas Paredes
+        </Link>
+        <nav aria-label="Portal del paciente" className="order-3 grid w-full grid-cols-3 gap-1 sm:order-none sm:flex sm:w-auto sm:items-center">
+          {LINKS.map(({ href, label, icon: Icon }) => {
+            const active = pathname === href;
+            return (
+              <Link
+                key={href}
+                href={href}
+                aria-current={active ? 'page' : undefined}
+                className={cn(
+                  'flex min-h-11 items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-2 text-sm font-bold sm:gap-2 sm:px-4 sm:text-base',
+                  active ? 'bg-[var(--maiz)] text-[var(--maiz-ink)]' : 'text-[var(--hero-ink)] opacity-85 hover:opacity-100',
+                )}
+              >
+                <Icon className="size-5" aria-hidden /> {label}
+              </Link>
+            );
+          })}
+        </nav>
+        <div className="flex items-center gap-2">
+          {me.data && (
+            <Link href="/paciente/perfil" className="hidden items-center gap-2 lg:flex" title="Mi perfil">
+              <span className="grid size-10 place-items-center rounded-full bg-[var(--maiz)] font-bold text-[var(--maiz-ink)]" aria-hidden>
+                {initials}
+              </span>
+              <span className={cn(s.lede, 'text-sm leading-tight')}>
+                {me.data.firstNames.split(' ')[0]}
+                <span className="block opacity-80">Ficha {me.data.patientCode}</span>
+              </span>
+            </Link>
+          )}
+          <button type="button" onClick={() => void logout()} className={cn(s.ghost, 'flex min-h-11 items-center gap-2 rounded-full px-4 text-sm font-bold')}>
             <LogOut className="size-4" aria-hidden /> Salir
           </button>
-        </nav>
-        <button type="button" onClick={() => void logout()} className={cn(s.ghost, 'flex min-h-11 items-center gap-2 rounded-full px-4 text-sm font-bold sm:hidden')}>
-          <LogOut className="size-4" aria-hidden /> Salir
-        </button>
+        </div>
       </div>
     </header>
   );
