@@ -1,264 +1,200 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
-import { ArrowRight, BookOpenText, CloudOff, Fingerprint, LogIn, ShieldCheck, Undo2, Users } from 'lucide-react';
+import { CalendarCheck, MapPin, Phone } from 'lucide-react';
+import type { PublicDirectory } from '@clinagenda/schemas';
 import s from '@/components/landing/landing.module.css';
+import { OpenStatus } from '@/components/landing/open-status';
+import { DoctorDirectory } from '@/components/landing/doctor-directory';
+import { openState, scheduleLines } from '@/components/landing/hours';
+import { dayLabel } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
 export const metadata: Metadata = {
-  title: 'ClinAgenda — Clínica Centro, Norte y Sur',
-  description: 'La agenda de citas que reemplaza al cuaderno y al WhatsApp en las clínicas de la Dra. Paredes.',
+  title: { absolute: 'Clínicas Paredes' },
+  description: 'Clínica Norte, Centro y Sur: horarios, médicos y cómo pedir o cancelar su cita.',
 };
 
-const NOTEBOOK = [
-  { t: '8:30', who: 'Sra. Mora — control presión' },
-  { t: '9:00', who: 'Juan Pérez 099 123 45..', clash: true },
-  { t: '9:00', who: 'Sr. Pérez (whatsapp) ¿el mismo?', clash: true },
-  { t: '10:15', who: 'Valentina (niña) — sin cédula' },
-  { t: '11:00', who: 'Dr. Salazar → ¿Norte o Centro?' },
-];
+// La información viene del sistema de citas: si la doctora cambia un horario o agrega un médico,
+// la página se actualiza sola (se consulta como máximo cada 5 minutos).
+export const dynamic = 'force-dynamic';
 
-const AGENDA = [
-  { t: '08:30', who: 'Mercedes Mora', note: 'Control de presión', state: 'Agendada' },
-  { t: '09:00', who: 'Juan Carlos Pérez', note: 'Ficha P-00042 · misma persona', state: 'Agendada' },
-  { t: '09:30', who: 'Valentina Guamán', note: 'Menor · representante: su madre', state: 'Agendada' },
-  { t: '10:00', who: 'Libre', note: '2 pacientes en lista de espera', state: 'Libre' },
-];
+async function getDirectory(): Promise<PublicDirectory | null> {
+  try {
+    const res = await fetch(`${process.env.API_INTERNAL_URL ?? 'http://localhost:4000'}/api/public/directory`, { next: { revalidate: 300 } });
+    return res.ok ? ((await res.json()) as PublicDirectory) : null;
+  } catch {
+    return null;
+  }
+}
 
-// Horario real de los datos de demostración: lun-mié-vie en Centro por la mañana, mar-jue en Norte, lunes tarde en Norte.
-const SALAZAR = [
-  { day: 1, clinic: 'Centro', from: '08:00', to: '13:00' },
-  { day: 1, clinic: 'Norte', from: '14:30', to: '17:30' },
-  { day: 2, clinic: 'Norte', from: '08:00', to: '16:00' },
-  { day: 3, clinic: 'Centro', from: '08:00', to: '13:00' },
-  { day: 4, clinic: 'Norte', from: '08:00', to: '16:00' },
-  { day: 5, clinic: 'Centro', from: '08:00', to: '13:00' },
-];
-const DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-const CLINICS = ['Centro', 'Norte', 'Sur'];
+// De norte a sur, como está la ciudad.
+const ORDER = ['Clínica Norte', 'Clínica Centro', 'Clínica Sur'];
 
-const CASES = [
-  {
-    Icon: Users,
-    when: 'Dos recepcionistas dan la misma hora, en el mismo segundo',
-    then: 'La primera queda guardada. La segunda ve “ese horario acaba de ocuparse” y elige otra. Lo decide la base de datos, no la suerte de quién presionó primero.',
-  },
-  {
-    Icon: CloudOff,
-    when: 'Se cae el internet en la Clínica Sur a mitad de una cita',
-    then: 'La agenda que ya estaba abierta se sigue viendo. La cita nueva queda “pendiente de enviar”, con un aviso amarillo, y se envía sola al volver la conexión. Nunca se muestra como confirmada antes de tiempo.',
-  },
-  {
-    Icon: Undo2,
-    when: 'Alguien cancela una cita por error',
-    then: 'Aparece un botón “Deshacer”. Las citas nunca se borran: quedan como canceladas, con quién, cuándo y por qué. Cancelar dos veces no rompe nada.',
-  },
-  {
-    Icon: Fingerprint,
-    when: 'Escriben la cédula 0000000000, o con un número de menos',
-    then: 'Se revisa provincia y dígito verificador. El mensaje dice qué está mal y el resto del formulario no se borra.',
-  },
-  {
-    Icon: BookOpenText,
-    when: '“Juan Pérez” llama otra vez, o hay dos con el mismo nombre',
-    then: 'Antes de crear una ficha nueva, el sistema muestra los pacientes parecidos (nombre sin tildes, fecha de nacimiento, teléfono) y la recepcionista confirma.',
-  },
-  {
-    Icon: ShieldCheck,
-    when: 'Alguien ajeno quiere ver la información médica',
-    then: 'Cada persona entra con su propio usuario. Recepción ve agenda y teléfonos, no notas clínicas. Todo cambio queda en una bitácora que nadie puede editar.',
-  },
-];
+function telHref(phone: string) {
+  return `tel:${phone.replace(/\D/g, '')}`;
+}
 
-export default function Landing() {
+/** "022456789" -> "02 245 6789", como se dicta en Quito. */
+function telLabel(phone: string) {
+  return phone.replace(/^(\d{2})(\d{3})(\d{4})$/, '$1 $2 $3');
+}
+
+export default async function Landing() {
+  const data = await getDirectory();
+  const clinics = data ? [...data.clinics].sort((a, b) => ORDER.indexOf(a.name) - ORDER.indexOf(b.name)) : [];
+  const doctorCount = data?.doctors.filter((d) => d.assignments.length).length ?? 0;
+
   return (
-    <div className="flex flex-col">
-      <header className={cn(s.gutter, 'border-b border-rule bg-paper py-3')}>
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
-          <span className="font-display text-xl font-extrabold text-ballpoint">ClinAgenda</span>
-          <nav className="flex items-center gap-2">
-            <a href="#casos" className="hidden min-h-11 items-center px-3 font-bold text-ink-2 hover:text-ink sm:flex">
-              Qué resuelve
+    <div className={cn(s.page, 'flex min-h-dvh flex-col')}>
+      <header className={cn(s.gutter, 'py-4')}>
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3">
+          <Link href="/" className="font-display text-2xl font-extrabold text-[var(--euc)]">
+            Clínicas Paredes
+          </Link>
+          <nav className="flex items-center gap-1" aria-label="Secciones">
+            <a href="#medicos" className="hidden min-h-11 items-center px-3 font-bold text-ink-2 hover:text-ink sm:flex">
+              Médicos
             </a>
-            <Link href="/ingresar" className="flex min-h-11 items-center gap-2 rounded-md bg-ballpoint px-4 font-bold text-ballpoint-ink hover:brightness-110">
-              <LogIn className="size-5" aria-hidden /> Ingresar
+            <a href="#citas" className="hidden min-h-11 items-center px-3 font-bold text-ink-2 hover:text-ink sm:flex">
+              Su cita
+            </a>
+            <Link href="/ingresar" className="flex min-h-11 items-center rounded-md px-3 text-sm font-bold text-ink-3 hover:text-ink">
+              <span className="sm:hidden">Personal</span>
+              <span className="hidden sm:inline">Acceso del personal</span>
             </Link>
           </nav>
         </div>
       </header>
 
-      <main>
-        {/* Hero: el cuaderno con citas cruzadas, y la misma mañana ya ordenada */}
-        <section className={cn(s.gutter, 'py-12 sm:py-16')}>
-          <div className="mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)] items-center gap-12 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
-            <div className="flex min-w-0 flex-col gap-6">
-              <p className="text-sm font-bold uppercase tracking-[0.14em] text-ink-3">Clínica Centro · Clínica Norte · Clínica Sur</p>
-              <h1 className="font-display text-5xl font-extrabold leading-[1.02] sm:text-6xl">
-                Ninguna cita cruzada.
-                <br />
-                <span className="text-ballpoint">Ninguna cita perdida.</span>
-              </h1>
+      <main className="flex-1">
+        {/* Portada: Quito de norte a sur, con las tres clínicas y si están abiertas ahora */}
+        <section className={cn(s.gutter, 'pb-16 pt-6 sm:pt-10')}>
+          <div className="mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)] items-start gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+            <div className="flex flex-col gap-6 lg:sticky lg:top-8">
+              <h1 className={s.headline}>Medicina familiar en el norte, el centro y el sur de Quito.</h1>
               <p className="max-w-[34rem] text-xl text-ink-2">
-                El cuaderno y el WhatsApp funcionaron mientras eran pocos pacientes. Con 12 médicos, 3 clínicas y unas 400 personas al mes, hace falta una agenda que no deje
-                dar la misma hora dos veces y que doña Rosa pueda usar sin ayuda.
+                Tres clínicas, {doctorCount || 'doce'} médicos y una sola agenda. Atendemos a niños, adultos y adultos mayores.
               </p>
               <div className="flex flex-wrap gap-3">
-                <Link href="/ingresar" className="flex min-h-14 items-center gap-2 rounded-md bg-ballpoint px-6 text-lg font-bold text-ballpoint-ink hover:brightness-110">
-                  Abrir la agenda <ArrowRight className="size-5" aria-hidden />
-                </Link>
-                <a href="#casos" className="flex min-h-14 items-center rounded-md border-2 border-rule-strong px-6 text-lg font-bold hover:border-ballpoint hover:text-ballpoint">
-                  Qué pasa si algo falla
+                <a href="#citas" className="flex min-h-14 items-center gap-2 rounded-md bg-ballpoint px-6 text-lg font-bold text-ballpoint-ink hover:brightness-110">
+                  <CalendarCheck className="size-5" aria-hidden /> Cómo pedir una cita
+                </a>
+                <a href="#medicos" className="flex min-h-14 items-center rounded-md border-2 border-rule-strong px-6 text-lg font-bold hover:border-[var(--euc)]">
+                  Ver médicos y horarios
                 </a>
               </div>
             </div>
 
-            <div className="relative mx-auto flex w-full min-w-0 max-w-[34rem] flex-col" aria-label="Antes y después">
-              <figure className={cn(s.notebook, 'w-[92%] px-4 pb-10 pt-5')} aria-label="Página de cuaderno con citas cruzadas">
-                <figcaption className={cn(s.hand, 'pl-12 text-ink-2')} style={{ color: 'var(--ink-2)' }}>
-                  Lunes 23
-                </figcaption>
-                <ul>
-                  {NOTEBOOK.map((e, i) => (
-                    <li key={i} className={cn(s.hand, 'relative flex gap-3')}>
-                      <span className="w-10 shrink-0 text-right">{e.t}</span>
-                      <span className="relative min-w-0 truncate">
-                        {e.who}
-                        {e.clash && i === 2 && (
-                          <svg className={s.strike} viewBox="0 0 400 14" preserveAspectRatio="none" aria-hidden>
-                            <path d="M2 9 C 80 2, 160 13, 240 6 S 360 3, 398 8" />
-                          </svg>
-                        )}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-                <p className={cn(s['margin-note'], 'absolute right-3 top-[8.2rem] hidden sm:block')}>¡cruzada!</p>
-                <div className={cn(s.sticky, 'absolute -right-6 top-10 hidden rounded-sm px-3 py-2 sm:block')}>
-                  <p className={s.hand} style={{ color: 'var(--ink-2)', fontSize: '1.15rem', lineHeight: 1.3 }}>
-                    llamar a la mamá
-                    <br />
-                    — ¿qué teléfono era?
-                  </p>
-                </div>
-              </figure>
-
-              <figure className={cn(s.agenda, 'relative -mt-14 ml-auto flex w-[88%] flex-col rounded-lg border border-rule bg-surface shadow-xl')} aria-label="La misma mañana en ClinAgenda">
-                <figcaption className="flex items-baseline justify-between border-b border-rule px-4 py-3">
-                  <span className="font-bold">Dr. Ernesto Salazar</span>
-                  <span className="text-sm text-ink-3">Centro · lunes 23</span>
-                </figcaption>
-                <ol>
-                  {AGENDA.map((r) => (
-                    <li key={r.t} className="flex items-start gap-3 border-b border-rule/70 px-4 py-2.5 last:border-0">
-                      <span className="w-12 pt-0.5 font-mono font-medium">{r.t}</span>
-                      <span className="flex min-w-0 flex-1 flex-col">
-                        <span className={cn('font-bold', r.state === 'Libre' && 'text-ink-3')}>{r.who}</span>
-                        <span className="truncate text-sm text-ink-2">{r.note}</span>
-                      </span>
-                      <span className={cn('rounded-sm px-2 py-0.5 text-xs font-bold', r.state === 'Libre' ? 'bg-surface-2 text-ink-3' : 'bg-ballpoint-soft text-ballpoint')}>{r.state}</span>
+            <div className="flex flex-col gap-4">
+              <p className={s.terminal}>Norte de la ciudad</p>
+              {clinics.length ? (
+                <ol className={s.strip} aria-label="Nuestras clínicas, de norte a sur">
+                  {clinics.map((c) => (
+                    <li key={c.id} className={cn(s.stop, 'flex flex-col gap-2')}>
+                      <h2 className="font-display text-3xl font-extrabold leading-none">{c.name}</h2>
+                      <OpenStatus schedule={c.schedule} closures={c.closures} initial={openState(c.schedule, c.closures)} />
+                      {c.address && (
+                        <p className="flex items-start gap-2 text-ink-2">
+                          <MapPin className="mt-1 size-5 shrink-0" aria-hidden />
+                          {c.address}
+                        </p>
+                      )}
+                      <ul className="text-ink-2">
+                        {scheduleLines(c.schedule).map((line) => (
+                          <li key={line}>{line}</li>
+                        ))}
+                      </ul>
+                      {c.closures[0] && (
+                        <p className="font-bold text-warn first-letter:uppercase">
+                          {dayLabel(c.closures[0].date)}: cerrado ({c.closures[0].reason.toLowerCase()})
+                        </p>
+                      )}
+                      {c.phone && (
+                        <a href={telHref(c.phone)} className="mt-1 flex min-h-12 w-fit items-center gap-2 rounded-md border-2 border-[var(--euc)] px-4 font-bold text-[var(--euc)] hover:bg-[var(--euc)] hover:text-[var(--euc-ink)]">
+                          <Phone className="size-5" aria-hidden /> Llamar al {telLabel(c.phone)}
+                        </a>
+                      )}
                     </li>
                   ))}
                 </ol>
-              </figure>
+              ) : (
+                <p className="text-ink-2">En este momento no podemos mostrar los horarios. Por favor llame a su clínica.</p>
+              )}
+              <p className={s.terminal}>Sur de la ciudad</p>
             </div>
           </div>
         </section>
 
-        {/* La semana del Dr. Salazar: un médico, dos clínicas, nunca a la vez */}
-        <section className={cn(s.gutter, 'border-y border-rule bg-surface py-14')}>
-          <div className="mx-auto flex min-w-0 max-w-6xl flex-col gap-6">
-            <div className="flex max-w-3xl flex-col gap-2">
-              <p className="text-sm font-bold uppercase tracking-[0.14em] text-ink-3">Un médico, dos clínicas</p>
-              <h2 className="font-display text-4xl font-extrabold">La semana del Dr. Salazar</h2>
-              <p className="text-lg text-ink-2">
-                Atiende en Centro y en Norte. El lunes está en las dos, pero en horarios distintos. Si alguien intenta darle una cita en Norte mientras está en Centro, el sistema
-                responde: <em className="not-italic font-bold text-ink">“Ernesto Salazar a esa hora atiende en Clínica Centro, no en Clínica Norte.”</em>
-              </p>
-            </div>
-            <div className="min-w-0 max-w-full overflow-x-auto rounded-lg border border-rule">
-              <div className={cn(s.week, 'text-sm')}>
-                <div className="border-b border-r border-rule bg-surface-2 p-2" />
-                {DAYS.map((d) => (
-                  <div key={d} className="border-b border-rule bg-surface-2 p-2 font-bold">
-                    {d}
-                  </div>
-                ))}
-                {CLINICS.map((c) => (
-                  <div key={c} className="contents">
-                    <div className="border-b border-r border-rule p-2 font-bold">Clínica {c}</div>
-                    {DAYS.map((_, i) => {
-                      const blocks = SALAZAR.filter((b) => b.day === i + 1 && b.clinic === c);
-                      return (
-                        <div key={i} className="flex min-h-20 flex-col gap-1 border-b border-rule p-1.5">
-                          {blocks.map((b) => (
-                            <div key={b.from} className={cn(s.block, b.clinic === 'Norte' && s.blockAlt, 'px-2 py-1')}>
-                              <span className="block font-mono">
-                                {b.from}–{b.to}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      );
-                    })}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Situaciones reales y qué hace el sistema */}
-        <section id="casos" className={cn(s.gutter, 'py-16')}>
+        {/* Médicos y dónde atiende cada uno */}
+        <section id="medicos" className={cn(s.gutter, 'scroll-mt-4 bg-surface py-16')}>
           <div className="mx-auto flex max-w-6xl flex-col gap-8">
-            <div className="flex max-w-3xl flex-col gap-2">
-              <p className="text-sm font-bold uppercase tracking-[0.14em] text-ink-3">Lo que la doctora preguntó</p>
-              <h2 className="font-display text-4xl font-extrabold">Qué pasa cuando…</h2>
+            <div className="flex max-w-2xl flex-col gap-3">
+              <h2 className="font-display text-4xl font-extrabold">Médicos y horarios</h2>
+              <p className="text-lg text-ink-2">Algunos médicos atienden en más de una clínica. Elija la que le quede más cerca para ver quién está y cuándo.</p>
             </div>
-            <ul className="grid gap-x-12 gap-y-8 md:grid-cols-2">
-              {CASES.map(({ Icon, when, then }) => (
-                <li key={when} className="flex gap-4 border-t-2 border-ink pt-4">
-                  <Icon className="mt-1 size-7 shrink-0 text-ballpoint" aria-hidden />
-                  <div className="flex flex-col gap-2">
-                    <h3 className="font-display text-xl font-bold">{when}</h3>
-                    <p className="text-ink-2">{then}</p>
-                  </div>
-                </li>
-              ))}
-            </ul>
+            {data ? <DoctorDirectory data={data} /> : <p className="text-ink-2">Los horarios no están disponibles en este momento.</p>}
           </div>
         </section>
 
-        {/* Para doña Rosa: mensajes para personas */}
-        <section className={cn(s.gutter, 'bg-ballpoint py-16 text-ballpoint-ink')}>
-          <div className="mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-2">
-            <div className="flex flex-col gap-4">
-              <h2 className="font-display text-4xl font-extrabold">Escrito para doña Rosa, no para un programador</h2>
-              <p className="text-lg opacity-90">
-                Letra de 18 puntos que se puede agrandar, botones del tamaño de un dedo, modo oscuro para poca luz, y una frase al final de cada cita para leérsela al paciente
-                por teléfono antes de confirmar.
-              </p>
-            </div>
-            <div className="flex flex-col gap-4 rounded-lg bg-surface p-5 text-ink">
-              <p className={s.devError}>Error 23P01: conflicting key value violates exclusion constraint “appointment_doctor_no_overlap”</p>
-              <p className="flex items-start gap-3 rounded-md border-2 border-redpen/40 bg-redpen-soft px-4 py-3 text-lg font-bold">
-                Ese horario acaba de ser ocupado por otra cita de este médico. Elija otra hora.
-              </p>
-              <p className="text-sm text-ink-3">El mismo error, como lo ve la base de datos y como lo ve la recepcionista.</p>
-            </div>
+        {/* Cómo pedir, recibir y cancelar una cita: es una secuencia real, por eso va numerada */}
+        <section id="citas" className={cn(s.gutter, 'scroll-mt-4 py-16')}>
+          <div className="mx-auto flex max-w-6xl flex-col gap-10">
+            <h2 className="max-w-2xl font-display text-4xl font-extrabold">Su cita, de principio a fin</h2>
+            <ol className="grid gap-10 md:grid-cols-3">
+              <li className="flex flex-col gap-3">
+                <span className={s.stepNumber} aria-hidden>
+                  1
+                </span>
+                <h3 className="font-display text-xl font-bold">Llame a su clínica</h3>
+                <p className="text-ink-2">Le damos la primera hora libre con el médico que necesite. Si no hay espacio pronto, le anotamos en la lista de espera y le llamamos cuando se libere uno.</p>
+              </li>
+              <li className="flex flex-col gap-3">
+                <span className={s.stepNumber} aria-hidden>
+                  2
+                </span>
+                <h3 className="font-display text-xl font-bold">Reciba la confirmación</h3>
+                <p className="text-ink-2">Le enviamos por WhatsApp el día, la hora y la dirección, o se la entregamos impresa. El día anterior le recordamos la cita.</p>
+              </li>
+              <li className="flex flex-col gap-3">
+                <span className={s.stepNumber} aria-hidden>
+                  3
+                </span>
+                <h3 className="font-display text-xl font-bold">¿No puede venir? Cancele usted mismo</h3>
+                <p className="text-ink-2">Abra el enlace de su mensaje o escanee el código de su comprobante y cancele hasta dos horas antes. Así su espacio pasa a otro paciente que lo necesita.</p>
+              </li>
+            </ol>
+          </div>
+        </section>
+
+        <section className={cn(s.gutter, s.band, 'py-14')}>
+          <div className="mx-auto grid max-w-6xl gap-8 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+            <h2 className="font-display text-3xl font-extrabold">Qué traer el día de su cita</h2>
+            <ul className="grid gap-x-10 gap-y-4 text-lg sm:grid-cols-2">
+              <li>Su cédula o pasaporte. Si no tiene documento, igual le atendemos.</li>
+              <li>Los niños y adolescentes vienen con su madre, padre o representante.</li>
+              <li>Exámenes y recetas anteriores, y las medicinas que toma.</li>
+              <li>Llegue 10 minutos antes para registrarse con calma.</li>
+            </ul>
           </div>
         </section>
       </main>
 
       <footer className={cn(s.gutter, 'py-10')}>
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 text-ink-2">
-          <p className="tabular">3 clínicas · 12 médicos · 5 recepcionistas · ~400 pacientes al mes</p>
-          <div className="flex gap-4">
-            <a className="underline underline-offset-4" href="/api/docs">
-              Documentación de la API
-            </a>
-            <Link className="font-bold text-ballpoint underline underline-offset-4" href="/ingresar">
-              Ingresar
-            </Link>
-          </div>
+        <div className="mx-auto flex max-w-6xl flex-col gap-6">
+          <ul className="grid gap-6 sm:grid-cols-3">
+            {clinics.map((c) => (
+              <li key={c.id} className="flex flex-col gap-1">
+                <p className="font-bold">{c.name}</p>
+                {c.address && <p className="text-ink-2">{c.address}</p>}
+                {c.phone && (
+                  <a className="w-fit text-ink-2 underline underline-offset-4 hover:text-ink" href={telHref(c.phone)}>
+                    {telLabel(c.phone)}
+                  </a>
+                )}
+              </li>
+            ))}
+          </ul>
+          <p className="text-sm text-ink-3">Clínicas Paredes, Quito. Sus datos de salud solo los ve el personal que le atiende.</p>
         </div>
       </footer>
     </div>

@@ -62,6 +62,9 @@ services:
       args:
         API_INTERNAL_URL: http://api:4000
     restart: unless-stopped
+    environment:
+      # La página pública consulta horarios y médicos a la API desde el servidor.
+      API_INTERNAL_URL: http://api:4000
     depends_on:
       api:
         condition: service_healthy

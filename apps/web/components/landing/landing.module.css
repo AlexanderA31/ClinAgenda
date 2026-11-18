@@ -1,0 +1,122 @@
+/*
+  Clínicas Paredes — página para pacientes.
+  Concepto: Quito es una ciudad larga, de norte a sur. La portada es esa franja de ciudad con las
+  tres clínicas como paradas (Norte, Centro, Sur), cada una diciendo si está abierta ahora.
+  Color: verde eucalipto (los bosques del Pichincha que se ven desde las tres clínicas) para la
+  marca; el azul de la agenda para las acciones; el resto, papel y tinta.
+*/
+
+.page {
+  --euc: #23574a;
+  --euc-ink: #f2f7f4;
+  --euc-soft: #dfeae4;
+  --euc-line: #9fbdb1;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+@media (prefers-color-scheme: dark) {
+  :global(:root:not([data-theme='light'])) .page {
+    --euc: #7cc2ab;
+    --euc-ink: #0d1a16;
+    --euc-soft: #16271f;
+    --euc-line: #2f5244;
+  }
+}
+
+:global(:root[data-theme='dark']) .page {
+  --euc: #7cc2ab;
+  --euc-ink: #0d1a16;
+  --euc-soft: #16271f;
+  --euc-line: #2f5244;
+}
+
+.gutter {
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+.headline {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(2.5rem, 6vw, 4.6rem);
+  line-height: 0.98;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+
+/* La franja de la ciudad: una línea vertical con las tres clínicas, de norte a sur. */
+.strip {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2.25rem;
+  padding-left: 2.75rem;
+}
+
+.strip::before {
+  content: '';
+  position: absolute;
+  left: 0.6rem;
+  top: 0.4rem;
+  bottom: 0.4rem;
+  width: 4px;
+  border-radius: 2px;
+  background: linear-gradient(var(--euc-line), var(--euc) 50%, var(--euc-line));
+}
+
+.stop {
+  position: relative;
+}
+
+.stop::before {
+  content: '';
+  position: absolute;
+  left: calc(-2.75rem + 0.6rem - 0.55rem + 2px);
+  top: 0.55rem;
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 50%;
+  background: var(--paper);
+  border: 4px solid var(--euc);
+  animation: arrive 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+
+.stop:nth-child(2)::before {
+  animation-delay: 0.15s;
+}
+.stop:nth-child(3)::before {
+  animation-delay: 0.3s;
+}
+
+.terminal {
+  font-style: italic;
+  color: var(--ink-3);
+  font-size: 0.95rem;
+}
+
+/* El único momento animado: las tres paradas se marcan al cargar, sin ocultar nada. */
+@keyframes arrive {
+  from {
+    transform: scale(0.4);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stop::before {
+    animation: none;
+  }
+}
+
+.band {
+  background: var(--euc);
+  color: var(--euc-ink);
+}
+
+.stepNumber {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 3rem;
+  line-height: 1;
+  color: var(--euc);
+}

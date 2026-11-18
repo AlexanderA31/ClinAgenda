@@ -64,6 +64,7 @@ La API no queda expuesta a internet: solo la web, que le reenvía las peticiones
 
 ## 4. Guía para la dirección
 
+- **Página pública** (la dirección del dominio, sin usuario): es la página de las clínicas para los pacientes. Muestra si cada clínica está abierta ahora, sus horarios, teléfonos y qué médico atiende dónde y cuándo. Se arma sola con los datos del sistema: al cambiar un horario, un cierre o un médico, la página se actualiza en pocos minutos.
 - **Panel**: citas por día, ocupación por clínica, horas pico, cancelaciones e inasistencias por médico. Arriba indica si los respaldos están al día.
 - **Médicos** → *Editar horario*: días, horas y clínica de cada médico. Si el cambio deja citas fuera de su horario, el sistema no las cancela: muestra la lista para reprogramarlas (también en *Citas por reprogramar*).
 - **Clínicas** → *Cerrar un día* (feriados): avisa cuántas citas hay que mover.
