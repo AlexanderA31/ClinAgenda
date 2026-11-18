@@ -1,0 +1,49 @@
+import { Module } from '@nestjs/common';
+import { APP_FILTER, APP_GUARD, APP_PIPE } from '@nestjs/core';
+import { JwtModule } from '@nestjs/jwt';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ZodValidationPipe } from 'nestjs-zod';
+import { env } from './config/env';
+import { PrismaModule } from './prisma/prisma.module';
+import { AuthGuard } from './common/guards/auth.guard';
+import { RolesGuard } from './common/guards/roles.guard';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { AuditModule } from './modules/audit/audit.module';
+import { AuthModule } from './modules/auth/auth.module';
+import { UsersModule } from './modules/users/users.module';
+import { ClinicsModule } from './modules/clinics/clinics.module';
+import { DoctorsModule } from './modules/doctors/doctors.module';
+import { PatientsModule } from './modules/patients/patients.module';
+import { AppointmentsModule } from './modules/appointments/appointments.module';
+import { WaitlistModule } from './modules/waitlist/waitlist.module';
+import { ReportsModule } from './modules/reports/reports.module';
+import { ImportsModule } from './modules/imports/imports.module';
+import { HealthModule } from './modules/health/health.module';
+
+@Module({
+  imports: [
+    PrismaModule,
+    JwtModule.register({ global: true, secret: env.JWT_SECRET, signOptions: { expiresIn: env.JWT_EXPIRES_IN as `${number}h` } }),
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 300 }]),
+    AuditModule,
+    AuthModule,
+    UsersModule,
+    ClinicsModule,
+    DoctorsModule,
+    PatientsModule,
+    AppointmentsModule,
+    WaitlistModule,
+    ReportsModule,
+    ImportsModule,
+    HealthModule,
+  ],
+  providers: [
+    // Orden: límite de peticiones -> sesión -> rol.
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_GUARD, useClass: AuthGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_PIPE, useClass: ZodValidationPipe },
+    { provide: APP_FILTER, useClass: AllExceptionsFilter },
+  ],
+})
+export class AppModule {}
