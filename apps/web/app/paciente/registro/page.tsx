@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 
 export default function PatientRegisterPage() {
   return (
-    <AuthSplit title="Agende en línea, sin llamar." lede="Cree su cuenta una sola vez. Después elija clínica, médico y hora, y reciba su comprobante.">
+    <AuthSplit title="Agende en línea, sin llamar." lede="Cree su cuenta una sola vez. Después elija clínica, médico y hora.">
       <PatientRegisterForm />
     </AuthSplit>
   );

@@ -387,3 +387,9 @@
     animation: none;
   }
 }
+
+/* En ingreso y registro el sol es más chico: la ilustración acompaña al formulario sin tapar el saludo. */
+.authPanorama .sun {
+  width: clamp(70px, 13vw, 190px);
+  bottom: 40%;
+}

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Eye, EyeOff, KeyRound, LogIn, ShieldCheck, UserPlus } from 'lucide-react';
+import { Eye, EyeOff, LogIn } from 'lucide-react';
 import { SignInSchema, type SignInInput, type SignInResult } from '@clinagenda/schemas';
 import { useQueryClient } from '@tanstack/react-query';
 import { api, errorMessage } from '@/lib/api';
@@ -41,7 +41,7 @@ export function LoginForm() {
   });
 
   return (
-    <div className="flex w-full max-w-md flex-col gap-8">
+    <div className="flex w-full max-w-md flex-col gap-6">
       <div className="flex flex-col gap-2">
         <p className="font-display text-lg font-extrabold text-[var(--euc)]">Pacientes y personal</p>
         <h2 className="font-display text-4xl font-extrabold tracking-tight sm:text-5xl">Ingresar</h2>
@@ -59,7 +59,7 @@ export function LoginForm() {
         </Notice>
       )}
 
-      <form onSubmit={onSubmit} className="flex flex-col gap-5" noValidate>
+      <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
         <Field id="username" label="Usuario, cédula o pasaporte" error={formState.errors.identifier?.message}>
           <Input autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck={false} className="min-h-14 text-lg" {...register('identifier')} />
         </Field>
@@ -85,28 +85,14 @@ export function LoginForm() {
         </Button>
       </form>
 
-      <div className="flex flex-col gap-3 rounded-2xl border-2 border-[var(--euc)] bg-surface p-5">
-        <p className="font-display text-xl font-bold">¿Es paciente y aún no tiene cuenta?</p>
-        <p className="text-ink-2">Regístrese en dos minutos con su cédula o pasaporte y agende en línea.</p>
-        <Button variant="secondary" size="lg" className="rounded-full" asChild>
-          <Link href="/paciente/registro">
-            <UserPlus /> Crear mi cuenta
+      <div className="flex flex-col gap-2 text-ink-2">
+        <p>
+          ¿No tiene cuenta?{' '}
+          <Link href="/paciente/registro" className="font-bold text-ballpoint underline underline-offset-4 hover:no-underline">
+            Crear mi cuenta
           </Link>
-        </Button>
-      </div>
-
-      <div className="flex flex-col gap-3 border-t border-rule pt-6 text-ink-2">
-        <p className="flex items-start gap-3">
-          <KeyRound className="mt-0.5 size-5 shrink-0 text-ink-3" aria-hidden />
-          <span>¿Olvidó su contraseña o quedó bloqueado? Pacientes: llamen a su clínica. Personal: la dirección puede darle una nueva desde “Usuarios”.</span>
         </p>
-        <p className="flex items-start gap-3">
-          <ShieldCheck className="mt-0.5 size-5 shrink-0 text-ink-3" aria-hidden />
-          <span>Use solo su propia cuenta: cada cambio queda registrado a su nombre.</span>
-        </p>
-        <Link href="/" className="w-fit font-bold text-ballpoint underline underline-offset-4 hover:no-underline">
-          Volver a la página de las clínicas
-        </Link>
+        <p className="text-sm text-ink-3">¿Olvidó su contraseña? Pacientes: llamen a su clínica. Personal: pídala a la dirección.</p>
       </div>
     </div>
   );

@@ -109,12 +109,6 @@ export default async function Landing() {
               <a href="#citas" className="hidden min-h-11 items-center px-3 font-bold opacity-85 hover:opacity-100 md:flex">
                 Su cita
               </a>
-              <Link href="/paciente/registro" className="hidden min-h-11 items-center px-3 font-bold opacity-85 hover:opacity-100 sm:flex">
-                Crear cuenta
-              </Link>
-              <Link href="/paciente" className="hidden min-h-11 items-center px-3 font-bold opacity-85 hover:opacity-100 sm:flex">
-                Mis citas
-              </Link>
               <Link href="/ingresar" className={cn(s.ghost, 'ml-2 flex min-h-11 items-center rounded-full px-4 text-sm font-bold')}>
                 Ingresar
               </Link>
@@ -130,11 +124,11 @@ export default async function Landing() {
                 Medicina familiar en tres clínicas, con {doctorCount || 'doce'} médicos y una sola agenda. Atendemos a niños, adultos y adultos mayores, tengan o no documento.
               </p>
               <div className="flex flex-wrap gap-3">
-                <Link href="/paciente/agendar" className={cn(s.cta, 'flex min-h-14 items-center gap-2 rounded-full px-7 text-lg font-bold')}>
-                  <CalendarCheck className="size-5" aria-hidden /> Agendar en línea
-                </Link>
-                <a href="#hoy" className={cn(s.ghost, 'flex min-h-14 items-center rounded-full px-7 text-lg font-bold')}>
-                  Quién atiende hoy
+                <a href="#hoy" className={cn(s.cta, 'flex min-h-14 items-center gap-2 rounded-full px-7 text-lg font-bold')}>
+                  <CalendarCheck className="size-5" aria-hidden /> Quién atiende hoy
+                </a>
+                <a href="#citas" className={cn(s.ghost, 'flex min-h-14 items-center rounded-full px-7 text-lg font-bold')}>
+                  Cómo pedir una cita
                 </a>
               </div>
             </div>
@@ -259,10 +253,7 @@ export default async function Landing() {
                   <div className="flex flex-col gap-1">
                     <h3 className="font-display text-2xl font-bold">Agende en línea o llame</h3>
                     <p className="text-lg text-ink-2">
-                      <Link href="/paciente/registro" className="font-bold text-ballpoint underline underline-offset-4 hover:no-underline">
-                        Cree su cuenta
-                      </Link>{' '}
-                      con su cédula y elija clínica, médico y hora. O llame a su clínica: le damos la primera hora libre y, si no hay espacio pronto, le anotamos en la lista de espera.
+                      Desde <strong>Ingresar</strong>, cree su cuenta con su cédula y elija clínica, médico y hora. O llame a su clínica: le damos la primera hora libre y, si no hay espacio pronto, le anotamos en la lista de espera.
                     </p>
                   </div>
                 </li>

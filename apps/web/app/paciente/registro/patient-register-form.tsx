@@ -70,14 +70,13 @@ export function PatientRegisterForm() {
   };
 
   return (
-    <div className="flex w-full max-w-lg flex-col gap-8">
-      <div className="flex flex-col gap-2">
-        <p className="font-display text-lg font-extrabold text-[var(--euc)]">Paso {step} de 2</p>
-        <h2 className="font-display text-4xl font-extrabold tracking-tight sm:text-5xl">{step === 1 ? 'Sus datos' : 'Su contraseña'}</h2>
-        <p className="text-lg text-ink-2">
-          {step === 1 ? 'Los mismos de su cédula o pasaporte. Si ya se atendió con nosotros, usaremos su ficha.' : 'Con ella y su documento ingresará la próxima vez.'}
+    <div className="flex w-full max-w-xl flex-col gap-5">
+      <div className="flex flex-col gap-1.5">
+        <h2 className="font-display text-4xl font-extrabold tracking-tight">Crear mi cuenta</h2>
+        <p className="text-ink-2">
+          Paso {step} de 2: {step === 1 ? 'sus datos, como en su cédula o pasaporte.' : 'su contraseña para ingresar la próxima vez.'}
         </p>
-        <div className="mt-2 grid grid-cols-2 gap-2" aria-hidden>
+        <div className="mt-1 grid grid-cols-2 gap-2" aria-hidden>
           <span className="h-1.5 rounded-full bg-[var(--euc)]" />
           <span className={cn('h-1.5 rounded-full', step === 2 ? 'bg-[var(--euc)]' : 'bg-rule')} />
         </div>
@@ -90,8 +89,8 @@ export function PatientRegisterForm() {
       )}
 
       {step === 1 ? (
-        <form onSubmit={next} className="flex flex-col gap-5" noValidate>
-          <fieldset className="flex flex-col gap-2">
+        <form onSubmit={next} className="grid gap-x-4 gap-y-3 sm:grid-cols-2" noValidate>
+          <fieldset className="flex flex-col gap-1.5">
             <legend className="mb-1.5 font-bold">Documento</legend>
             <div className="grid grid-cols-2 gap-2">
               {(['CEDULA', 'PASAPORTE'] as const).map((t) => (
@@ -108,48 +107,40 @@ export function PatientRegisterForm() {
               ))}
             </div>
           </fieldset>
-          <Field
-            id="r-doc"
-            label={form.documentType === 'CEDULA' ? 'Número de cédula' : 'Número de pasaporte'}
-            hint={form.documentType === 'CEDULA' ? '10 dígitos, sin guion' : undefined}
-            error={fields.documentNumber}
-          >
-            <Input value={form.documentNumber} onChange={set('documentNumber')} inputMode={form.documentType === 'CEDULA' ? 'numeric' : 'text'} className="tabular" />
+          <Field id="r-doc" label={form.documentType === 'CEDULA' ? 'Número de cédula' : 'Número de pasaporte'} error={fields.documentNumber}>
+            <Input
+              value={form.documentNumber}
+              onChange={set('documentNumber')}
+              inputMode={form.documentType === 'CEDULA' ? 'numeric' : 'text'}
+              placeholder={form.documentType === 'CEDULA' ? '10 dígitos' : undefined}
+              className="tabular"
+            />
           </Field>
-          <div className="grid gap-5 sm:grid-cols-2">
-            <Field id="r-first" label="Nombres" error={fields.firstNames}>
-              <Input value={form.firstNames} onChange={set('firstNames')} autoComplete="given-name" />
-            </Field>
-            <Field id="r-last" label="Apellidos" error={fields.lastNames}>
-              <Input value={form.lastNames} onChange={set('lastNames')} autoComplete="family-name" />
-            </Field>
-          </div>
+          <Field id="r-first" label="Nombres" error={fields.firstNames}>
+            <Input value={form.firstNames} onChange={set('firstNames')} autoComplete="given-name" />
+          </Field>
+          <Field id="r-last" label="Apellidos" error={fields.lastNames}>
+            <Input value={form.lastNames} onChange={set('lastNames')} autoComplete="family-name" />
+          </Field>
           <Field id="r-birth" label="Fecha de nacimiento" error={fields.birthDate}>
             <Input type="date" max={todayIso()} value={form.birthDate} onChange={set('birthDate')} autoComplete="bday" />
           </Field>
-          <Field id="r-phone" label="Celular" hint="Por aquí le avisamos si su cita cambia" error={fields.phone}>
+          <Field id="r-phone" label="Celular" error={fields.phone}>
             <Input value={form.phone} onChange={set('phone')} inputMode="tel" autoComplete="tel" placeholder="099 123 4567" />
           </Field>
-          <Field id="r-email" label="Correo" optional error={fields.email}>
+          <Field id="r-email" label="Correo" optional error={fields.email} className="sm:col-span-2">
             <Input type="email" value={form.email} onChange={set('email')} autoComplete="email" />
           </Field>
-          <Button type="submit" size="lg" className="mt-2 rounded-full">
+          <Button type="submit" size="lg" className="mt-2 rounded-full sm:col-span-2">
             Continuar <ArrowRight />
           </Button>
-          <p className="text-ink-2">
-            ¿Ya tiene cuenta?{' '}
-            <Link href="/ingresar" className="font-bold text-ballpoint underline underline-offset-4 hover:no-underline">
-              Ingrese aquí
-            </Link>
-            . Para niños o adolescentes, su representante puede llamar a la clínica.
-          </p>
         </form>
       ) : (
-        <form onSubmit={submit} className="flex flex-col gap-5" noValidate>
+        <form onSubmit={submit} className="grid gap-x-4 gap-y-3 sm:grid-cols-2" noValidate>
           <Field
             id="r-pass"
             label="Contraseña"
-            hint="Al menos 8 caracteres, con letras y números"
+            hint="8 o más, con letras y números"
             error={fields.password}
             addon={
               <button
@@ -167,9 +158,9 @@ export function PatientRegisterForm() {
           <Field id="r-repeat" label="Repita la contraseña" error={fields.repeat}>
             <Input type={show ? 'text' : 'password'} value={repeat} onChange={(e) => setRepeat(e.target.value)} autoComplete="new-password" />
           </Field>
-          <div className="flex flex-col gap-2 rounded-md bg-surface-2 p-4">
+          <div className="flex flex-col gap-1.5 rounded-md bg-surface-2 p-4 sm:col-span-2">
             <p className="font-bold">Aviso de privacidad</p>
-            <p className="text-ink-2">
+            <p className="text-sm text-ink-2">
               Usamos sus datos solo para agendar y avisarle sobre sus citas. Sus datos de salud solo los ve el personal que le atiende. Puede pedir que los corrijamos llamando a su clínica.
             </p>
             <label className="mt-1 flex cursor-pointer items-start gap-3">
@@ -178,7 +169,7 @@ export function PatientRegisterForm() {
             </label>
             {fields.acceptPrivacy && <p className="text-sm font-bold text-redpen">{fields.acceptPrivacy}</p>}
           </div>
-          <div className="flex flex-wrap gap-3">
+          <div className="mt-2 flex flex-wrap gap-3 sm:col-span-2">
             <Button type="button" variant="secondary" size="lg" className="rounded-full" onClick={() => setStep(1)}>
               <ArrowLeft /> Volver
             </Button>
@@ -188,6 +179,14 @@ export function PatientRegisterForm() {
           </div>
         </form>
       )}
+
+      <p className="text-ink-2">
+        ¿Ya tiene cuenta?{' '}
+        <Link href="/ingresar" className="font-bold text-ballpoint underline underline-offset-4 hover:no-underline">
+          Ingresar
+        </Link>
+        <span className="block text-sm text-ink-3">Para niños o adolescentes, su representante puede llamar a la clínica.</span>
+      </p>
     </div>
   );
 }
