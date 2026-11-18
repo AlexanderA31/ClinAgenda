@@ -1,7 +1,7 @@
 'use client';
 
 import { createStore, del, entries, set } from 'idb-keyval';
-import type { AppointmentCreateInput } from '@clinagenda/schemas';
+import type { AppointmentCancelInput, AppointmentCreateInput } from '@clinagenda/schemas';
 import { ApiRequestError, OfflineError, api } from './api';
 
 /**
@@ -9,11 +9,17 @@ import { ApiRequestError, OfflineError, api } from './api';
  * Queda guardada en este navegador como "pendiente de enviar", con una clave única (Idempotency-Key)
  * para que al reintentar el servidor no la cree dos veces. Al volver la conexión se envía sola.
  * Si al enviarla el horario ya fue tomado, queda como "con conflicto" para que la recepcionista decida.
+ * Las cancelaciones hechas sin internet también se guardan y se envían igual (el paciente que llama
+ * para cancelar no debe esperar a que vuelva la conexión).
  */
 
 export interface PendingAppointment {
   key: string;
-  input: AppointmentCreateInput;
+  /** create = cita nueva; cancel = cancelación hecha sin internet. */
+  kind?: 'create' | 'cancel';
+  input?: AppointmentCreateInput;
+  appointmentId?: string;
+  cancel?: AppointmentCancelInput;
   summary: string;
   createdAt: string;
   status: 'PENDING' | 'CONFLICT';
@@ -60,7 +66,12 @@ export async function flushQueue(): Promise<{ sent: number; conflicts: number }>
     for (const item of await listPending()) {
       if (item.status !== 'PENDING') continue;
       try {
-        await api('/appointments', { method: 'POST', body: item.input, headers: { 'Idempotency-Key': item.key } });
+        if (item.kind === 'cancel') {
+          // Cancelar es idempotente en el servidor: si alguien ya la canceló, no pasa nada.
+          await api(`/appointments/${item.appointmentId}/cancel`, { method: 'POST', body: item.cancel });
+        } else {
+          await api('/appointments', { method: 'POST', body: item.input, headers: { 'Idempotency-Key': item.key } });
+        }
         await del(item.key, store);
         sent++;
       } catch (e) {

@@ -77,7 +77,7 @@ function Agenda() {
     return { visible, cancelled: items.filter((a) => a.status === 'CANCELLED') };
   }, [appts.data, av.data, user]);
 
-  const pendingToday = pending.filter((p) => p.input.clinicId === clinicId && p.input.startsAt.slice(0, 10) === date);
+  const pendingToday = pending.filter((p) => !p.input || (p.input.clinicId === clinicId && p.input.startsAt.slice(0, 10) === date));
   const total = appts.data?.items.filter((a) => a.status !== 'CANCELLED').length ?? 0;
 
   return (
@@ -131,7 +131,7 @@ function Agenda() {
       </div>
 
       {pendingToday.length > 0 && (
-        <Notice tone="warn" title="Citas guardadas en este equipo, sin confirmar">
+        <Notice tone="warn" title="Cambios guardados en este equipo, todavía sin enviar">
           <ul className="mt-2 flex flex-col gap-2">
             {pendingToday.map((p) => (
               <li key={p.key} className="flex flex-wrap items-center justify-between gap-2 rounded-md border-2 border-dashed border-warn/60 bg-surface px-3 py-2">
