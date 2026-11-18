@@ -66,3 +66,9 @@ export interface ClinicView {
   schedule: WeeklySlot[];
   closures: { id: string; date: string; reason: string }[];
 }
+
+/** Información pública de la página web: clínicas, horarios y médicos. Sin teléfonos de médicos ni datos internos. */
+export interface PublicDirectory {
+  clinics: { id: string; name: string; address: string | null; phone: string | null; timezone: string; schedule: WeeklySlot[]; closures: { date: string; reason: string }[] }[];
+  doctors: { id: string; fullName: string; specialty: string; assignments: { clinicId: string; clinicName: string; weekday: number; startTime: string; endTime: string }[] }[];
+}

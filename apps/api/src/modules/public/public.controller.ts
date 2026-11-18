@@ -9,18 +9,25 @@ import { PublicService } from './public.service';
 class PublicCancelDto extends createZodDto(PublicCancelSchema) {}
 
 @ApiTags('Enlace del paciente (sin sesión)')
-@Controller('public/appointments')
+@Controller('public')
 @Public()
 @Throttle({ default: { limit: 20, ttl: 60_000 } })
 export class PublicController {
   constructor(private readonly service: PublicService) {}
 
-  @Get(':token')
+  /** Clínicas, horarios y médicos para la página web pública. */
+  @Throttle({ default: { limit: 120, ttl: 60_000 } })
+  @Get('directory')
+  directory() {
+    return this.service.directory();
+  }
+
+  @Get('appointments/:token')
   view(@Param('token') token: string) {
     return this.service.view(token);
   }
 
-  @Post(':token/cancel')
+  @Post('appointments/:token/cancel')
   @HttpCode(200)
   cancel(@Param('token') token: string, @Body() _body: PublicCancelDto, @ReqMeta() meta: RequestMeta) {
     return this.service.cancel(token, meta);

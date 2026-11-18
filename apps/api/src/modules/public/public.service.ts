@@ -1,5 +1,5 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
-import { CANCEL_LINK_HOURS, ErrorCodes, type PublicAppointmentView } from '@clinagenda/schemas';
+import { CANCEL_LINK_HOURS, ErrorCodes, type PublicAppointmentView, type PublicDirectory } from '@clinagenda/schemas';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { DomainError } from '../../common/errors/domain-error';
@@ -22,6 +22,38 @@ export class PublicService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
   ) {}
+
+  /** Para la página web de las clínicas: dónde, cuándo y con quién. Solo datos que una clínica publica. */
+  async directory(): Promise<PublicDirectory> {
+    const today = new Date(new Date().toISOString().slice(0, 10) + 'T00:00:00Z');
+    const [clinics, doctors] = await Promise.all([
+      this.prisma.clinic.findMany({
+        where: { active: true },
+        include: { schedules: true, closures: { where: { date: { gte: today, lt: new Date(today.getTime() + 30 * 86400000) } }, orderBy: { date: 'asc' } } },
+        orderBy: { name: 'asc' },
+      }),
+      this.prisma.doctor.findMany({ where: { active: true }, include: { assignments: { include: { clinic: true } } }, orderBy: { fullName: 'asc' } }),
+    ]);
+    return {
+      clinics: clinics.map((c) => ({
+        id: c.id,
+        name: c.name,
+        address: c.address,
+        phone: c.phone,
+        timezone: c.timezone,
+        schedule: c.schedules.map(({ weekday, startTime, endTime }) => ({ weekday, startTime, endTime })).sort((a, b) => a.weekday - b.weekday),
+        closures: c.closures.map((x) => ({ date: x.date.toISOString().slice(0, 10), reason: x.reason })),
+      })),
+      doctors: doctors.map((d) => ({
+        id: d.id,
+        fullName: d.fullName,
+        specialty: d.specialty,
+        assignments: d.assignments
+          .map((a) => ({ clinicId: a.clinicId, clinicName: a.clinic.name, weekday: a.weekday, startTime: a.startTime, endTime: a.endTime }))
+          .sort((a, b) => a.weekday - b.weekday || a.startTime.localeCompare(b.startTime)),
+      })),
+    };
+  }
 
   async view(token: string): Promise<PublicAppointmentView> {
     return this.toView(await this.load(token));
