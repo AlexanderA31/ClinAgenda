@@ -1,0 +1,22 @@
+{
+  "name": "@clinagenda/schemas",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Contrato compartido API/Web: schemas Zod y validadores de dominio",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsc -p tsconfig.build.json --watch",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "libphonenumber-js": "1.13.16",
+    "zod": "3.25.76"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "vitest": "3.2.7"
+  }
+}
