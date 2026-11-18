@@ -74,7 +74,7 @@ function ClinicCard({ clinic }: { clinic: ClinicView }) {
             <p className="font-bold">Próximos cierres</p>
             <ul className="text-ink-2">
               {clinic.closures.map((c) => (
-                <li key={c.id} className="capitalize">
+                <li key={c.id} className="first-letter:uppercase">
                   {dayLabel(c.date)}: <span className="normal-case">{c.reason}</span>
                 </li>
               ))}

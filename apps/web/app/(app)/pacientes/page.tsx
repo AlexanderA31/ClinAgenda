@@ -71,11 +71,8 @@ export default function PacientesPage() {
           )
         }
       />
-      <Field id="pacientes-q" label="Buscar paciente" className="max-w-xl">
-        <div className="relative">
-          <Input value={q} onChange={(e) => (setQ(e.target.value), t.resetPage())} placeholder="Ej. maria lopez, 1712345675, 0991234567" className="pl-11" />
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-ink-3" aria-hidden />
-        </div>
+      <Field id="pacientes-q" label="Buscar paciente" className="max-w-xl" addon={<Search className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-ink-3" aria-hidden />}>
+        <Input value={q} onChange={(e) => (setQ(e.target.value), t.resetPage())} placeholder="Ej. maria lopez, 1712345675, 0991234567" className="pl-11" />
       </Field>
       <DataTable
         caption="Pacientes"

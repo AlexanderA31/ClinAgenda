@@ -74,7 +74,7 @@ function PanelBody({ id }: { id: string }) {
           <StatusBadge status={a.status} />
           <span className="font-mono text-sm text-ink-3">{a.code}</span>
         </div>
-        <p className="text-2xl font-bold capitalize">
+        <p className="text-2xl font-bold first-letter:uppercase">
           {dayLabel(a.startsAt.slice(0, 10))}, <span className="font-mono">{time(a.startsAt)}</span>
         </p>
         <dl className="grid grid-cols-[8rem_1fr] gap-x-3 gap-y-2">

@@ -14,8 +14,9 @@ export type ChartConfig = Record<string, { label: string; color: string }>;
 const ChartContext = React.createContext<ChartConfig | null>(null);
 export const useChartConfig = () => React.useContext(ChartContext) ?? {};
 
-export function ChartContainer({ config, className, children, ...props }: React.HTMLAttributes<HTMLDivElement> & { config: ChartConfig; children: React.ReactElement }) {
-  const style = Object.fromEntries(Object.entries(config).map(([k, v]) => [`--color-${k}`, v.color])) as React.CSSProperties;
+export function ChartContainer({ config, className, children, style: extraStyle, ...props }: React.HTMLAttributes<HTMLDivElement> & { config: ChartConfig; children: React.ReactElement }) {
+  // Las variables de color se combinan con el style que llegue (p. ej. una altura), nunca se reemplazan.
+  const style = { ...extraStyle, ...Object.fromEntries(Object.entries(config).map(([k, v]) => [`--color-${k}`, v.color])) } as React.CSSProperties;
   return (
     <ChartContext.Provider value={config}>
       <div

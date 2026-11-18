@@ -44,11 +44,8 @@ export default function CitasPage() {
     <>
       <PageHeader title="Buscar citas" description="Todas las citas, con filtros. Toque una fila para ver el detalle, cancelarla o cambiarla de hora." />
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        <Field id="citas-q" label="Buscar" className="lg:col-span-2">
-          <div className="relative">
-            <Input value={q} onChange={(e) => (setQ(e.target.value), t.resetPage())} placeholder="Paciente, cédula, médico o C-000123" className="pl-11" />
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-ink-3" aria-hidden />
-          </div>
+        <Field id="citas-q" label="Buscar" className="lg:col-span-2" addon={<Search className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-ink-3" aria-hidden />}>
+          <Input value={q} onChange={(e) => (setQ(e.target.value), t.resetPage())} placeholder="Paciente, cédula, médico o C-000123" className="pl-11" />
         </Field>
         <Field id="citas-clinic" label="Clínica">
           <Select value={clinicId} onChange={(e) => (setClinicId(e.target.value), t.resetPage())}>

@@ -108,7 +108,7 @@ export default function PanelPage() {
                   <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={40} />
                   <Tooltip content={<ChartTooltipContent labelFormatter={(d) => dayLabel(String(d))} />} />
                   {(['attended', 'scheduled', 'noShow', 'cancelled'] as const).map((k, i, arr) => (
-                    <Bar key={k} dataKey={k} stackId="a" fill={`var(--color-${k})`} stroke="var(--surface)" strokeWidth={days > 40 ? 0 : 2} radius={i === arr.length - 1 ? [4, 4, 0, 0] : 0} />
+                    <Bar key={k} isAnimationActive={false} dataKey={k} stackId="a" fill={`var(--color-${k})`} stroke="var(--surface)" strokeWidth={days > 40 ? 0 : 2} radius={i === arr.length - 1 ? [4, 4, 0, 0] : 0} />
                   ))}
                 </BarChart>
               </ChartContainer>
@@ -128,7 +128,7 @@ export default function PanelPage() {
                   <TableBody>
                     {r.daily.map((d) => (
                       <TableRow key={d.date}>
-                        <TableCell className="capitalize">{dayLabel(d.date)}</TableCell>
+                        <TableCell className="first-letter:uppercase">{dayLabel(d.date)}</TableCell>
                         <TableCell className="tabular text-right">{d.attended}</TableCell>
                         <TableCell className="tabular text-right">{d.scheduled}</TableCell>
                         <TableCell className="tabular text-right">{d.noShow}</TableCell>
@@ -176,7 +176,7 @@ export default function PanelPage() {
                     <XAxis dataKey="hour" tickLine={false} axisLine={false} interval={1} />
                     <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={40} />
                     <Tooltip content={<ChartTooltipContent />} />
-                    <Bar dataKey="count" fill="var(--color-count)" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="count" isAnimationActive={false} fill="var(--color-count)" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ChartContainer>
               </CardBody>
@@ -188,12 +188,12 @@ export default function PanelPage() {
               </CardHeader>
               <CardBody>
                 {r.cancelReasons.length ? (
-                  <ChartContainer config={singleConfig} style={{ height: 48 + r.cancelReasons.length * 44 }} role="img" aria-label="Cancelaciones por motivo">
+                  <ChartContainer config={singleConfig} className="h-auto" style={{ height: 24 + r.cancelReasons.length * 44 }} role="img" aria-label="Cancelaciones por motivo">
                     <BarChart data={r.cancelReasons} layout="vertical" margin={{ top: 0, right: 40, left: 0, bottom: 0 }}>
                       <XAxis type="number" hide allowDecimals={false} />
                       <YAxis type="category" dataKey="reason" width={190} tickLine={false} axisLine={false} />
                       <Tooltip content={<ChartTooltipContent />} />
-                      <Bar dataKey="count" fill="var(--color-count)" radius={[0, 4, 4, 0]} barSize={22}>
+                      <Bar dataKey="count" isAnimationActive={false} fill="var(--color-count)" radius={[0, 4, 4, 0]} barSize={22}>
                         <LabelList dataKey="count" position="right" className="fill-[var(--ink-2)] text-sm" />
                       </Bar>
                     </BarChart>

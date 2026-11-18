@@ -35,7 +35,7 @@ function cedula(province: number): string {
 }
 
 function mobile(): string {
-  const raw = `09${pickOne(['6', '7', '8', '9'])}${String(Math.floor(rand() * 10_000_000)).padStart(7, '0')}`;
+  const raw = `09${pickOne(['8', '9'])}${String(Math.floor(rand() * 10_000_000)).padStart(7, '0')}`;
   const r = checkPhone(raw);
   return r.ok ? r.e164 : '+593991234567';
 }

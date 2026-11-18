@@ -24,6 +24,8 @@ export default function AgendaPage() {
   );
 }
 
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
 type Row = { kind: 'free'; slot: AvailabilitySlot } | { kind: 'appt'; appt: AppointmentView };
 
 function Agenda() {
@@ -84,11 +86,11 @@ function Agenda() {
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="flex flex-col gap-1">
             <p className="text-sm font-bold uppercase tracking-wider text-ink-3">{clinic?.name ?? 'Agenda'}</p>
-            <h1 className="text-3xl font-extrabold capitalize">
+            <h1 className="text-3xl font-extrabold first-letter:uppercase">
               {date === todayIso() ? 'Hoy, ' : ''}
               {dayLabel(date)}
             </h1>
-            <p className="tabular text-ink-2">{appts.isPending ? 'Cargando…' : `${total} cita${total === 1 ? '' : 's'} agendada${total === 1 ? '' : 's'}`}</p>
+            <p className="tabular text-ink-2">{appts.isPending ? 'Cargando…' : plural(total, 'cita agendada', 'citas agendadas')}</p>
           </div>
           {canBook && (
             <Button size="lg" onClick={() => setWizard({ clinicId, date: isPastDay ? todayIso() : date })}>
@@ -169,9 +171,9 @@ function Agenda() {
             <section key={doctorId} className="flex min-w-0 flex-col rounded-lg border border-rule bg-surface" aria-label={d.name}>
               <header className="flex items-baseline justify-between gap-2 border-b border-rule px-4 py-3">
                 <h2 className="text-lg font-bold">{d.name}</h2>
-                <span className="tabular text-sm text-ink-3">{d.rows.filter((r) => r.kind === 'appt').length} citas</span>
+                <span className="tabular text-sm text-ink-3">{plural(d.rows.filter((r) => r.kind === 'appt').length, 'cita', 'citas')}</span>
               </header>
-              <ol className="ruled flex flex-col">
+              <ol className="flex flex-col">
                 {d.rows.length === 0 && <li className="px-4 py-6 text-ink-3">Sin horarios libres ni citas.</li>}
                 {d.rows.map((r) =>
                   r.kind === 'free' ? (
@@ -183,7 +185,7 @@ function Agenda() {
                           onClick={() => setWizard({ clinicId, date, slot: r.slot })}
                           className="flex min-h-11 flex-1 items-center gap-2 rounded-md px-2 text-left text-ink-3 hover:bg-ballpoint-soft hover:text-ballpoint"
                         >
-                          <Plus className="size-5" aria-hidden /> Libre — agendar aquí
+                          <Plus className="size-5" aria-hidden /> Agendar aquí
                         </button>
                       ) : (
                         <span className="text-ink-3">Libre</span>

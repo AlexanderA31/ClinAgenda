@@ -138,7 +138,7 @@ function WizardBody({ preset, onDone }: { preset?: BookingPreset; onDone: () => 
             <Button variant="secondary" size="sm" onClick={() => setDate((d) => (d > todayIso() ? addDays(d, -1) : d))} disabled={date <= todayIso()}>
               <ChevronLeft /> Día anterior
             </Button>
-            <p className="text-center font-bold capitalize">{dayLabel(date)}</p>
+            <p className="text-center font-bold first-letter:uppercase">{dayLabel(date)}</p>
             <Button variant="secondary" size="sm" onClick={() => setDate((d) => addDays(d, 1))}>
               Día siguiente <ChevronRight />
             </Button>
@@ -153,7 +153,7 @@ function WizardBody({ preset, onDone }: { preset?: BookingPreset; onDone: () => 
             <p className="text-sm font-bold uppercase tracking-wider text-ink-3">Lea esto al paciente antes de confirmar</p>
             <p className="mt-2 text-xl leading-relaxed">
               <strong>{patient.fullName}</strong>, con <strong>{slot.doctorName}</strong>, en <strong>{clinic.name}</strong>, el{' '}
-              <strong className="capitalize">{dayLabel(date)}</strong> a las <strong className="font-mono">{slot.label}</strong>.
+              <strong>{dayLabel(date)}</strong> a las <strong className="font-mono">{slot.label}</strong>.
             </p>
             {clinic.address && <p className="mt-1 text-ink-2">Dirección: {clinic.address}</p>}
           </div>
@@ -209,11 +209,8 @@ function PatientStep({ onPick }: { onPick: (p: PatientView) => void }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <Field id="wizard-search" label="Buscar paciente" hint="Por nombre, cédula, teléfono o código (P-00012). No importa si escribe sin tildes.">
-        <div className="relative">
-          <Input value={q} onChange={(e) => setQ(e.target.value)} autoFocus autoComplete="off" className="pl-11" placeholder="Ej. maria lopez" />
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-ink-3" aria-hidden />
-        </div>
+      <Field id="wizard-search" label="Buscar paciente" hint="Por nombre, cédula, teléfono o código (P-00012). No importa si escribe sin tildes." addon={<Search className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-ink-3" aria-hidden />}>
+        <Input value={q} onChange={(e) => setQ(e.target.value)} autoFocus autoComplete="off" className="pl-11" placeholder="Ej. maria lopez" />
       </Field>
       {debounced.length >= 2 && (
         <ul className="flex flex-col gap-2" aria-live="polite">
