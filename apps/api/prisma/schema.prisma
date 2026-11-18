@@ -1,0 +1,291 @@
+// Modelo de datos de ClinAgenda.
+// Reglas que viven en la base (no solo en el código) están en las migraciones SQL:
+//   - Un médico no puede tener dos citas que se crucen, en ninguna clínica (constraint EXCLUDE).
+//   - Un paciente no puede tener dos citas que se crucen.
+//   - La bitácora de auditoría no se puede modificar ni borrar.
+//   - Las citas nunca se borran: se cancelan.
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  RECEPCION
+  MEDICO
+}
+
+enum DocumentType {
+  CEDULA
+  PASAPORTE
+  SIN_DOCUMENTO
+}
+
+enum Sex {
+  F
+  M
+  X
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  ATTENDED
+  NO_SHOW
+  CANCELLED
+}
+
+enum CancelReason {
+  PACIENTE_LLAMO
+  MEDICO_NO_DISPONIBLE
+  ERROR_AL_AGENDAR
+  REPROGRAMADA
+  OTRO
+}
+
+enum WaitlistStatus {
+  WAITING
+  OFFERED
+  BOOKED
+  REMOVED
+}
+
+model User {
+  id                 String    @id @default(uuid()) @db.Uuid
+  username           String    @unique
+  fullName           String
+  role               Role
+  passwordHash       String
+  active             Boolean   @default(true)
+  mustChangePassword Boolean   @default(false)
+  failedAttempts     Int       @default(0)
+  lockedUntil        DateTime? @db.Timestamptz(3)
+  lastLoginAt        DateTime? @db.Timestamptz(3)
+  doctorId           String?   @unique @db.Uuid
+  doctor             Doctor?   @relation(fields: [doctorId], references: [id])
+  clinicId           String?   @db.Uuid
+  clinic             Clinic?   @relation(fields: [clinicId], references: [id])
+  createdAt          DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime  @updatedAt @db.Timestamptz(3)
+
+  auditLogs AuditLog[]
+}
+
+model Clinic {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @unique
+  address     String?
+  phone       String?
+  timezone    String   @default("America/Guayaquil")
+  slotMinutes Int      @default(30)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+
+  schedules    ClinicSchedule[]
+  closures     ClinicClosure[]
+  assignments  DoctorAssignment[]
+  appointments Appointment[]
+  waitlist     WaitlistEntry[]
+  users        User[]
+}
+
+/// Horario de atención de la clínica, en hora local de la clínica ("08:00").
+model ClinicSchedule {
+  id        String @id @default(uuid()) @db.Uuid
+  clinicId  String @db.Uuid
+  clinic    Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  weekday   Int // 0 = domingo … 6 = sábado
+  startTime String
+  endTime   String
+
+  @@index([clinicId, weekday])
+}
+
+/// Días en que la clínica no atiende (feriados, mantenimiento).
+model ClinicClosure {
+  id       String   @id @default(uuid()) @db.Uuid
+  clinicId String   @db.Uuid
+  clinic   Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  date     DateTime @db.Date
+  reason   String
+
+  @@unique([clinicId, date])
+}
+
+model Doctor {
+  id        String   @id @default(uuid()) @db.Uuid
+  fullName  String
+  specialty String
+  phone     String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  assignments  DoctorAssignment[]
+  appointments Appointment[]
+  waitlist     WaitlistEntry[]
+  user         User?
+}
+
+/// En qué clínica atiende el médico cada día de la semana (p. ej. Dr. Salazar: Centro lunes, Norte martes).
+model DoctorAssignment {
+  id        String @id @default(uuid()) @db.Uuid
+  doctorId  String @db.Uuid
+  doctor    Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  clinicId  String @db.Uuid
+  clinic    Clinic @relation(fields: [clinicId], references: [id])
+  weekday   Int
+  startTime String
+  endTime   String
+
+  @@index([doctorId, weekday])
+  @@index([clinicId, weekday])
+}
+
+model Patient {
+  id                   String       @id @default(uuid()) @db.Uuid
+  /// Número corto para decir por teléfono: "P-00042".
+  code                 Int          @unique @default(autoincrement())
+  firstNames           String
+  lastNames            String
+  /// "maria jose lopez" — sin tildes ni mayúsculas, para buscar y detectar duplicados.
+  nameNormalized       String
+  birthDate            DateTime     @db.Date
+  birthDateEstimated   Boolean      @default(false)
+  sex                  Sex?
+  documentType         DocumentType
+  documentNumber       String?
+  noDocumentReason     String?
+  phone                String?
+  email                String?
+  address              String?
+  contactNote          String?
+  guardianName         String?
+  guardianRelationship String?
+  guardianPhone        String?
+  guardianDocument     String?
+  /// Si este registro era un duplicado, apunta al paciente que se conservó.
+  mergedIntoId         String?      @db.Uuid
+  mergedInto           Patient?     @relation("PatientMerge", fields: [mergedIntoId], references: [id])
+  mergedFrom           Patient[]    @relation("PatientMerge")
+  createdById          String?      @db.Uuid
+  createdAt            DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime     @updatedAt @db.Timestamptz(3)
+
+  appointments Appointment[]
+  waitlist     WaitlistEntry[]
+
+  @@index([nameNormalized])
+  @@index([phone])
+  @@index([birthDate])
+}
+
+model Appointment {
+  id             String            @id @default(uuid()) @db.Uuid
+  code           Int               @unique @default(autoincrement())
+  patientId      String            @db.Uuid
+  patient        Patient           @relation(fields: [patientId], references: [id])
+  doctorId       String            @db.Uuid
+  doctor         Doctor            @relation(fields: [doctorId], references: [id])
+  clinicId       String            @db.Uuid
+  clinic         Clinic            @relation(fields: [clinicId], references: [id])
+  startsAt       DateTime          @db.Timestamptz(3)
+  endsAt         DateTime          @db.Timestamptz(3)
+  status         AppointmentStatus @default(SCHEDULED)
+  reason         String?
+  /// Solo visible para el médico tratante y la dirección.
+  clinicalNote   String?
+  cancelReason   CancelReason?
+  cancelNote     String?
+  cancelledAt    DateTime?         @db.Timestamptz(3)
+  cancelledById  String?           @db.Uuid
+  createdById    String?           @db.Uuid
+  /// Clave enviada por el navegador para que un reintento (p. ej. tras perder internet) no cree la cita dos veces.
+  idempotencyKey String?           @unique
+  /// "import" cuando vino del archivo de datos de prueba.
+  source         String            @default("app")
+  createdAt      DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime          @updatedAt @db.Timestamptz(3)
+
+  events AppointmentEvent[]
+
+  @@index([doctorId, startsAt])
+  @@index([clinicId, startsAt])
+  @@index([patientId, startsAt])
+  @@index([status, startsAt])
+}
+
+/// Historia de cada cita: creada, reprogramada, cancelada, reactivada…
+model AppointmentEvent {
+  id            String      @id @default(uuid()) @db.Uuid
+  appointmentId String      @db.Uuid
+  appointment   Appointment @relation(fields: [appointmentId], references: [id])
+  type          String
+  at            DateTime    @default(now()) @db.Timestamptz(3)
+  byId          String?     @db.Uuid
+  data          Json?
+
+  @@index([appointmentId, at])
+}
+
+model WaitlistEntry {
+  id          String         @id @default(uuid()) @db.Uuid
+  patientId   String         @db.Uuid
+  patient     Patient        @relation(fields: [patientId], references: [id])
+  clinicId    String         @db.Uuid
+  clinic      Clinic         @relation(fields: [clinicId], references: [id])
+  doctorId    String?        @db.Uuid
+  doctor      Doctor?        @relation(fields: [doctorId], references: [id])
+  preference  String?
+  status      WaitlistStatus @default(WAITING)
+  createdById String?        @db.Uuid
+  createdAt   DateTime       @default(now()) @db.Timestamptz(3)
+  resolvedAt  DateTime?      @db.Timestamptz(3)
+
+  @@index([clinicId, status, createdAt])
+}
+
+/// Bitácora inmutable: quién hizo qué, cuándo y qué había antes. Protegida por trigger contra UPDATE/DELETE.
+model AuditLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  at        DateTime @default(now()) @db.Timestamptz(3)
+  userId    String?  @db.Uuid
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String
+  entity    String
+  entityId  String?
+  summary   String
+  before    Json?
+  after     Json?
+  ip        String?
+  userAgent String?
+
+  @@index([entity, entityId])
+  @@index([userId, at])
+  @@index([at])
+}
+
+model IdempotencyKey {
+  key          String   @id
+  userId       String   @db.Uuid
+  route        String
+  statusCode   Int?
+  responseBody Json?
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+}
+
+model ImportJob {
+  id          String   @id @default(uuid()) @db.Uuid
+  kind        String
+  fileName    String
+  dryRun      Boolean
+  summary     Json
+  createdById String?  @db.Uuid
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+}
