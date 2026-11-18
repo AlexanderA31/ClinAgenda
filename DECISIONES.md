@@ -58,7 +58,16 @@ Se acepta como lo dicta la gente (“099 123 4567”, “+593 99…”) y se gua
 | Panel de cifras | No | Solo las suyas | Sí |
 | Usuarios, importación, horarios de médicos, bitácora | No | No | Sí |
 
-Los permisos se aplican en el servidor, no solo ocultando botones.
+Esa es la configuración de fábrica. **La dirección puede cambiarla** desde *Roles y permisos*: crear roles nuevos (por ejemplo, una “Coordinación de recepción” que además ve el panel y une duplicados), quitar o dar permisos y asignar el rol a cada persona. Cada rol tiene dos partes:
+
+- **Qué información ve** (se elige al crearlo y no cambia después): toda; todo menos notas clínicas; o solo la agenda de un médico.
+- **Qué puede hacer**: 15 permisos concretos (dar citas, marcar asistencia, escribir notas clínicas, recordatorios, lista de espera, registrar pacientes, unir duplicados, panel, médicos, clínicas, usuarios, roles, bitácora, importar y estado del sistema).
+
+Así, una nota clínica nunca la ve alguien con alcance de recepción aunque por error se le dé el permiso de escribirlas.
+
+Los permisos se aplican en el servidor, no solo ocultando botones, y un cambio de rol vale de inmediato, sin que la persona tenga que volver a ingresar. Para que nadie quede fuera del sistema, el rol **Dirección** siempre tiene todos los permisos, no se puede editar ni borrar, siempre debe quedar al menos una persona activa con él y nadie puede quitarse su propio rol ni desactivarse a sí mismo.
+
+**Accesos.** Desde *Usuarios* la dirección puede desbloquear a quien se equivocó 5 veces, dar una contraseña temporal y **cerrar las sesiones de una persona en todos sus equipos** (por ejemplo, si perdió el celular). Desactivar a alguien, cambiarle el rol o la contraseña también cierra sus sesiones abiertas. Todo queda en la bitácora.
 
 **Niños y adultos mayores.** Un menor de 18 años siempre se registra con su representante. Para quien no recuerda su fecha de nacimiento se guarda una fecha aproximada, marcada como tal.
 

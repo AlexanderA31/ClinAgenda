@@ -38,7 +38,7 @@ Navegador ──► web (Next.js 15, :3000) ──/api──► api (NestJS 11, 
 ```
 
 - **`packages/schemas`** — contrato compartido: schemas Zod de cada entidad y validadores de dominio (cédula con dígito verificador, teléfonos E.164, limpieza de nombres, fechas). Lo usan la API (validación + Swagger vía `nestjs-zod`) y la web (formularios con `react-hook-form`). Una regla, un solo lugar.
-- **`apps/api`** — NestJS modular: `auth`, `users`, `clinics`, `doctors`, `patients`, `appointments`, `waitlist`, `public` (enlace del paciente), `reports`, `imports`, `audit`, `system` (estado de respaldos), `health`. Guardias globales de sesión y rol, filtro único de errores con mensajes en español, idempotencia para reintentos.
+- **`apps/api`** — NestJS modular: `auth`, `users`, `roles` (roles y permisos), `clinics`, `doctors`, `patients`, `appointments`, `waitlist`, `public` (enlace del paciente), `reports`, `imports`, `audit`, `system` (estado del sistema y respaldos), `health`. Guardias globales de sesión y permisos (`@Can`), filtro único de errores con mensajes en español, idempotencia para reintentos.
 - **`apps/web`** — Next.js App Router con Tailwind 4 y componentes al estilo shadcn/ui; tablas con **TanStack Table** (paginación en servidor) y gráficos con **Recharts** (estilo shadcn charts). La web reenvía `/api/*` a la API, así sesión y caché son del mismo origen.
 - **Base de datos** — Prisma para el modelo; las reglas críticas están en SQL (`apps/api/prisma/migrations`): restricción `EXCLUDE` contra citas solapadas por médico y por paciente, prohibición de borrar citas, bitácora de solo agregar, índice de trigramas para nombres.
 

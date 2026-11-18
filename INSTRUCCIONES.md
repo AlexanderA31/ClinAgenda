@@ -68,7 +68,9 @@ La API no queda expuesta a internet: solo la web, que le reenvía las peticiones
 - **Panel**: citas por día, ocupación por clínica, horas pico, cancelaciones e inasistencias por médico. Arriba indica si los respaldos están al día.
 - **Médicos** → *Editar horario*: días, horas y clínica de cada médico. Si el cambio deja citas fuera de su horario, el sistema no las cancela: muestra la lista para reprogramarlas (también en *Citas por reprogramar*).
 - **Clínicas** → *Cerrar un día* (feriados): avisa cuántas citas hay que mover.
-- **Usuarios**: una cuenta por persona; *Nueva contraseña* también desbloquea a quien se equivocó 5 veces.
+- **Usuarios**: una cuenta por persona. Con *Administrar* puede cambiar el rol, dar una contraseña temporal, desbloquear, cerrar sus sesiones en todos los equipos o desactivar la cuenta (el historial se conserva).
+- **Roles y permisos**: qué ve y qué puede hacer cada rol. Puede crear roles a medida o duplicar uno existente y ajustarlo. La tabla de abajo muestra de un vistazo qué permiso tiene cada rol. El rol Dirección siempre tiene todo.
+- **Sistema**: respaldos, usuarios bloqueados, intentos fallidos de ingreso en las últimas 24 horas y datos del servidor para soporte. Conviene mirarlo cada mañana.
 - **Bitácora**: quién hizo qué y cuándo, incluidas las cancelaciones hechas por los propios pacientes.
 - **Importar datos**: médicos, luego pacientes, luego citas, desde Excel guardado como CSV. Siempre muestra una vista previa antes de guardar.
 

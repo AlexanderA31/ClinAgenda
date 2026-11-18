@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { LogOut, Menu } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { ROLE_LABELS } from '@clinagenda/schemas';
 import { api } from '@/lib/api';
 import { useSession } from '@/lib/session';
 import { cn } from '@/lib/utils';
@@ -20,31 +19,40 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
   const user = useSession();
   const pathname = usePathname();
   return (
-    <nav aria-label="Secciones">
-      <ul className="flex flex-col gap-1">
-        {NAV.filter((n) => !n.roles || n.roles.includes(user.role)).map((n) => {
-          const active = pathname === n.href || pathname.startsWith(n.href + '/');
-          return (
-            <li key={n.href}>
-              <Link
-                href={n.href}
-                onClick={onNavigate}
-                aria-current={active ? 'page' : undefined}
-                className={cn(
-                  'flex min-h-12 items-center gap-3 rounded-md px-3 font-bold transition-colors',
-                  active ? 'bg-ballpoint text-ballpoint-ink' : 'text-ink-2 hover:bg-surface-2 hover:text-ink',
-                )}
-              >
-                <n.icon className="size-5 shrink-0" aria-hidden />
-                <span className="flex flex-col leading-tight">
-                  {n.label}
-                  <span className={cn('text-xs font-normal', active ? 'opacity-80' : 'text-ink-3')}>{n.hint}</span>
-                </span>
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
+    <nav aria-label="Secciones" className="flex flex-col gap-5">
+      {NAV.map((group) => {
+        const items = group.items.filter((n) => !n.permission || user.permissions.includes(n.permission));
+        if (!items.length) return null;
+        return (
+          <div key={group.label} className="flex flex-col gap-1">
+            <p className="px-3 pb-1 text-sm font-bold text-ink-3">{group.label}</p>
+            <ul className="flex flex-col gap-1">
+              {items.map((n) => {
+                const active = pathname === n.href || pathname.startsWith(n.href + '/');
+                return (
+                  <li key={n.href}>
+                    <Link
+                      href={n.href}
+                      onClick={onNavigate}
+                      aria-current={active ? 'page' : undefined}
+                      className={cn(
+                        'flex min-h-12 items-center gap-3 rounded-md px-3 font-bold transition-colors',
+                        active ? 'bg-ballpoint text-ballpoint-ink' : 'text-ink-2 hover:bg-surface-2 hover:text-ink',
+                      )}
+                    >
+                      <n.icon className="size-5 shrink-0" aria-hidden />
+                      <span className="flex flex-col leading-tight">
+                        {n.label}
+                        <span className={cn('text-xs font-normal', active ? 'opacity-80' : 'text-ink-3')}>{n.hint}</span>
+                      </span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        );
+      })}
     </nav>
   );
 }
@@ -73,14 +81,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex flex-wrap items-center justify-between gap-3 border-b border-rule bg-surface/95 px-4 py-2 backdrop-blur" style={{ paddingLeft: 'max(16px, env(safe-area-inset-left))', paddingRight: 'max(16px, env(safe-area-inset-right))' }}>
+        <header
+          className="sticky top-0 z-30 flex flex-wrap items-center justify-between gap-3 border-b border-rule bg-surface/95 px-4 py-2 backdrop-blur"
+          style={{ paddingLeft: 'max(16px, env(safe-area-inset-left))', paddingRight: 'max(16px, env(safe-area-inset-right))' }}
+        >
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setOpen(true)} aria-label="Abrir menú">
               <Menu className="size-6" />
             </Button>
             <div className="flex flex-col leading-tight">
               <span className="font-bold">{user.fullName}</span>
-              <span className="text-sm text-ink-3">{ROLE_LABELS[user.role]}</span>
+              <span className="text-sm text-ink-3">{user.roleName}</span>
             </div>
           </div>
           <div className="flex items-center gap-2">

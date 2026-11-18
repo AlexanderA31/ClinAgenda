@@ -44,9 +44,9 @@ export const SYSTEM_ROLE_IDS = {
  * - MEDICO: solo su propia agenda y sus pacientes; necesita estar vinculado a su ficha de médico.
  */
 export const SCOPE_LABELS: Record<Role, { label: string; hint: string }> = {
-  ADMIN: { label: 'Toda la información', hint: 'Ve todas las agendas, pacientes y notas clínicas.' },
-  RECEPCION: { label: 'Recepción', hint: 'Ve todas las agendas y pacientes, pero no las notas clínicas.' },
-  MEDICO: { label: 'Solo su agenda', hint: 'Ve únicamente sus citas y sus pacientes. Se vincula a una ficha de médico.' },
+  ADMIN: { label: 'Ve toda la información', hint: 'Ve todas las agendas, pacientes y notas clínicas.' },
+  RECEPCION: { label: 'Ve todo menos notas clínicas', hint: 'Ve todas las agendas y pacientes, pero no las notas clínicas.' },
+  MEDICO: { label: 'Ve solo su agenda', hint: 'Ve únicamente sus citas y sus pacientes. Se vincula a una ficha de médico.' },
 };
 
 const roleName = cleaned(cleanText, z.string().min(3, 'Escriba un nombre de al menos 3 letras.').max(60, 'Máximo 60 caracteres.'));

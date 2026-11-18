@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Field } from '@/components/ui/field';
 import { Input, Select } from '@/components/ui/input';
 import { EmptyState, PageHeader } from '@/components/ui/misc';
-import { RequireRole } from '@/components/layout/require-role';
+import { RequirePermission } from '@/components/layout/require-role';
 
 const ENTITIES: Record<string, string> = {
   Appointment: 'Citas',
@@ -37,9 +37,9 @@ const ACTION_TONE: Record<string, 'danger' | 'warn' | 'info' | 'good' | 'neutral
 
 export default function AuditPage() {
   return (
-    <RequireRole roles={['ADMIN']}>
+    <RequirePermission permission="auditoria.ver">
       <Audit />
-    </RequireRole>
+    </RequirePermission>
   );
 }
 

@@ -20,7 +20,7 @@ const DAYS = [1, 2, 3, 4, 5, 6];
 /** Semana de cada médico: en qué clínica está cada día. Así se ve de un vistazo que nadie está en dos lugares a la vez. */
 export default function DoctorsPage() {
   const doctors = useDoctors();
-  const isAdmin = useCan('ADMIN');
+  const isAdmin = useCan('medicos.gestionar');
   const [editing, setEditing] = useState<DoctorView | 'new' | null>(null);
   const [orphansOf, setOrphansOf] = useState<DoctorView | null>(null);
   return (

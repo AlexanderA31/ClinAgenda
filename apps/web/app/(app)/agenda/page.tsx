@@ -30,7 +30,7 @@ type Row = { kind: 'free'; slot: AvailabilitySlot } | { kind: 'appt'; appt: Appo
 
 function Agenda() {
   const user = useSession();
-  const canBook = useCan('ADMIN', 'RECEPCION', 'MEDICO');
+  const canBook = useCan('citas.agendar');
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();

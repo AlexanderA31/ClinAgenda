@@ -19,7 +19,7 @@ import { BookingWizard } from '@/components/appointments/booking-wizard';
 
 export default function PatientPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const canEdit = useCan('ADMIN', 'RECEPCION');
+  const canEdit = useCan('pacientes.editar');
   const patient = usePatient(id);
   const history = useAppointments({ patientId: id, pageSize: 100, sortBy: 'startsAt', sortDir: 'desc' });
   const [editing, setEditing] = useState(false);

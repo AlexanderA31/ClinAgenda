@@ -10,6 +10,7 @@ import type {
   DoctorView,
   Paginated,
   PatientView,
+  RoleView,
 } from '@clinagenda/schemas';
 import { api } from './api';
 
@@ -81,4 +82,8 @@ export function useDebounced<T>(value: T, ms = 300): T {
     return () => clearTimeout(t);
   }, [value, ms]);
   return v;
+}
+
+export function useRoles(enabled = true) {
+  return useQuery({ queryKey: ['roles'], queryFn: () => api<RoleView[]>('/roles'), enabled, staleTime: 60_000 });
 }

@@ -2,7 +2,7 @@
 
 import { createContext, useContext } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import type { Role, SessionUser } from '@clinagenda/schemas';
+import type { Permission, SessionUser } from '@clinagenda/schemas';
 import { api } from './api';
 
 const SessionContext = createContext<SessionUser | null>(null);
@@ -21,6 +21,8 @@ export function useSession(): SessionUser {
   return user;
 }
 
-export function useCan(...roles: Role[]) {
-  return roles.includes(useSession().role);
+/** ¿El rol de esta persona tiene alguno de estos permisos? La API vuelve a comprobarlo siempre. */
+export function useCan(...permissions: Permission[]) {
+  const user = useSession();
+  return permissions.some((p) => user.permissions.includes(p));
 }

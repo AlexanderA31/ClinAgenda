@@ -14,6 +14,8 @@ import { Notice, PageHeader, Skeleton } from '@/components/ui/misc';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import { BackupLine } from '@/components/layout/backup-status';
+import { Stat, StatGrid } from '@/components/ui/stat';
+import { CalendarCheck, CalendarDays, CalendarX, UserX } from 'lucide-react';
 
 const { Bar, BarChart, CartesianGrid, LabelList, Tooltip, XAxis, YAxis } = Recharts;
 
@@ -51,10 +53,7 @@ export default function PanelPage() {
 
   return (
     <>
-      <PageHeader
-        title="Panel"
-        description={user.role === 'MEDICO' ? 'Cifras de su propia agenda.' : 'Cómo van las tres clínicas: citas, inasistencias, cancelaciones y ocupación.'}
-      />
+      <PageHeader title="Panel" description={user.role === 'MEDICO' ? 'Cifras de su propia agenda.' : 'Cómo van las tres clínicas: citas, inasistencias, cancelaciones y ocupación.'} />
 
       {/* Filtros en una sola fila, arriba de todos los gráficos */}
       <div className="flex flex-wrap items-center gap-3">
@@ -84,18 +83,22 @@ export default function PanelPage() {
         </p>
       </div>
 
-      {user.role === 'ADMIN' && <BackupLine />}
-      {report.isError && <Notice tone="danger" title="No se pudo cargar el panel">{errorMessage(report.error)}</Notice>}
+      {user.permissions.includes('sistema.ver') && <BackupLine />}
+      {report.isError && (
+        <Notice tone="danger" title="No se pudo cargar el panel">
+          {errorMessage(report.error)}
+        </Notice>
+      )}
       {!r ? (
         <Skeleton className="h-96" />
       ) : (
         <>
-          <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <Kpi label="Citas dadas" value={totalBooked} note={`${r.totals.scheduled} por atender`} />
-            <Kpi label="Atendidas" value={r.totals.attended} />
-            <Kpi label="No asistieron" value={r.totals.noShow} note={`${Math.round(noShowRate * 100)} % de las que ya pasaron`} />
-            <Kpi label="Canceladas" value={r.totals.cancelled} note={`${r.totals.patientsNew} pacientes nuevos`} />
-          </dl>
+          <StatGrid>
+            <Stat label="Citas dadas" value={totalBooked} icon={CalendarDays} tone="info" note={`${r.totals.scheduled} por atender`} />
+            <Stat label="Atendidas" value={r.totals.attended} icon={CalendarCheck} tone="good" note={`${r.totals.patientsNew} pacientes nuevos`} />
+            <Stat label="No asistieron" value={r.totals.noShow} icon={UserX} tone="warn" note={`${Math.round(noShowRate * 100)} % de las que ya pasaron`} />
+            <Stat label="Canceladas" value={r.totals.cancelled} icon={CalendarX} tone="danger" note="Espacios liberados" />
+          </StatGrid>
 
           <Card>
             <CardHeader>
@@ -110,7 +113,16 @@ export default function PanelPage() {
                   <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={40} />
                   <Tooltip content={<ChartTooltipContent labelFormatter={(d) => dayLabel(String(d))} />} />
                   {(['attended', 'scheduled', 'noShow', 'cancelled'] as const).map((k, i, arr) => (
-                    <Bar key={k} isAnimationActive={false} dataKey={k} stackId="a" fill={`var(--color-${k})`} stroke="var(--surface)" strokeWidth={days > 40 ? 0 : 2} radius={i === arr.length - 1 ? [4, 4, 0, 0] : 0} />
+                    <Bar
+                      key={k}
+                      isAnimationActive={false}
+                      dataKey={k}
+                      stackId="a"
+                      fill={`var(--color-${k})`}
+                      stroke="var(--surface)"
+                      strokeWidth={days > 40 ? 0 : 2}
+                      radius={i === arr.length - 1 ? [4, 4, 0, 0] : 0}
+                    />
                   ))}
                 </BarChart>
               </ChartContainer>
@@ -143,13 +155,14 @@ export default function PanelPage() {
             </CardBody>
           </Card>
 
-          <div className="grid gap-6 lg:grid-cols-2">
-            <Card>
+          {/* Cuatro tarjetas iguales: misma altura de encabezado y de contenido */}
+          <div className="grid auto-rows-fr gap-6 lg:grid-cols-2">
+            <Card className="flex flex-col">
               <CardHeader>
                 <CardTitle>Ocupación por clínica</CardTitle>
-                <p className="text-sm text-ink-3">Citas dadas sobre los turnos que permiten los horarios de los médicos.</p>
+                <p className="text-sm text-ink-3">Citas dadas sobre los turnos que permiten los horarios.</p>
               </CardHeader>
-              <CardBody className="flex flex-col gap-4">
+              <CardBody className="flex h-72 flex-col justify-around gap-4">
                 {r.byClinic.map((c) => (
                   <div key={c.clinicId} className="flex flex-col gap-1.5">
                     <div className="flex items-baseline justify-between gap-2">
@@ -166,13 +179,13 @@ export default function PanelPage() {
               </CardBody>
             </Card>
 
-            <Card>
+            <Card className="flex flex-col">
               <CardHeader>
                 <CardTitle>Horas con más citas</CardTitle>
-                <p className="text-sm text-ink-3">Sirve para decidir cuántas recepcionistas poner en cada turno.</p>
+                <p className="text-sm text-ink-3">Para decidir cuántas recepcionistas poner en cada turno.</p>
               </CardHeader>
-              <CardBody>
-                <ChartContainer config={singleConfig} className="h-56" role="img" aria-label="Citas por hora del día">
+              <CardBody className="h-72">
+                <ChartContainer config={singleConfig} className="h-full" role="img" aria-label="Citas por hora del día">
                   <BarChart data={r.byHour.map((h) => ({ hour: `${h.hour}:00`, count: h.count }))} margin={{ top: 20, right: 8, left: -12, bottom: 0 }}>
                     <CartesianGrid vertical={false} />
                     <XAxis dataKey="hour" tickLine={false} axisLine={false} interval={1} />
@@ -184,33 +197,35 @@ export default function PanelPage() {
               </CardBody>
             </Card>
 
-            <Card>
+            <Card className="flex flex-col">
               <CardHeader>
                 <CardTitle>Motivos de cancelación</CardTitle>
+                <p className="text-sm text-ink-3">Por qué se liberaron los espacios en este período.</p>
               </CardHeader>
-              <CardBody>
+              <CardBody className="h-72">
                 {r.cancelReasons.length ? (
-                  <ChartContainer config={singleConfig} className="h-auto" style={{ height: 24 + r.cancelReasons.length * 44 }} role="img" aria-label="Cancelaciones por motivo">
+                  <ChartContainer config={singleConfig} className="h-full" role="img" aria-label="Cancelaciones por motivo">
                     <BarChart data={r.cancelReasons} layout="vertical" margin={{ top: 0, right: 40, left: 0, bottom: 0 }}>
                       <XAxis type="number" hide allowDecimals={false} />
                       <YAxis type="category" dataKey="reason" width={190} tickLine={false} axisLine={false} />
                       <Tooltip content={<ChartTooltipContent />} />
-                      <Bar dataKey="count" isAnimationActive={false} fill="var(--color-count)" radius={[0, 4, 4, 0]} barSize={22}>
+                      <Bar dataKey="count" isAnimationActive={false} fill="var(--color-count)" radius={[0, 4, 4, 0]} maxBarSize={28}>
                         <LabelList dataKey="count" position="right" className="fill-[var(--ink-2)] text-sm" />
                       </Bar>
                     </BarChart>
                   </ChartContainer>
                 ) : (
-                  <p className="text-ink-3">Sin cancelaciones en este período.</p>
+                  <p className="grid h-full place-items-center text-ink-3">Sin cancelaciones en este período.</p>
                 )}
               </CardBody>
             </Card>
 
-            <Card>
+            <Card className="flex flex-col">
               <CardHeader>
                 <CardTitle>Por médico</CardTitle>
+                <p className="text-sm text-ink-3">Citas e inasistencias de cada agenda.</p>
               </CardHeader>
-              <CardBody className="px-0 py-0">
+              <CardBody className="h-72 overflow-y-auto px-0 py-0">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -237,15 +252,5 @@ export default function PanelPage() {
         </>
       )}
     </>
-  );
-}
-
-function Kpi({ label, value, note }: { label: string; value: number; note?: string }) {
-  return (
-    <div className="flex flex-col gap-1 rounded-lg border border-rule bg-surface px-4 py-3">
-      <dt className="text-sm font-bold uppercase tracking-wider text-ink-3">{label}</dt>
-      <dd className="tabular font-display text-4xl font-extrabold">{value}</dd>
-      {note && <dd className="text-sm text-ink-2">{note}</dd>}
-    </div>
   );
 }

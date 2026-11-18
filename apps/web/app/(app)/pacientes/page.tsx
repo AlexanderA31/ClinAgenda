@@ -20,7 +20,7 @@ import { PatientForm } from '@/components/forms/patient-form';
 
 export default function PacientesPage() {
   const router = useRouter();
-  const canCreate = useCan('ADMIN', 'RECEPCION');
+  const canCreate = useCan('pacientes.editar');
   const [q, setQ] = useState('');
   const [creating, setCreating] = useState(false);
   const t = useServerTable([{ id: 'lastNames', desc: false }], 20);

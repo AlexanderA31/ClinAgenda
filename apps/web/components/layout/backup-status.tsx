@@ -20,7 +20,7 @@ function useBackupStatus(enabled: boolean) {
 /** Aviso en todas las pantallas de la dirección cuando el respaldo no está bien. Si está bien, no molesta. */
 export function BackupAlert() {
   const user = useSession();
-  const status = useBackupStatus(user.role === 'ADMIN');
+  const status = useBackupStatus(user.permissions.includes('sistema.ver'));
   if (!status.data || status.data.state === 'OK') return null;
   return (
     <div className="border-b-2 border-redpen/40 bg-redpen-soft px-4 py-3" role="alert">

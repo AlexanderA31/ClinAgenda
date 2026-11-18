@@ -12,7 +12,7 @@ import { Field } from '@/components/ui/field';
 import { Input, Select } from '@/components/ui/input';
 import { Notice, PageHeader } from '@/components/ui/misc';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { RequireRole } from '@/components/layout/require-role';
+import { RequirePermission } from '@/components/layout/require-role';
 
 const STATUS: Record<ImportRowResult['status'], { label: string; tone: 'good' | 'info' | 'warn' | 'danger' }> = {
   IMPORTED: { label: 'Entra', tone: 'good' },
@@ -29,9 +29,9 @@ const KINDS: { value: ImportKind; label: string; columns: string }[] = [
 
 export default function ImportPage() {
   return (
-    <RequireRole roles={['ADMIN']}>
+    <RequirePermission permission="datos.importar">
       <Importer />
-    </RequireRole>
+    </RequirePermission>
   );
 }
 

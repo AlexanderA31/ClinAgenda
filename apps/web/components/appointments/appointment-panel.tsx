@@ -35,7 +35,7 @@ export function AppointmentPanel({ id, onOpenChange }: { id: string | null; onOp
 function PanelBody({ id }: { id: string }) {
   const qc = useQueryClient();
   const user = useSession();
-  const canWaitlist = useCan('ADMIN', 'RECEPCION');
+  const canWaitlist = useCan('lista_espera.gestionar');
   const appt = useAppointment(id);
   const events = useAppointmentEvents(id);
   const [mode, setMode] = useState<Mode>('view');
@@ -67,7 +67,7 @@ function PanelBody({ id }: { id: string }) {
   const a = appt.data;
   const isFuture = new Date(a.startsAt).getTime() > Date.now();
   const canMark = a.status === 'SCHEDULED' && new Date(a.startsAt).getTime() <= Date.now() + 15 * 60_000;
-  const canNote = user.role === 'ADMIN' || (user.role === 'MEDICO' && user.doctorId === a.doctor.id);
+  const canNote = user.permissions.includes('citas.notas') && (user.role === 'ADMIN' || (user.role === 'MEDICO' && user.doctorId === a.doctor.id));
 
   return (
     <div className="flex flex-col gap-6">

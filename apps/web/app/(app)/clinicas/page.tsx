@@ -32,7 +32,7 @@ export default function ClinicsPage() {
 }
 
 function ClinicCard({ clinic }: { clinic: ClinicView }) {
-  const isAdmin = useCan('ADMIN');
+  const isAdmin = useCan('clinicas.gestionar');
   const qc = useQueryClient();
   const [date, setDate] = useState('');
   const [reason, setReason] = useState('');

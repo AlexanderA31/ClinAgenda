@@ -14,14 +14,14 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input, Select } from '@/components/ui/input';
 import { EmptyState, PageHeader, Skeleton } from '@/components/ui/misc';
-import { RequireRole } from '@/components/layout/require-role';
+import { RequirePermission } from '@/components/layout/require-role';
 import { cn } from '@/lib/utils';
 
 export default function RemindersPage() {
   return (
-    <RequireRole roles={['ADMIN', 'RECEPCION']}>
+    <RequirePermission permission="recordatorios.gestionar">
       <Reminders />
-    </RequireRole>
+    </RequirePermission>
   );
 }
 
