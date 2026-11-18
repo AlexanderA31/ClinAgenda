@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
-import { CalendarCheck, FileText, MapPin, Phone, Pill, Timer, Users } from 'lucide-react';
+import { CalendarCheck, FileText, MapPin, Phone, Pill, Timer, Users, UserRound } from 'lucide-react';
 import { WEEKDAY_LABELS, type PublicDirectory } from '@clinagenda/schemas';
 import s from '@/components/landing/landing.module.css';
 import { OpenStatus } from '@/components/landing/open-status';
@@ -10,6 +10,7 @@ import { openState, quitoNow, scheduleLines } from '@/components/landing/hours';
 import { initials, slug, toneClass } from '@/components/landing/tone';
 import { dayLabel } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { getServerSession } from '@/lib/server-session';
 
 export const metadata: Metadata = {
   title: { absolute: 'Clínicas Paredes' },
@@ -79,7 +80,7 @@ function attendingTitle(day: NonNullable<ReturnType<typeof attendingDay>>) {
 }
 
 export default async function Landing() {
-  const data = await getDirectory();
+  const [data, session] = await Promise.all([getDirectory(), getServerSession()]);
   const clinics = data ? [...data.clinics].sort((a, b) => ORDER.indexOf(a.name) - ORDER.indexOf(b.name)) : [];
   const doctorCount = data?.doctors.filter((d) => d.assignments.length).length ?? 0;
   const day = data ? attendingDay(data, clinics) : null;
@@ -109,9 +110,17 @@ export default async function Landing() {
               <a href="#citas" className="hidden min-h-11 items-center px-3 font-bold opacity-85 hover:opacity-100 md:flex">
                 Su cita
               </a>
-              <Link href="/ingresar" className={cn(s.ghost, 'ml-2 flex min-h-11 items-center rounded-full px-4 text-sm font-bold')}>
-                Ingresar
-              </Link>
+              {session ? (
+                // Con la sesión abierta, la página lo reconoce y lleva directo a su pantalla.
+                <Link href={session.home} className={cn(s.cta, 'ml-2 flex min-h-11 items-center gap-2 rounded-full px-4 text-sm font-bold')}>
+                  <UserRound className="size-4" aria-hidden />
+                  <span className="hidden sm:inline">{session.name}:</span> {session.kind === 'staff' ? 'Ir a la agenda' : 'Mis citas'}
+                </Link>
+              ) : (
+                <Link href="/ingresar" className={cn(s.ghost, 'ml-2 flex min-h-11 items-center rounded-full px-4 text-sm font-bold')}>
+                  Ingresar
+                </Link>
+              )}
             </nav>
           </div>
         </header>

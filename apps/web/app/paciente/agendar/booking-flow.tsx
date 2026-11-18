@@ -19,6 +19,11 @@ import { initials, toneClass } from '@/components/landing/tone';
 type Clinic = PublicDirectory['clinics'][number];
 type Doctor = PublicDirectory['doctors'][number];
 
+/** Opción "Todas las clínicas": se buscan los médicos y horarios de las tres. */
+const ALL = 'todas';
+
+type Slot = PortalSlot & { clinicId: string; clinicName: string };
+
 const weekdayOf = (iso: string) => new Date(`${iso}T12:00:00Z`).getUTCDay();
 const WEEK_HEAD = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do'];
 const monthName = (iso: string) => new Intl.DateTimeFormat('es-EC', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${iso}T12:00:00Z`));
@@ -38,17 +43,19 @@ function monthStart(iso: string, plus = 0) {
 export function BookingFlow({ directory }: { directory: PublicDirectory }) {
   const params = useSearchParams();
   const qc = useQueryClient();
-  const [clinicId, setClinicId] = useState(directory.clinics[0]?.id ?? '');
+  const [clinicId, setClinicId] = useState(ALL);
   const [specialty, setSpecialty] = useState('');
   const [doctorId, setDoctorId] = useState<string | null>(null);
   const [date, setDate] = useState<string | null>(null);
-  const [slot, setSlot] = useState<PortalSlot | null>(null);
+  const [slot, setSlot] = useState<Slot | null>(null);
   const [reason, setReason] = useState('');
   const [month, setMonth] = useState(0);
   const [done, setDone] = useState<PortalAppointment | null>(null);
 
   const clinic = directory.clinics.find((c) => c.id === clinicId) ?? null;
-  const here = directory.doctors.filter((d) => d.assignments.some((a) => a.clinicId === clinicId));
+  const scope = clinicId === ALL ? directory.clinics : clinic ? [clinic] : [];
+  const scopeIds = new Set(scope.map((c) => c.id));
+  const here = directory.doctors.filter((d) => d.assignments.some((a) => scopeIds.has(a.clinicId)));
   const specialties = [...new Set(here.map((d) => d.specialty))].sort();
   const doctors = specialty ? here.filter((d) => d.specialty === specialty) : here;
   const doctor = here.find((d) => d.id === doctorId) ?? null;
@@ -71,26 +78,38 @@ export function BookingFlow({ directory }: { directory: PublicDirectory }) {
     setSlot(null);
   };
 
-  // Días que se pueden tocar en el calendario.
+  // Días que se pueden tocar en el calendario, y en qué clínica(s) atiende el médico ese día.
   const bookable = useMemo(() => {
-    const set = new Set<string>();
-    if (!doctor || !clinic) return set;
-    const weekdays = new Set(doctor.assignments.filter((a) => a.clinicId === clinic.id).map((a) => a.weekday));
-    const closed = new Set(clinic.closures.map((c) => c.date));
+    const map = new Map<string, Clinic[]>();
+    if (!doctor) return map;
     for (let i = 0; i <= PORTAL_LIMITS.maxDaysAhead; i++) {
       const d = addDays(todayIso(), i);
-      if (weekdays.has(weekdayOf(d)) && !closed.has(d)) set.add(d);
+      const where = scope.filter((c) => !c.closures.some((x) => x.date === d) && doctor.assignments.some((a) => a.clinicId === c.id && a.weekday === weekdayOf(d)));
+      if (where.length) map.set(d, where);
     }
-    return set;
-  }, [doctor, clinic]);
+    return map;
+    // scope cambia con clinicId; se recalcula con él.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doctor, clinicId, directory]);
 
+  const dayClinics = date ? (bookable.get(date) ?? []) : [];
   const av = useQuery({
-    queryKey: ['portal', 'availability', clinicId, date, doctorId],
-    queryFn: () => api<{ closed: string | null; slots: PortalSlot[] }>('/portal/availability', { query: { clinicId, date: date!, doctorId: doctorId! } }),
-    enabled: !!date && !!doctorId,
+    queryKey: ['portal', 'availability', dayClinics.map((c) => c.id).join(','), date, doctorId],
+    // Con "Todas las clínicas", se piden los horarios de cada clínica donde el médico atiende ese día.
+    queryFn: async () => {
+      const parts = await Promise.all(
+        dayClinics.map(async (c) => {
+          const r = await api<{ closed: string | null; slots: PortalSlot[] }>('/portal/availability', { query: { clinicId: c.id, date: date!, doctorId: doctorId! } });
+          return { closed: r.closed, slots: r.slots.map((s) => ({ ...s, clinicId: c.id, clinicName: c.name })) };
+        }),
+      );
+      const slots = parts.flatMap((p) => p.slots).sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+      return { closed: slots.length ? null : (parts.find((p) => p.closed)?.closed ?? null), slots };
+    },
+    enabled: !!date && !!doctorId && dayClinics.length > 0,
   });
   const book = useMutation({
-    mutationFn: () => api<PortalAppointment>('/portal/appointments', { method: 'POST', body: { clinicId, doctorId, startsAt: slot!.startsAt, reason: reason || null } }),
+    mutationFn: () => api<PortalAppointment>('/portal/appointments', { method: 'POST', body: { clinicId: slot!.clinicId, doctorId, startsAt: slot!.startsAt, reason: reason || null } }),
     onSuccess: (a) => {
       void qc.invalidateQueries({ queryKey: ['portal'] });
       setDone(a);
@@ -121,13 +140,21 @@ export function BookingFlow({ directory }: { directory: PublicDirectory }) {
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="flex flex-col gap-0.5">
             <h1 className="font-display text-3xl font-extrabold tracking-tight sm:text-4xl">Agendar una cita</h1>
-            {clinic?.address && (
-              <p className="flex items-center gap-2 text-ink-2">
-                <MapPin className="size-4 shrink-0" aria-hidden /> {clinic.name}, {clinic.address}
-              </p>
-            )}
+            <p className="flex items-center gap-2 text-ink-2">
+              <MapPin className="size-4 shrink-0" aria-hidden />
+              {clinic ? `${clinic.name}${clinic.address ? `, ${clinic.address}` : ''}` : 'Las tres clínicas: elija médico y día, y le mostramos dónde atiende.'}
+            </p>
           </div>
           <div role="radiogroup" aria-label="Clínica" className="flex flex-wrap gap-1 rounded-lg border border-rule bg-surface p-1.5">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={clinicId === ALL}
+              onClick={() => pickClinic(ALL)}
+              className={cn('flex min-h-11 items-center gap-2 rounded-md px-4 font-bold', clinicId === ALL ? 'bg-ballpoint text-ballpoint-ink' : 'text-ink-2 hover:bg-surface-2 hover:text-ink')}
+            >
+              Todas
+            </button>
             {directory.clinics.map((c) => (
               <button
                 key={c.id}
@@ -148,7 +175,7 @@ export function BookingFlow({ directory }: { directory: PublicDirectory }) {
         <section className="grid overflow-hidden rounded-lg border border-rule bg-surface lg:grid-cols-[minmax(0,19rem)_minmax(0,1fr)_minmax(0,19rem)]" aria-label="Elegir médico, día y hora">
           {/* 1. Médico */}
           <div className="flex min-w-0 flex-col border-b border-rule lg:border-b-0 lg:border-r">
-            <ColumnHead title="1. Médico" note={`${doctors.length} en ${clinic?.name.replace('Clínica ', '') ?? ''}`} />
+            <ColumnHead title="1. Médico" note={`${doctors.length} en ${clinic ? clinic.name.replace('Clínica ', '') : 'las tres clínicas'}`} />
             <div className="flex min-w-0 flex-col gap-2 p-3">
               {specialties.length > 1 && (
                 <Select aria-label="Especialidad" value={specialty} onChange={(e) => setSpecialty(e.target.value)}>
@@ -180,7 +207,7 @@ export function BookingFlow({ directory }: { directory: PublicDirectory }) {
                         <span className="flex min-w-0 flex-col leading-tight">
                           <span className="truncate font-bold">{d.fullName}</span>
                           <span className={cn('truncate text-sm', selected ? 'opacity-90' : 'text-ink-2')}>{d.specialty}</span>
-                          <span className={cn('text-xs', selected ? 'opacity-80' : 'text-ink-3')}>{daysShort(d.assignments.filter((a) => a.clinicId === clinicId).map((a) => a.weekday))}</span>
+                          <span className={cn('text-xs', selected ? 'opacity-80' : 'text-ink-3')}>{whereAndWhen(d, scope)}</span>
                         </span>
                       </button>
                     </li>
@@ -274,32 +301,46 @@ export function BookingFlow({ directory }: { directory: PublicDirectory }) {
               ) : !av.data.slots.length ? (
                 <Notice tone="info">No quedan horas libres ese día. Elija otro (en línea se agenda con {PORTAL_LIMITS.minHoursAhead} horas de anticipación).</Notice>
               ) : (
-                <>
-                  <div className="grid max-h-44 grid-cols-3 gap-1.5 overflow-y-auto">
-                    {av.data.slots.map((s) => (
-                      <button
-                        key={s.startsAt}
-                        type="button"
-                        aria-pressed={slot?.startsAt === s.startsAt}
-                        onClick={() => setSlot(s)}
-                        className={cn(
-                          'tabular min-h-10 rounded-md font-bold',
-                          slot?.startsAt === s.startsAt
-                            ? 'bg-ballpoint text-ballpoint-ink'
-                            : 'border-2 border-dashed border-rule text-ink hover:border-ballpoint hover:bg-ballpoint-soft hover:text-ballpoint',
-                        )}
-                      >
-                        {s.label}
-                      </button>
-                    ))}
-                  </div>
-                </>
+                <div className="flex max-h-48 flex-col gap-2 overflow-y-auto">
+                  {dayClinics.map((c) => {
+                    const list = av.data.slots.filter((s) => s.clinicId === c.id);
+                    if (!list.length) return null;
+                    return (
+                      <div key={c.id} className="flex flex-col gap-1.5">
+                        {dayClinics.length > 1 || clinicId === ALL ? (
+                          <p className="flex items-center gap-1.5 text-sm font-bold text-ink-2">
+                            <span className={cn(landing.dot, toneClass(c.name))} aria-hidden /> {c.name}
+                          </p>
+                        ) : null}
+                        <div className="grid grid-cols-3 gap-1.5">
+                          {list.map((s) => (
+                            <button
+                              key={s.startsAt}
+                              type="button"
+                              aria-pressed={slot?.startsAt === s.startsAt}
+                              onClick={() => setSlot(s)}
+                              className={cn(
+                                'tabular min-h-10 rounded-md font-bold',
+                                slot?.startsAt === s.startsAt
+                                  ? 'bg-ballpoint text-ballpoint-ink'
+                                  : 'border-2 border-dashed border-rule text-ink hover:border-ballpoint hover:bg-ballpoint-soft hover:text-ballpoint',
+                              )}
+                            >
+                              {s.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               )}
 
               {slot && doctor && date && (
                 <div className="flex flex-col gap-2 border-t border-rule pt-3">
                   <p className="text-sm">
-                    <strong className="first-letter:uppercase">{dayLabel(date)}</strong>, a las <strong>{slot.label}</strong>, con <strong>{doctor.fullName}</strong>.
+                    <strong className="first-letter:uppercase">{dayLabel(date)}</strong>, a las <strong>{slot.label}</strong>, con <strong>{doctor.fullName}</strong>, en{' '}
+                    <strong>{slot.clinicName}</strong>.
                   </p>
                   <Input aria-label="Motivo de la consulta (opcional)" placeholder="Motivo (opcional)" maxLength={200} value={reason} onChange={(e) => setReason(e.target.value)} />
                   {book.isError && <Notice tone="danger">{errorMessage(book.error)}</Notice>}
@@ -314,6 +355,13 @@ export function BookingFlow({ directory }: { directory: PublicDirectory }) {
       </div>
     </main>
   );
+}
+
+/** "Centro: lun y mié · Norte: mar" (con todas las clínicas) o "lun, mié y vie" (con una). */
+function whereAndWhen(d: Doctor, scope: Clinic[]) {
+  const parts = scope.map((c) => ({ c, days: d.assignments.filter((a) => a.clinicId === c.id).map((a) => a.weekday) })).filter((x) => x.days.length);
+  if (parts.length === 1 && scope.length === 1) return daysShort(parts[0].days);
+  return parts.map((x) => `${x.c.name.replace('Clínica ', '')}: ${daysShort(x.days)}`).join(' · ');
 }
 
 /** Encabezado de columna con el mismo aspecto que los de la cuadrícula de la agenda del personal. */
