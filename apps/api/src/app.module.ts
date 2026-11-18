@@ -9,6 +9,7 @@ import { AuthGuard } from './common/guards/auth.guard';
 import { PermissionsGuard } from './common/guards/permissions.guard';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { AuditModule } from './modules/audit/audit.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { RolesModule } from './modules/roles/roles.module';
@@ -30,6 +31,7 @@ import { SystemModule } from './modules/system/system.module';
     JwtModule.register({ global: true, secret: env.JWT_SECRET, signOptions: { expiresIn: env.JWT_EXPIRES_IN as `${number}h` } }),
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 300 }]),
     AuditModule,
+    NotificationsModule,
     AuthModule,
     UsersModule,
     RolesModule,

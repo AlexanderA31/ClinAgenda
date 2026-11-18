@@ -196,3 +196,4 @@ Cancelar es fácil pero nunca destructivo:
 | Todo empaquetado con Docker | Se instala o se mueve a otro servidor con un comando; se reinicia solo. |
 | Documentación de la API (Swagger) | Si mañana se conecta otro sistema (facturación, WhatsApp Business), los programadores tienen el contrato. |
 | Datos de demostración inventados | No se usan datos de personas reales para probar. |
+| Avisos internos dentro del sistema (campana), no por correo ni SMS | No dependen de servicios externos ni de que el paciente dé su correo. Se guardan en la misma transacción que el cambio de la cita: no hay aviso de algo que no pasó. El paciente solo los recibe si tiene cuenta en el portal; WhatsApp sigue siendo el canal para quien no la tiene. |

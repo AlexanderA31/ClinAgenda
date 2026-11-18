@@ -21,6 +21,7 @@ import {
 import type { Appointment, Clinic, Doctor } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { NotificationsService, agendaLink } from '../notifications/notifications.service';
 import { DomainError } from '../../common/errors/domain-error';
 import type { RequestMeta } from '../../common/decorators/auth.decorators';
 import { appointmentCode, patientCode } from '../../common/utils/views';
@@ -51,6 +52,7 @@ export class PortalService {
     private readonly audit: AuditService,
     private readonly scheduling: SchedulingService,
     private readonly publicLinks: PublicService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async register(input: PatientRegister, meta: RequestMeta): Promise<{ token: string; me: PortalMe }> {
@@ -255,6 +257,13 @@ export class PortalService {
         },
         tx,
       );
+      await this.notifications.toSchedulers(tx, clinic.id, {
+        kind: 'SOLICITUD_NUEVA',
+        title: 'Nueva solicitud en línea',
+        body: `${patient.firstNames} ${patient.lastNames} pidió ${formatLocal(startsAt, clinic.timezone)} con ${doctor.fullName}, ${clinic.name}. Acéptela o recházela en la agenda.`,
+        link: agendaLink(startsAt, clinic.timezone, clinic.id),
+        appointmentId: appt.id,
+      });
       return appt;
     });
     return this.toView(created);

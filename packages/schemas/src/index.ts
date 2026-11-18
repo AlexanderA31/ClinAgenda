@@ -17,3 +17,4 @@ export * from './domain/report';
 export * from './domain/audit';
 export * from './domain/import';
 export * from './domain/portal';
+export * from './domain/notification';

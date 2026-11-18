@@ -18,6 +18,7 @@ import {
 } from '@clinagenda/schemas';
 import { Db, PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { DomainError } from '../../common/errors/domain-error';
 import { DEFAULT_TZ, formatLocal, rangeBoundsUtc } from '../../common/utils/time';
 import { receiptPdf } from '../../common/utils/receipt-pdf';
@@ -26,6 +27,10 @@ import type { RequestMeta } from '../../common/decorators/auth.decorators';
 import { SchedulingService } from './scheduling.service';
 
 const include = { patient: true, doctor: true, clinic: { include: { schedules: true } } } as const;
+
+/** Los avisos del paciente abren su historial de citas en el portal. */
+const PATIENT_LINK = '/paciente/historial';
+const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 /** Tras cancelar, durante cuánto tiempo se ofrece el botón "Deshacer" de forma destacada. */
 export const UNDO_WINDOW_MINUTES = 10;
@@ -36,6 +41,7 @@ export class AppointmentsService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly scheduling: SchedulingService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async list(q: AppointmentListQuery, user: SessionUser): Promise<Paginated<AppointmentView>> {
@@ -158,6 +164,13 @@ export class AppointmentsService {
         },
         tx,
       );
+      await this.notifications.toPatient(tx, patient.id, {
+        kind: 'CITA_AGENDADA',
+        title: 'La clínica le agendó una cita',
+        body: `${capital(formatLocal(startsAt, clinic.timezone))} con ${doctor.fullName}, ${clinic.name}.`,
+        link: PATIENT_LINK,
+        appointmentId: appt.id,
+      });
       return appt;
     });
     return this.view(created, user, new Map([[user.id, user.fullName]]));
@@ -195,6 +208,13 @@ export class AppointmentsService {
         },
         tx,
       );
+      await this.notifications.toPatient(tx, before.patientId, {
+        kind: 'CITA_MOVIDA',
+        title: 'Su cita cambió',
+        body: `Antes: ${formatLocal(before.startsAt, before.clinic.timezone)} con ${before.doctor.fullName}, ${before.clinic.name}. Ahora: ${formatLocal(startsAt, clinic.timezone)} con ${doctor.fullName}, ${clinic.name}.`,
+        link: PATIENT_LINK,
+        appointmentId: id,
+      });
       return appt;
     });
     return this.view(updated, user, await this.userNames([updated]));
@@ -234,6 +254,13 @@ export class AppointmentsService {
         },
         tx,
       );
+      await this.notifications.toPatient(tx, before.patientId, {
+        kind: 'CITA_CANCELADA',
+        title: 'Su cita fue cancelada',
+        body: `${capital(formatLocal(before.startsAt, before.clinic.timezone))} con ${before.doctor.fullName}, ${before.clinic.name}. Motivo: ${CANCEL_REASON_LABELS[input.reason].toLowerCase()}. Si necesita otra, agéndela aquí o llame a la clínica.`,
+        link: PATIENT_LINK,
+        appointmentId: id,
+      });
       return tx.appointment.findUniqueOrThrow({ where: { id }, include });
     });
 
@@ -262,6 +289,13 @@ export class AppointmentsService {
           { userId: user.id, action: 'ACCEPT', entity: 'Appointment', entityId: id, summary: `Aceptó la solicitud en línea ${appointmentCode(before.code)}`, before: { status: 'REQUESTED' }, after: { status: 'SCHEDULED' }, meta },
           tx,
         );
+        await this.notifications.toPatient(tx, before.patientId, {
+          kind: 'CITA_ACEPTADA',
+          title: 'Su cita fue confirmada',
+          body: `${capital(formatLocal(before.startsAt, before.clinic.timezone))} con ${before.doctor.fullName}, ${before.clinic.name}. Le esperamos 10 minutos antes.`,
+          link: PATIENT_LINK,
+          appointmentId: id,
+        });
       }
       return tx.appointment.findUniqueOrThrow({ where: { id }, include });
     });
@@ -290,6 +324,13 @@ export class AppointmentsService {
           },
           tx,
         );
+        await this.notifications.toPatient(tx, before.patientId, {
+          kind: 'CITA_RECHAZADA',
+          title: 'La clínica no pudo aceptar su solicitud',
+          body: `${capital(formatLocal(before.startsAt, before.clinic.timezone))} con ${before.doctor.fullName}, ${before.clinic.name}.${input.note ? ' ' + input.note : ''} Puede pedir otra hora.`,
+          link: PATIENT_LINK,
+          appointmentId: id,
+        });
       }
       return tx.appointment.findUniqueOrThrow({ where: { id }, include });
     });
@@ -324,6 +365,13 @@ export class AppointmentsService {
         { userId: user.id, action: 'RESTORE', entity: 'Appointment', entityId: id, summary: `Reactivó ${appointmentCode(appt.code)} (deshizo la cancelación)`, before: snapshot(before), after: snapshot(appt), meta },
         tx,
       );
+      await this.notifications.toPatient(tx, before.patientId, {
+        kind: 'CITA_REACTIVADA',
+        title: 'Su cita sigue en pie',
+        body: `La clínica deshizo la cancelación: ${formatLocal(before.startsAt, before.clinic.timezone)} con ${before.doctor.fullName}, ${before.clinic.name}.`,
+        link: PATIENT_LINK,
+        appointmentId: id,
+      });
       return appt;
     });
     return this.view(restored, user, await this.userNames([restored]));

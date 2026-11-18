@@ -1,7 +1,9 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { CANCEL_LINK_HOURS, ErrorCodes, type PublicAppointmentView, type PublicDirectory } from '@clinagenda/schemas';
 import { PrismaService } from '../../prisma/prisma.service';
+import { formatLocal } from '../../common/utils/time';
 import { AuditService } from '../audit/audit.service';
+import { NotificationsService, agendaLink } from '../notifications/notifications.service';
 import { DomainError } from '../../common/errors/domain-error';
 import { appointmentCode } from '../../common/utils/views';
 import type { RequestMeta } from '../../common/decorators/auth.decorators';
@@ -21,6 +23,7 @@ export class PublicService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   /** Para la página web de las clínicas: dónde, cuándo y con quién. Solo datos que una clínica publica. */
@@ -84,6 +87,13 @@ export class PublicService {
           { userId: null, action: 'CANCEL_BY_PATIENT', entity: 'Appointment', entityId: appt.id, summary: `El paciente canceló ${appointmentCode(appt.code)} desde su enlace`, meta },
           tx,
         );
+        await this.notifications.toSchedulers(tx, appt.clinicId, {
+          kind: 'CANCELADA_POR_PACIENTE',
+          title: 'Un paciente canceló su cita',
+          body: `${appt.patient.firstNames} ${appt.patient.lastNames} canceló ${formatLocal(appt.startsAt, appt.clinic.timezone)} con ${appt.doctor.fullName}, ${appt.clinic.name}. El horario quedó libre.`,
+          link: agendaLink(appt.startsAt, appt.clinic.timezone, appt.clinicId),
+          appointmentId: appt.id,
+        });
       }
       return tx.appointment.findUniqueOrThrow({ where: { id: appt.id }, include: { patient: true, doctor: true, clinic: true } });
     });

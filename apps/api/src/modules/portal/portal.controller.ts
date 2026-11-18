@@ -7,6 +7,7 @@ import type { Response } from 'express';
 import { Public, ReqMeta, type RequestMeta } from '../../common/decorators/auth.decorators';
 import { CurrentPatient, PATIENT_COOKIE, PatientAuthGuard, setPatientCookie, type PatientSession } from './patient-auth.guard';
 import { PortalService } from './portal.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 class PatientRegisterDto extends createZodDto(PatientRegisterSchema) {}
 class PatientLoginDto extends createZodDto(PatientLoginSchema) {}
@@ -21,7 +22,10 @@ class PortalPasswordDto extends createZodDto(ChangePasswordSchema) {}
 @Public()
 @Controller('portal')
 export class PortalController {
-  constructor(private readonly portal: PortalService) {}
+  constructor(
+    private readonly portal: PortalService,
+    private readonly notices: NotificationsService,
+  ) {}
 
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('register')
@@ -108,5 +112,26 @@ export class PortalController {
   @HttpCode(200)
   cancel(@CurrentPatient() session: PatientSession, @Param('id', ParseUUIDPipe) id: string, @ReqMeta() meta: RequestMeta) {
     return this.portal.cancel(session, id, meta);
+  }
+
+  /** Avisos del paciente: su cita fue confirmada, cambió de hora, etc. */
+  @UseGuards(PatientAuthGuard)
+  @Get('notifications')
+  notifications(@CurrentPatient() session: PatientSession) {
+    return this.notices.list({ patientId: session.patientId });
+  }
+
+  @UseGuards(PatientAuthGuard)
+  @Post('notifications/read-all')
+  @HttpCode(200)
+  readAllNotifications(@CurrentPatient() session: PatientSession) {
+    return this.notices.markAllRead({ patientId: session.patientId });
+  }
+
+  @UseGuards(PatientAuthGuard)
+  @Post('notifications/:id/read')
+  @HttpCode(200)
+  readNotification(@CurrentPatient() session: PatientSession, @Param('id', ParseUUIDPipe) id: string) {
+    return this.notices.markRead({ patientId: session.patientId }, id);
   }
 }

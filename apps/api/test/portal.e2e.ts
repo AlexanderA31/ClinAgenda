@@ -9,7 +9,7 @@ import { Test } from '@nestjs/testing';
 import cookieParser from 'cookie-parser';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { ClinicView, PortalAppointment, PortalSlot } from '@clinagenda/schemas';
+import type { ClinicView, NotificationList, PortalAppointment, PortalSlot } from '@clinagenda/schemas';
 import { AppModule } from '../src/app.module';
 
 const STAFF_PASSWORD = process.env.SEED_DEMO_PASSWORD ?? 'Demo2026!';
@@ -167,6 +167,42 @@ describe('Portal del paciente', () => {
     await http.get('/api/appointments').set(bearer(patient)).expect(401);
     await http.get('/api/auth/me').set(bearer(patient)).expect(401);
     await http.get('/api/portal/me').set(bearer(admin)).expect(401);
+  });
+});
+
+describe('Avisos internos', () => {
+  const kinds = (body: NotificationList, appointmentId: string) => body.items.filter((n) => n.appointmentId === appointmentId).map((n) => n.kind);
+
+  it('el personal recibe la solicitud; el paciente, la confirmación y el cambio de hora', async () => {
+    await cancelAllUpcoming();
+    await http.post('/api/portal/notifications/read-all').set(bearer(patient)).expect(200);
+    const [a, b] = await freeSlots();
+    const created: PortalAppointment = (await http.post('/api/portal/appointments').set(bearer(patient)).send({ clinicId: centro.id, doctorId: a.doctorId, startsAt: a.startsAt }).expect(201)).body;
+
+    const staff: NotificationList = (await http.get('/api/notifications').set(bearer(admin)).expect(200)).body;
+    expect(kinds(staff, created.id)).toEqual(['SOLICITUD_NUEVA']);
+    expect(staff.unread).toBeGreaterThan(0);
+    const request = staff.items.find((n) => n.appointmentId === created.id)!;
+    expect(request.link).toContain(`clinica=${centro.id}`);
+
+    await http.post(`/api/appointments/${created.id}/accept`).set(bearer(admin)).expect(200);
+    await http.patch(`/api/appointments/${created.id}/reschedule`).set(bearer(admin)).send({ startsAt: b.startsAt, doctorId: b.doctorId, clinicId: centro.id }).expect(200);
+    const mine: NotificationList = (await http.get('/api/portal/notifications').set(bearer(patient)).expect(200)).body;
+    expect(kinds(mine, created.id)).toEqual(['CITA_MOVIDA', 'CITA_ACEPTADA']);
+    expect(mine.unread).toBe(2);
+    expect(mine.items[0].body).toMatch(/Antes: .* Ahora: /);
+
+    // Marcar como leído: uno, y después todos. El paciente no puede tocar los avisos del personal.
+    const one: NotificationList = (await http.post(`/api/portal/notifications/${mine.items[0].id}/read`).set(bearer(patient)).expect(200)).body;
+    expect(one.unread).toBe(1);
+    await http.post(`/api/portal/notifications/${request.id}/read`).set(bearer(patient)).expect(404);
+    expect((await http.post('/api/portal/notifications/read-all').set(bearer(patient)).expect(200)).body.unread).toBe(0);
+
+    // Si el paciente cancela, el personal se entera.
+    await http.post(`/api/portal/appointments/${created.id}/cancel`).set(bearer(patient)).expect(200);
+    const after: NotificationList = (await http.get('/api/notifications').set(bearer(admin)).expect(200)).body;
+    expect(kinds(after, created.id)).toEqual(['CANCELADA_POR_PACIENTE', 'SOLICITUD_NUEVA']);
+    await http.post('/api/notifications/read-all').set(bearer(admin)).expect(200);
   });
 });
 

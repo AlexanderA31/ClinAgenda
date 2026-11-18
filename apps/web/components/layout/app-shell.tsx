@@ -15,6 +15,7 @@ import { ConnectionBanner } from './connection-banner';
 import { BackupAlert } from './backup-status';
 import { MyAccountDialog } from './my-account-dialog';
 import { QueryAction } from './query-action';
+import { NotificationBell } from './notification-bell';
 
 /** ¿Este enlace es la pantalla actual? Los que llevan `?accion=1` abren algo, no son una pantalla. */
 const isHere = (pathname: string, href: string) => !href.includes('?') && (pathname === href || pathname.startsWith(href + '/'));
@@ -141,6 +142,8 @@ function NavList({ collapsed = false, onNavigate, onExpand }: { collapsed?: bool
 }
 
 const SIDEBAR_KEY = 'ca-sidebar';
+/** Al llegar un aviso se recargan las citas: así la solicitud nueva aparece en la agenda sin recargar. */
+const STAFF_REFRESH = ['appointments'] as const;
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const user = useSession();
@@ -230,6 +233,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </button>
           </div>
           <div className="flex items-center gap-2">
+            <NotificationBell base="/notifications" refresh={STAFF_REFRESH} />
             <Button variant="ghost" size="sm" onClick={() => void logout()}>
               <LogOut /> Salir
             </Button>

@@ -8,6 +8,9 @@ import type { PortalMe } from '@clinagenda/schemas';
 import s from '@/components/landing/landing.module.css';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { NotificationBell } from '@/components/layout/notification-bell';
+
+const PORTAL_REFRESH = ['portal', 'appointments'] as const;
 
 export function usePortalMe() {
   return useQuery({ queryKey: ['portal', 'me'], queryFn: () => api<PortalMe>('/portal/me'), staleTime: 5 * 60_000 });
@@ -67,6 +70,7 @@ export function PortalHeader() {
               </span>
             </Link>
           )}
+          <NotificationBell base="/portal/notifications" refresh={PORTAL_REFRESH} variant="portal" />
           <button type="button" onClick={() => void logout()} className={cn(s.ghost, 'flex min-h-11 items-center gap-2 rounded-full px-4 text-sm font-bold')}>
             <LogOut className="size-4" aria-hidden /> Salir
           </button>

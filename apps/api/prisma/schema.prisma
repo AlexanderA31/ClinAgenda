@@ -96,7 +96,8 @@ model User {
   createdAt          DateTime  @default(now()) @db.Timestamptz(3)
   updatedAt          DateTime  @updatedAt @db.Timestamptz(3)
 
-  auditLogs AuditLog[]
+  auditLogs     AuditLog[]
+  notifications Notification[]
 }
 
 model Clinic {
@@ -202,8 +203,9 @@ model Patient {
   updatedAt            DateTime     @updatedAt @db.Timestamptz(3)
 
   appointments Appointment[]
-  waitlist     WaitlistEntry[]
-  account      PatientAccount?
+  waitlist      WaitlistEntry[]
+  account       PatientAccount?
+  notifications Notification[]
 
   @@index([nameNormalized])
   @@index([phone])
@@ -242,7 +244,8 @@ model Appointment {
   createdAt      DateTime          @default(now()) @db.Timestamptz(3)
   updatedAt      DateTime          @updatedAt @db.Timestamptz(3)
 
-  events AppointmentEvent[]
+  events        AppointmentEvent[]
+  notifications Notification[]
 
   @@index([doctorId, startsAt])
   @@index([clinicId, startsAt])
@@ -296,6 +299,28 @@ model WaitlistEntry {
 }
 
 /// Bitácora inmutable: quién hizo qué, cuándo y qué había antes. Protegida por trigger contra UPDATE/DELETE.
+/// Aviso dentro del sistema, para un paciente (portal) o para una persona del personal, nunca para los dos.
+model Notification {
+  id            String       @id @default(uuid()) @db.Uuid
+  patientId     String?      @db.Uuid
+  patient       Patient?     @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  userId        String?      @db.Uuid
+  user          User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  appointmentId String?      @db.Uuid
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  /// CITA_ACEPTADA, CITA_MOVIDA, SOLICITUD_NUEVA... (lista en @clinagenda/schemas).
+  kind          String
+  title         String
+  body          String
+  /// Pantalla que se abre al tocar el aviso.
+  link          String?
+  readAt        DateTime?    @db.Timestamptz(3)
+  createdAt     DateTime     @default(now()) @db.Timestamptz(3)
+
+  @@index([patientId, createdAt])
+  @@index([userId, createdAt])
+}
+
 model AuditLog {
   id        String   @id @default(uuid()) @db.Uuid
   at        DateTime @default(now()) @db.Timestamptz(3)
