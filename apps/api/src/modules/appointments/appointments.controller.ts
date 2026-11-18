@@ -11,6 +11,7 @@ import {
   type SessionUser,
 } from '@clinagenda/schemas';
 import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 import { CurrentUser, ReqMeta, Roles, type RequestMeta } from '../../common/decorators/auth.decorators';
 import { IdempotencyInterceptor } from '../../common/interceptors/idempotency.interceptor';
 import { AppointmentsService } from './appointments.service';
@@ -23,6 +24,7 @@ class AppointmentStatusDto extends createZodDto(AppointmentStatusUpdateSchema) {
 class ClinicalNoteDto extends createZodDto(ClinicalNoteSchema) {}
 class AppointmentListQueryDto extends createZodDto(AppointmentListQuerySchema) {}
 class AvailabilityQueryDto extends createZodDto(AvailabilityQuerySchema) {}
+class RemindedDto extends createZodDto(z.object({ reminded: z.boolean() })) {}
 
 const IdempotencyHeader = ApiHeader({
   name: 'Idempotency-Key',
@@ -87,6 +89,12 @@ export class AppointmentsController {
   @Patch(':id/status')
   setStatus(@Param('id', ParseUUIDPipe) id: string, @Body() body: AppointmentStatusDto, @CurrentUser() user: SessionUser, @ReqMeta() meta: RequestMeta) {
     return this.appointments.setStatus(id, body, user, meta);
+  }
+
+  @Roles('ADMIN', 'RECEPCION')
+  @Patch(':id/reminded')
+  setReminded(@Param('id', ParseUUIDPipe) id: string, @Body() body: RemindedDto, @CurrentUser() user: SessionUser, @ReqMeta() meta: RequestMeta) {
+    return this.appointments.setReminded(id, body.reminded, user, meta);
   }
 
   @Roles('ADMIN', 'MEDICO')

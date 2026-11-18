@@ -2,10 +2,12 @@
 
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { CalendarClock, CheckCircle2, History, NotebookPen, Undo2, UserX, XCircle } from 'lucide-react';
+import { BellRing, CalendarClock, CheckCircle2, Copy, History, MessageCircle, NotebookPen, Printer, Undo2, UserX, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { CANCEL_REASON_LABELS, type AppointmentView, type AvailabilitySlot, type CancelReason } from '@clinagenda/schemas';
-import { api, errorMessage } from '@/lib/api';
+import { CANCEL_REASON_LABELS, STAFF_CANCEL_REASONS, type AppointmentView, type AvailabilitySlot } from '@clinagenda/schemas';
+import { OfflineError, api, errorMessage } from '@/lib/api';
+import { enqueue, newKey } from '@/lib/offline-queue';
+import { confirmationText, patientUrl, reminderText, waLink } from '@/lib/whatsapp';
 import { dateTime, dayLabel, phone, time } from '@/lib/format';
 import { useAppointment, useAppointmentEvents } from '@/lib/queries';
 import { useCan, useSession } from '@/lib/session';
@@ -164,6 +166,8 @@ function PanelBody({ id }: { id: string }) {
 
       {mode === 'reschedule' && <RescheduleForm appt={a} onCancel={() => setMode('view')} onDone={(n) => (refresh(n), setMode('view'), toast.success(`Cita cambiada al ${dayLabel(n.startsAt.slice(0, 10))} a las ${time(n.startsAt)}.`))} />}
 
+      {a.status === 'SCHEDULED' && isFuture && canWaitlist && <NotifyPatient appt={a} onChanged={refresh} />}
+
       {canNote && <ClinicalNote appt={a} onSaved={refresh} />}
 
       <section className="flex flex-col gap-2">
@@ -185,20 +189,31 @@ function PanelBody({ id }: { id: string }) {
   );
 }
 
+type StaffReason = (typeof STAFF_CANCEL_REASONS)[number];
+
 function CancelForm({ appt, onCancel, onDone }: { appt: AppointmentView; onCancel: () => void; onDone: (r: { appointment: AppointmentView; alreadyCancelled: boolean; waitlistMatches: number }) => void }) {
-  const [reason, setReason] = useState<CancelReason | null>(null);
+  const [reason, setReason] = useState<StaffReason | null>(null);
   const [note, setNote] = useState('');
   const [error, setError] = useState<string | null>(null);
   const cancel = useMutation({
     mutationFn: () => api<{ appointment: AppointmentView; alreadyCancelled: boolean; waitlistMatches: number }>(`/appointments/${appt.id}/cancel`, { method: 'POST', body: { reason, note: note || null } }),
     onSuccess: onDone,
-    onError: (e) => setError(errorMessage(e)),
+    onError: async (e) => {
+      if (e instanceof OfflineError && reason) {
+        // Sin internet: la cancelación se guarda en este equipo y se envía sola al volver la conexión.
+        await enqueue({ key: newKey(), kind: 'cancel', appointmentId: appt.id, cancel: { reason, note: note || null }, summary: `Cancelar ${appt.code}: ${appt.patient.fullName}, ${time(appt.startsAt)}` });
+        toast.warning('Sin internet: la cancelación quedó guardada en este equipo y se enviará sola cuando vuelva la conexión.', { duration: 15000 });
+        onCancel();
+        return;
+      }
+      setError(errorMessage(e));
+    },
   });
   return (
     <section className="flex flex-col gap-4 rounded-md border-2 border-redpen/40 bg-redpen-soft/50 p-4">
       <h3 className="font-bold">¿Por qué se cancela la cita de {appt.patient.fullName}?</h3>
       <div role="radiogroup" aria-label="Motivo" className="flex flex-col gap-2">
-        {(Object.keys(CANCEL_REASON_LABELS) as CancelReason[]).map((r) => (
+        {STAFF_CANCEL_REASONS.map((r) => (
           <label key={r} className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md bg-surface px-3">
             <input type="radio" name="cancel-reason" className="size-5 accent-[var(--redpen)]" checked={reason === r} onChange={() => setReason(r)} />
             {CANCEL_REASON_LABELS[r]}
@@ -262,6 +277,55 @@ function ClinicalNote({ appt, onSaved }: { appt: AppointmentView; onSaved: (a: A
       <Button variant="secondary" className="self-start" onClick={() => save.mutate()} disabled={save.isPending}>
         <NotebookPen /> Guardar nota
       </Button>
+    </section>
+  );
+}
+
+/** Avisar al paciente: confirmación o recordatorio por WhatsApp con su enlace para cancelar, o un comprobante impreso. */
+function NotifyPatient({ appt, onChanged }: { appt: AppointmentView; onChanged: (a: AppointmentView) => void }) {
+  const reminded = useMutation({
+    mutationFn: (value: boolean) => api<AppointmentView>(`/appointments/${appt.id}/reminded`, { method: 'PATCH', body: { reminded: value } }),
+    onSuccess: onChanged,
+    onError: (e) => toast.error(errorMessage(e)),
+  });
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(patientUrl(appt));
+      toast.success('Enlace copiado. Péguelo en un mensaje para el paciente.');
+    } catch {
+      toast.message(patientUrl(appt));
+    }
+  };
+  const soon = new Date(appt.startsAt).getTime() - Date.now() < 36 * 3600_000;
+  return (
+    <section className="flex flex-col gap-3 rounded-md border border-rule p-4">
+      <h3 className="flex items-center gap-2 font-bold">
+        <BellRing className="size-5" aria-hidden /> Avisar al paciente
+      </h3>
+      {appt.contactPhone ? (
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="secondary" size="sm">
+            <a href={waLink(appt.contactPhone, soon ? reminderText(appt) : confirmationText(appt))} target="_blank" rel="noreferrer" onClick={() => soon && !appt.remindedAt && reminded.mutate(true)}>
+              <MessageCircle /> {soon ? 'Recordar por WhatsApp' : 'Enviar confirmación por WhatsApp'}
+            </a>
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => void copy()}>
+            <Copy /> Copiar enlace del paciente
+          </Button>
+        </div>
+      ) : (
+        <p className="text-ink-2">Sin teléfono. {appt.contactNote ? `Cómo ubicarlo: ${appt.contactNote}` : ''}</p>
+      )}
+      <Button variant="ghost" size="sm" className="self-start" onClick={() => window.open(`/comprobante/${appt.id}`, '_blank')}>
+        <Printer /> Imprimir comprobante (con enlace para cancelar)
+      </Button>
+      <label className="flex min-h-11 items-center gap-3">
+        <input type="checkbox" className="size-6 accent-[var(--ballpoint)]" checked={!!appt.remindedAt} onChange={(e) => reminded.mutate(e.target.checked)} />
+        <span>
+          Ya se le recordó la cita
+          {appt.remindedAt && <span className="block text-sm text-ink-3">{appt.remindedBy ?? 'Alguien'} · {dateTime(appt.remindedAt)}</span>}
+        </span>
+      </label>
     </section>
   );
 }

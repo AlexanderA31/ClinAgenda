@@ -1,4 +1,4 @@
-import { CalendarDays, ClipboardList, FileUp, Hourglass, LayoutDashboard, ListChecks, ShieldCheck, Stethoscope, Building2, UserCog, Users } from 'lucide-react';
+import { BellRing, CalendarDays, ClipboardList, FileUp, Hourglass, LayoutDashboard, ListChecks, ShieldCheck, Stethoscope, Building2, UserCog, Users } from 'lucide-react';
 import type { Role } from '@clinagenda/schemas';
 
 export interface NavItem {
@@ -14,6 +14,7 @@ export const NAV: NavItem[] = [
   { href: '/agenda', label: 'Agenda del día', icon: CalendarDays, hint: 'Ver y dar citas' },
   { href: '/citas', label: 'Buscar citas', icon: ListChecks, hint: 'Todas las citas con filtros' },
   { href: '/pacientes', label: 'Pacientes', icon: Users, hint: 'Buscar o registrar pacientes' },
+  { href: '/recordatorios', label: 'Recordatorios', icon: BellRing, roles: ['ADMIN', 'RECEPCION'], hint: 'Avisar las citas de mañana' },
   { href: '/lista-espera', label: 'Lista de espera', icon: Hourglass, roles: ['ADMIN', 'RECEPCION'], hint: 'Pacientes que esperan un espacio' },
   { href: '/panel', label: 'Panel', icon: LayoutDashboard, roles: ['ADMIN', 'MEDICO'], hint: 'Cifras del mes' },
   { href: '/medicos', label: 'Médicos', icon: Stethoscope, hint: 'Horarios por clínica' },

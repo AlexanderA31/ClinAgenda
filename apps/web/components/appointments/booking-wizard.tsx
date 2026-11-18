@@ -8,6 +8,7 @@ import type { AppointmentView, AvailabilitySlot, PatientView } from '@clinagenda
 import { ApiRequestError, OfflineError, api, errorMessage } from '@/lib/api';
 import { addDays, dayLabel, phone, time, todayIso } from '@/lib/format';
 import { enqueue, newKey } from '@/lib/offline-queue';
+import { confirmationText, waLink } from '@/lib/whatsapp';
 import { useAvailability, useClinics, useDebounced, usePatientSearch } from '@/lib/queries';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
@@ -68,7 +69,11 @@ function WizardBody({ preset, onDone }: { preset?: BookingPreset; onDone: () => 
       void qc.invalidateQueries({ queryKey: ['appointments'] });
       void qc.invalidateQueries({ queryKey: ['availability'] });
       void qc.invalidateQueries({ queryKey: ['waitlist'] });
-      toast.success(`Cita confirmada (${a.code}): ${a.patient.fullName}, ${dayLabel(a.startsAt.slice(0, 10))} a las ${time(a.startsAt)}.`);
+      toast.success(`Cita confirmada (${a.code}): ${a.patient.fullName}, ${dayLabel(a.startsAt.slice(0, 10))} a las ${time(a.startsAt)}.`, {
+        duration: 20000,
+        // Un toque para mandarle al paciente la confirmación con su enlace para cancelar.
+        action: a.contactPhone ? { label: 'Enviar por WhatsApp', onClick: () => window.open(waLink(a.contactPhone!, confirmationText(a)), '_blank') } : undefined,
+      });
       onDone();
     },
     onError: async (e) => {

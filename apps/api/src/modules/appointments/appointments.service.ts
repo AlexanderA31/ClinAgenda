@@ -285,6 +285,24 @@ export class AppointmentsService {
     return this.view(appt, user, await this.userNames([appt]));
   }
 
+  /** Marca (o desmarca) que ya se le recordó la cita al paciente, para que dos recepcionistas no llamen dos veces. */
+  async setReminded(id: string, reminded: boolean, user: SessionUser, meta: RequestMeta): Promise<AppointmentView> {
+    const before = await this.load(id, user);
+    const appt = await this.prisma.$transaction(async (tx) => {
+      const a = await tx.appointment.update({
+        where: { id },
+        data: reminded ? { remindedAt: new Date(), remindedById: user.id } : { remindedAt: null, remindedById: null },
+        include,
+      });
+      await this.audit.log(
+        { userId: user.id, action: reminded ? 'REMINDED' : 'REMINDER_UNDONE', entity: 'Appointment', entityId: id, summary: `${reminded ? 'Recordó' : 'Desmarcó el recordatorio de'} ${appointmentCode(before.code)} a ${before.patient.firstNames} ${before.patient.lastNames}`, meta },
+        tx,
+      );
+      return a;
+    });
+    return this.view(appt, user, await this.userNames([appt]));
+  }
+
   private async load(id: string, user: SessionUser) {
     const appt = await this.prisma.appointment.findUnique({ where: { id }, include });
     if (!appt) throw DomainError.notFound('la cita');
@@ -298,8 +316,8 @@ export class AppointmentsService {
     return v;
   }
 
-  private async userNames(rows: { createdById: string | null; cancelledById: string | null }[]) {
-    const ids = [...new Set(rows.flatMap((r) => [r.createdById, r.cancelledById]).filter((x): x is string => !!x))];
+  private async userNames(rows: { createdById: string | null; cancelledById: string | null; remindedById: string | null }[]) {
+    const ids = [...new Set(rows.flatMap((r) => [r.createdById, r.cancelledById, r.remindedById]).filter((x): x is string => !!x))];
     if (!ids.length) return new Map<string, string>();
     const users = await this.prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, fullName: true } });
     return new Map(users.map((u) => [u.id, u.fullName]));
