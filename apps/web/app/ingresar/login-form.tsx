@@ -5,8 +5,8 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Eye, EyeOff, KeyRound, LogIn, ShieldCheck } from 'lucide-react';
-import { LoginSchema, type LoginInput, type SessionUser } from '@clinagenda/schemas';
+import { Eye, EyeOff, KeyRound, LogIn, ShieldCheck, UserPlus } from 'lucide-react';
+import { SignInSchema, type SignInInput, type SignInResult } from '@clinagenda/schemas';
 import { useQueryClient } from '@tanstack/react-query';
 import { api, errorMessage } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -20,16 +20,21 @@ export function LoginForm() {
   const qc = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [show, setShow] = useState(false);
-  const { register, handleSubmit, formState } = useForm<LoginInput>({ resolver: zodResolver(LoginSchema) });
+  const { register, handleSubmit, formState } = useForm<SignInInput>({ resolver: zodResolver(SignInSchema) });
 
   const onSubmit = handleSubmit(async (values) => {
     setError(null);
     try {
-      const { user } = await api<{ user: SessionUser }>('/auth/login', { method: 'POST', body: values });
-      qc.setQueryData(['me'], user);
+      // Un solo ingreso: la API dice si la cuenta es del personal o de un paciente.
+      const result = await api<SignInResult>('/auth/sign-in', { method: 'POST', body: values });
       const next = params.get('next');
+      if (result.kind === 'patient') {
+        router.replace(next && next.startsWith('/paciente') ? next : '/paciente');
+        return;
+      }
+      qc.setQueryData(['me'], result.user);
       // Si la contraseña es temporal, la agenda se abre con el aviso obligatorio para cambiarla.
-      router.replace(next && next.startsWith('/') ? next : '/agenda');
+      router.replace(next && next.startsWith('/') && !next.startsWith('/paciente') ? next : '/agenda');
     } catch (e) {
       setError(errorMessage(e));
     }
@@ -38,14 +43,14 @@ export function LoginForm() {
   return (
     <div className="flex w-full max-w-md flex-col gap-8">
       <div className="flex flex-col gap-2">
-        <p className="font-display text-lg font-extrabold text-ballpoint">ClinAgenda</p>
+        <p className="font-display text-lg font-extrabold text-[var(--euc)]">Pacientes y personal</p>
         <h2 className="font-display text-4xl font-extrabold tracking-tight sm:text-5xl">Ingresar</h2>
-        <p className="text-lg text-ink-2">Escriba el usuario y la contraseña que le dio la dirección.</p>
+        <p className="text-lg text-ink-2">Pacientes: su cédula o pasaporte. Personal: el usuario que le dio la dirección.</p>
       </div>
 
       {params.get('vence') && (
         <Notice tone="info" title="Su sesión terminó">
-          Por seguridad, la sesión se cierra después de unas horas o cuando la dirección lo pide. Vuelva a ingresar.
+          Por seguridad, la sesión se cierra después de un tiempo. Vuelva a ingresar.
         </Notice>
       )}
       {error && (
@@ -55,8 +60,8 @@ export function LoginForm() {
       )}
 
       <form onSubmit={onSubmit} className="flex flex-col gap-5" noValidate>
-        <Field id="username" label="Usuario" error={formState.errors.username?.message}>
-          <Input autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck={false} className="min-h-14 text-lg" {...register('username')} />
+        <Field id="username" label="Usuario, cédula o pasaporte" error={formState.errors.identifier?.message}>
+          <Input autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck={false} className="min-h-14 text-lg" {...register('identifier')} />
         </Field>
         <Field
           id="password"
@@ -80,14 +85,24 @@ export function LoginForm() {
         </Button>
       </form>
 
+      <div className="flex flex-col gap-3 rounded-2xl border-2 border-[var(--euc)] bg-surface p-5">
+        <p className="font-display text-xl font-bold">¿Es paciente y aún no tiene cuenta?</p>
+        <p className="text-ink-2">Regístrese en dos minutos con su cédula o pasaporte y agende en línea.</p>
+        <Button variant="secondary" size="lg" className="rounded-full" asChild>
+          <Link href="/paciente/registro">
+            <UserPlus /> Crear mi cuenta
+          </Link>
+        </Button>
+      </div>
+
       <div className="flex flex-col gap-3 border-t border-rule pt-6 text-ink-2">
         <p className="flex items-start gap-3">
           <KeyRound className="mt-0.5 size-5 shrink-0 text-ink-3" aria-hidden />
-          <span>¿Olvidó su contraseña o quedó bloqueado? La dirección puede darle una nueva o desbloquearlo desde “Usuarios”.</span>
+          <span>¿Olvidó su contraseña o quedó bloqueado? Pacientes: llamen a su clínica. Personal: la dirección puede darle una nueva desde “Usuarios”.</span>
         </p>
         <p className="flex items-start gap-3">
           <ShieldCheck className="mt-0.5 size-5 shrink-0 text-ink-3" aria-hidden />
-          <span>Use solo su propio usuario: cada cambio queda registrado a su nombre.</span>
+          <span>Use solo su propia cuenta: cada cambio queda registrado a su nombre.</span>
         </p>
         <Link href="/" className="w-fit font-bold text-ballpoint underline underline-offset-4 hover:no-underline">
           Volver a la página de las clínicas

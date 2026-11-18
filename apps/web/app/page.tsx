@@ -116,8 +116,7 @@ export default async function Landing() {
                 Mis citas
               </Link>
               <Link href="/ingresar" className={cn(s.ghost, 'ml-2 flex min-h-11 items-center rounded-full px-4 text-sm font-bold')}>
-                <span className="sm:hidden">Personal</span>
-                <span className="hidden sm:inline">Acceso del personal</span>
+                Ingresar
               </Link>
             </nav>
           </div>

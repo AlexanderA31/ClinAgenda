@@ -9,5 +9,6 @@ import { PatientAuthGuard } from './patient-auth.guard';
   imports: [AppointmentsModule, PublicModule],
   controllers: [PortalController],
   providers: [PortalService, PatientAuthGuard],
+  exports: [PortalService],
 })
 export class PortalModule {}

@@ -1,17 +1,8 @@
-import { Suspense } from 'react';
-import type { Metadata } from 'next';
-import { AuthSplit } from '@/components/portal/auth-split';
-import { PatientLoginForm } from './patient-login-form';
+import { redirect } from 'next/navigation';
 
-export const metadata: Metadata = { title: 'Ingresar' };
-export const dynamic = 'force-dynamic';
-
-export default function PatientLoginPage() {
-  return (
-    <AuthSplit title="Sus citas, cuando las necesite." lede="Agende, revise o cancele sus citas en las tres clínicas sin llamar.">
-      <Suspense>
-        <PatientLoginForm />
-      </Suspense>
-    </AuthSplit>
-  );
+/** Hay un solo ingreso para pacientes y personal: /ingresar. Este enlace antiguo lleva allá. */
+export default async function PatientLoginPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
+  const { next, vence } = await searchParams;
+  const qs = new URLSearchParams({ ...(next ? { next } : {}), ...(vence ? { vence } : {}) }).toString();
+  redirect(`/ingresar${qs ? `?${qs}` : ''}`);
 }

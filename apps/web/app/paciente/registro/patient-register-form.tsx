@@ -138,7 +138,7 @@ export function PatientRegisterForm() {
           </Button>
           <p className="text-ink-2">
             ¿Ya tiene cuenta?{' '}
-            <Link href="/paciente/ingresar" className="font-bold text-ballpoint underline underline-offset-4 hover:no-underline">
+            <Link href="/ingresar" className="font-bold text-ballpoint underline underline-offset-4 hover:no-underline">
               Ingrese aquí
             </Link>
             . Para niños o adolescentes, su representante puede llamar a la clínica.

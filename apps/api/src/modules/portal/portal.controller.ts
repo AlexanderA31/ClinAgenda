@@ -5,8 +5,7 @@ import { PatientLoginSchema, PatientRegisterSchema, PortalAvailabilityQuerySchem
 import { createZodDto } from 'nestjs-zod';
 import type { Response } from 'express';
 import { Public, ReqMeta, type RequestMeta } from '../../common/decorators/auth.decorators';
-import { env } from '../../config/env';
-import { CurrentPatient, PATIENT_COOKIE, PatientAuthGuard, type PatientSession } from './patient-auth.guard';
+import { CurrentPatient, PATIENT_COOKIE, PatientAuthGuard, setPatientCookie, type PatientSession } from './patient-auth.guard';
 import { PortalService } from './portal.service';
 
 class PatientRegisterDto extends createZodDto(PatientRegisterSchema) {}
@@ -14,11 +13,6 @@ class PatientLoginDto extends createZodDto(PatientLoginSchema) {}
 class PortalBookDto extends createZodDto(PortalBookSchema) {}
 class PortalAvailabilityQueryDto extends createZodDto(PortalAvailabilityQuerySchema) {}
 
-const SESSION_DAYS = 30;
-
-function setCookie(res: Response, token: string) {
-  res.cookie(PATIENT_COOKIE, token, { httpOnly: true, sameSite: 'lax', secure: env.COOKIE_SECURE, maxAge: SESSION_DAYS * 86400_000, path: '/' });
-}
 
 /** Portal del paciente. @Public frente al guard del personal; las rutas privadas usan PatientAuthGuard. */
 @ApiTags('Portal del paciente')
@@ -31,7 +25,7 @@ export class PortalController {
   @Post('register')
   async register(@Body() body: PatientRegisterDto, @ReqMeta() meta: RequestMeta, @Res({ passthrough: true }) res: Response) {
     const { token, me } = await this.portal.register(body, meta);
-    setCookie(res, token);
+    setPatientCookie(res, token);
     return { me, accessToken: token };
   }
 
@@ -40,7 +34,7 @@ export class PortalController {
   @HttpCode(200)
   async login(@Body() body: PatientLoginDto, @ReqMeta() meta: RequestMeta, @Res({ passthrough: true }) res: Response) {
     const { token, me } = await this.portal.login(body, meta);
-    setCookie(res, token);
+    setPatientCookie(res, token);
     return { me, accessToken: token };
   }
 

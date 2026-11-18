@@ -1,9 +1,15 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException, createParamDecorator } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
+import { env } from '../../config/env';
 import { PrismaService } from '../../prisma/prisma.service';
 
 export const PATIENT_COOKIE = 'clinagenda_paciente';
+const PATIENT_SESSION_DAYS = 30;
+
+export function setPatientCookie(res: Response, token: string) {
+  res.cookie(PATIENT_COOKIE, token, { httpOnly: true, sameSite: 'lax', secure: env.COOKIE_SECURE, maxAge: PATIENT_SESSION_DAYS * 86400_000, path: '/' });
+}
 
 export interface PatientSession {
   accountId: string;

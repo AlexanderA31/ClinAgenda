@@ -132,6 +132,26 @@ describe('Portal del paciente', () => {
   });
 });
 
+describe('Ingreso único', () => {
+  it('el mismo formulario abre la sesión del personal o la del paciente', async () => {
+    const staff = await http.post('/api/auth/sign-in').send({ identifier: 'Paredes', password: STAFF_PASSWORD }).expect(200);
+    expect(staff.body.kind).toBe('staff');
+    expect(String(staff.headers['set-cookie'])).toContain('clinagenda_session=');
+
+    const pat = await http.post('/api/auth/sign-in').send({ identifier: CEDULA, password: PASSWORD }).expect(200);
+    expect(pat.body.kind).toBe('patient');
+    expect(String(pat.headers['set-cookie'])).toContain('clinagenda_paciente=');
+  });
+
+  it('el mensaje de error no revela si el usuario o el documento existen', async () => {
+    const a = await http.post('/api/auth/sign-in').send({ identifier: 'paredes', password: 'incorrecta1' }).expect(400);
+    const b = await http.post('/api/auth/sign-in').send({ identifier: CEDULA, password: 'incorrecta1' }).expect(400);
+    const c = await http.post('/api/auth/sign-in').send({ identifier: 'nadie.existe', password: 'incorrecta1' }).expect(400);
+    expect(a.body.message).toBe(b.body.message);
+    expect(b.body.message).toBe(c.body.message);
+  });
+});
+
 describe('Horarios de las clínicas', () => {
   it('acortar el horario no cancela citas: devuelve las que quedan fuera', async () => {
     const original = centro.schedule;

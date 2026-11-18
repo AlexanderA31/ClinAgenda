@@ -39,3 +39,19 @@ export const SessionUserSchema = z.object({
   mustChangePassword: z.boolean(),
 });
 export type SessionUser = z.infer<typeof SessionUserSchema>;
+
+/**
+ * Un solo ingreso para todos: el personal escribe su usuario y el paciente su cédula o pasaporte.
+ * La API decide de quién es la cuenta y abre la sesión que corresponde.
+ */
+export const SignInSchema = z.object({
+  identifier: z
+    .string({ required_error: 'Escriba su usuario, cédula o pasaporte.' })
+    .trim()
+    .min(1, 'Escriba su usuario, cédula o pasaporte.')
+    .max(40),
+  password: z.string({ required_error: 'Escriba su contraseña.' }).min(1, 'Escriba su contraseña.').max(200),
+});
+export type SignInInput = z.infer<typeof SignInSchema>;
+
+export type SignInResult = { kind: 'staff'; user: SessionUser } | { kind: 'patient' };

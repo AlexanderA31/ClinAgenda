@@ -1,15 +1,20 @@
 import { Body, Controller, Get, HttpCode, Patch, Post, Res } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import { ChangePasswordSchema, LoginSchema, MyProfileUpdateSchema, type SessionUser } from '@clinagenda/schemas';
+import { ChangePasswordSchema, LoginSchema, MyProfileUpdateSchema, SignInSchema, type SessionUser, type SignInResult } from '@clinagenda/schemas';
 import { createZodDto } from 'nestjs-zod';
 import type { Response } from 'express';
 import { CurrentUser, Public, ReqMeta, type RequestMeta } from '../../common/decorators/auth.decorators';
 import { SESSION_COOKIE } from '../../common/guards/auth.guard';
 import { env } from '../../config/env';
 import { AuthService } from './auth.service';
+import { PrismaService } from '../../prisma/prisma.service';
+import { PortalService } from '../portal/portal.service';
+import { setPatientCookie } from '../portal/patient-auth.guard';
+import { DomainError } from '../../common/errors/domain-error';
 
 class LoginDto extends createZodDto(LoginSchema) {}
+class SignInDto extends createZodDto(SignInSchema) {}
 class ChangePasswordDto extends createZodDto(ChangePasswordSchema) {}
 class MyProfileUpdateDto extends createZodDto(MyProfileUpdateSchema) {}
 
@@ -22,7 +27,41 @@ function setSessionCookie(res: Response, token: string) {
 @ApiTags('Autenticación')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(
+    private readonly auth: AuthService,
+    private readonly portal: PortalService,
+    private readonly prisma: PrismaService,
+  ) {}
+
+  /**
+   * Ingreso único (personal y pacientes). Si el texto es el usuario de alguien del personal, se abre su
+   * sesión; si no, se busca la cuenta de paciente con esa cédula o pasaporte. El mensaje de error es el
+   * mismo en todos los casos, para no revelar qué usuarios o documentos existen.
+   */
+  @Public()
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Post('sign-in')
+  @HttpCode(200)
+  async signIn(@Body() body: SignInDto, @ReqMeta() meta: RequestMeta, @Res({ passthrough: true }) res: Response): Promise<SignInResult> {
+    const invalid = DomainError.validation('Usuario, documento o contraseña incorrectos. Revise que no tenga activadas las mayúsculas.');
+    const username = body.identifier.toLowerCase();
+    if (await this.prisma.user.findUnique({ where: { username }, select: { id: true } })) {
+      try {
+        const { token, user } = await this.auth.login({ username, password: body.password }, meta);
+        setSessionCookie(res, token);
+        return { kind: 'staff', user };
+      } catch (e) {
+        throw e instanceof DomainError && e.getStatus() === 400 ? invalid : e;
+      }
+    }
+    try {
+      const { token } = await this.portal.login({ documentNumber: body.identifier.replace(/[\s-]/g, '').toUpperCase(), password: body.password }, meta);
+      setPatientCookie(res, token);
+      return { kind: 'patient' };
+    } catch (e) {
+      throw e instanceof DomainError && e.getStatus() === 400 ? invalid : e;
+    }
+  }
 
   /** Devuelve el usuario y deja la sesión en una cookie httpOnly (JavaScript no puede leerla). También devuelve el token para Swagger. */
   @Public()

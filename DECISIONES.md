@@ -120,7 +120,8 @@ Sí, desde la página pública (*Agendar en línea*). Decisiones para que no des
 - **Ficha existente**: si ya hay una ficha con ese documento, la cuenta se vincula solo si coinciden la fecha de nacimiento y el celular. Si no coinciden, se pide llamar a la clínica: así nadie puede tomar la ficha de otra persona sabiendo solo su cédula.
 - **Límites**: al menos 2 horas de anticipación, hasta 60 días adelante y máximo 2 citas por venir a la vez. Las mismas reglas de la agenda (horario, choques, médico en dos clínicas) se aplican igual.
 - **Lo que ve**: solo sus citas y los horarios libres, nunca datos de otros pacientes. Puede cancelar hasta 2 horas antes.
-- **Sesión separada**: la sesión del paciente no abre el sistema interno, y la del personal no abre el portal.
+- **Un solo ingreso**: pacientes y personal entran por la misma pantalla. Si lo escrito es el usuario de alguien del personal, se abre su sesión; si no, se busca la cuenta del paciente con ese documento. El mensaje de error es siempre el mismo, para no revelar qué usuarios o documentos existen.
+- **Sesión separada**: aunque el ingreso es uno, la sesión del paciente no abre el sistema interno, y la del personal no abre el portal.
 
 ## 5. Los fallos
 

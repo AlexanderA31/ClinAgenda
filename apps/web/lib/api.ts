@@ -50,8 +50,8 @@ export async function api<T>(path: string, { body, query, headers, ...init }: Op
 
   if (res.status === 401 && typeof window !== 'undefined' && !path.startsWith('/auth/') && !path.startsWith('/portal/login') && !path.startsWith('/portal/register')) {
     const next = encodeURIComponent(window.location.pathname + window.location.search);
-    // El portal del paciente tiene su propio ingreso.
-    window.location.href = path.startsWith('/portal/') ? `/paciente/ingresar?vence=1&next=${next}` : `/ingresar?vence=1&next=${next}`;
+    // Un solo ingreso para pacientes y personal.
+    window.location.href = `/ingresar?vence=1&next=${next}`;
   }
   if (res.status === 502 || res.status === 503 || res.status === 504) throw new OfflineError();
 

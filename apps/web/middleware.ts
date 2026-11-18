@@ -7,11 +7,11 @@ export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   // /c/<token>: enlace que recibe el paciente para ver o cancelar su cita, sin usuario.
   if (PUBLIC.includes(pathname) || pathname.startsWith('/c/')) return NextResponse.next();
-  // Portal del paciente: su propia cookie y su propia pantalla de ingreso.
+  // Portal del paciente: su propia cookie, pero el mismo ingreso que el personal.
   if (pathname === '/paciente' || pathname.startsWith('/paciente/')) {
     if (req.cookies.has('clinagenda_paciente')) return NextResponse.next();
     const url = req.nextUrl.clone();
-    url.pathname = '/paciente/ingresar';
+    url.pathname = '/ingresar';
     url.search = `?next=${encodeURIComponent(pathname)}`;
     return NextResponse.redirect(url);
   }
