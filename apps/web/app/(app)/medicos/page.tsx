@@ -1,10 +1,18 @@
 'use client';
 
-import { WEEKDAY_LABELS } from '@clinagenda/schemas';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { CalendarClock, Pencil, Plus } from 'lucide-react';
+import { WEEKDAY_LABELS, type DoctorView } from '@clinagenda/schemas';
+import { api } from '@/lib/api';
 import { useDoctors } from '@/lib/queries';
-import { phone } from '@/lib/format';
+import { dateTime, phone } from '@/lib/format';
+import { useCan } from '@/lib/session';
 import { Badge } from '@/components/ui/badge';
-import { PageHeader, Skeleton } from '@/components/ui/misc';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { EmptyState, PageHeader, Skeleton } from '@/components/ui/misc';
+import { DoctorForm } from '@/components/forms/doctor-form';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 const DAYS = [1, 2, 3, 4, 5, 6];
@@ -12,9 +20,22 @@ const DAYS = [1, 2, 3, 4, 5, 6];
 /** Semana de cada médico: en qué clínica está cada día. Así se ve de un vistazo que nadie está en dos lugares a la vez. */
 export default function DoctorsPage() {
   const doctors = useDoctors();
+  const isAdmin = useCan('ADMIN');
+  const [editing, setEditing] = useState<DoctorView | 'new' | null>(null);
+  const [orphansOf, setOrphansOf] = useState<DoctorView | null>(null);
   return (
     <>
-      <PageHeader title="Médicos" description="Horario semanal de cada médico y en qué clínica atiende cada día." />
+      <PageHeader
+        title="Médicos"
+        description="Horario semanal de cada médico y en qué clínica atiende cada día."
+        actions={
+          isAdmin && (
+            <Button size="lg" onClick={() => setEditing('new')}>
+              <Plus /> Registrar médico
+            </Button>
+          )
+        }
+      />
       {doctors.isPending ? (
         <Skeleton className="h-96" />
       ) : (
@@ -37,9 +58,19 @@ export default function DoctorsPage() {
                       <p className="font-bold">{doc.fullName}</p>
                       <p className="text-sm text-ink-2">{doc.specialty}</p>
                       {doc.phone && <p className="font-mono text-sm text-ink-3">{phone(doc.phone)}</p>}
-                      <div className="mt-1 flex gap-1">
+                      <div className="mt-1 flex flex-wrap gap-1">
                         {!doc.active && <Badge tone="danger">Inactivo</Badge>}
                         {clinicsCount > 1 && <Badge tone="info">Atiende en {clinicsCount} clínicas</Badge>}
+                      </div>
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {isAdmin && (
+                          <Button variant="ghost" size="sm" onClick={() => setEditing(doc)}>
+                            <Pencil /> Editar horario
+                          </Button>
+                        )}
+                        <Button variant="ghost" size="sm" onClick={() => setOrphansOf(doc)}>
+                          <CalendarClock /> Citas por reprogramar
+                        </Button>
                       </div>
                     </TableCell>
                     {DAYS.map((d) => {
@@ -66,6 +97,35 @@ export default function DoctorsPage() {
           </Table>
         </div>
       )}
+      <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+        <DialogContent side title={editing === 'new' ? 'Registrar médico' : `Editar a ${editing?.fullName ?? ''}`}>
+          {editing && <DoctorForm doctor={editing === 'new' ? undefined : editing} onDone={() => setEditing(null)} />}
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!orphansOf} onOpenChange={(o) => !o && setOrphansOf(null)}>
+        <DialogContent side title="Citas por reprogramar" description="Citas futuras que ya no encajan en el horario del médico. No se cancelaron: llame al paciente.">
+          {orphansOf && <Orphans doctorId={orphansOf.id} />}
+        </DialogContent>
+      </Dialog>
     </>
+  );
+}
+
+function Orphans({ doctorId }: { doctorId: string }) {
+  const list = useQuery({
+    queryKey: ['doctors', 'orphans', doctorId],
+    queryFn: () => api<{ id: string; code: string; startsAt: string; patientName: string; patientPhone: string | null; clinicName: string }[]>(`/doctors/${doctorId}/orphans`),
+  });
+  if (list.isPending) return <Skeleton className="h-32" />;
+  if (!list.data?.length) return <EmptyState title="Nada pendiente">Todas las citas futuras encajan en su horario.</EmptyState>;
+  return (
+    <ul className="flex flex-col gap-2">
+      {list.data.map((o) => (
+        <li key={o.id} className="rounded-md border border-rule px-3 py-2">
+          <span className="font-mono">{dateTime(o.startsAt)}</span> · <strong>{o.patientName}</strong> · {o.clinicName}
+          <span className="block font-mono text-sm text-ink-2">{phone(o.patientPhone)}</span>
+        </li>
+      ))}
+    </ul>
   );
 }

@@ -6,6 +6,17 @@ import { AuditService } from '../audit/audit.service';
 import { DomainError } from '../../common/errors/domain-error';
 import { fromZod } from '../../common/filters/all-exceptions.filter';
 import type { RequestMeta } from '../../common/decorators/auth.decorators';
+import { hhmmToMinutes, inZone, minutesOfDay, weekdayOf } from '../../common/utils/time';
+import { appointmentCode } from '../../common/utils/views';
+
+export interface OrphanAppointment {
+  id: string;
+  code: string;
+  startsAt: string;
+  patientName: string;
+  patientPhone: string | null;
+  clinicName: string;
+}
 
 type DoctorFull = Doctor & { assignments: (DoctorAssignment & { clinic: Clinic })[] };
 
@@ -87,7 +98,39 @@ export class DoctorsService {
       const view = toDoctorView(doctor);
       await this.audit.log({ userId: actor.id, action: 'UPDATE', entity: 'Doctor', entityId: id, summary: `Actualizó al médico ${doctor.fullName}`, before, after: view, meta }, tx);
       return view;
+    }).then(async (view) => ({ ...view, appointmentsOutsideSchedule: await this.orphans(id) }));
+  }
+
+  /**
+   * Citas futuras que ya no encajan en el horario del médico (porque se cambió su horario o se desactivó).
+   * No se cancelan solas: se listan para que recepción llame a cada paciente y la reprograme.
+   */
+  async orphans(doctorId: string): Promise<OrphanAppointment[]> {
+    const doctor = await this.prisma.doctor.findUniqueOrThrow({ where: { id: doctorId }, include: { assignments: true } });
+    const future = await this.prisma.appointment.findMany({
+      where: { doctorId, status: 'SCHEDULED', startsAt: { gt: new Date() } },
+      include: { clinic: true, patient: true },
+      orderBy: { startsAt: 'asc' },
     });
+    return future
+      .filter((a) => {
+        if (!doctor.active) return true;
+        const local = inZone(a.startsAt, a.clinic.timezone);
+        const end = inZone(a.endsAt, a.clinic.timezone);
+        const from = minutesOfDay(local);
+        const to = end.hasSame(local, 'day') ? minutesOfDay(end) : 24 * 60;
+        return !doctor.assignments.some(
+          (s) => s.clinicId === a.clinicId && s.weekday === weekdayOf(local) && hhmmToMinutes(s.startTime) <= from && to <= hhmmToMinutes(s.endTime),
+        );
+      })
+      .map((a) => ({
+        id: a.id,
+        code: appointmentCode(a.code),
+        startsAt: a.startsAt.toISOString(),
+        patientName: `${a.patient.firstNames} ${a.patient.lastNames}`,
+        patientPhone: a.patient.phone ?? a.patient.guardianPhone,
+        clinicName: a.clinic.name,
+      }));
   }
 
   private async assertClinicsExist(ids: string[]) {

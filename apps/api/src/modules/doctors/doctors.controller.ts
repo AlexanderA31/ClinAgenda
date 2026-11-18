@@ -24,6 +24,13 @@ export class DoctorsController {
     return this.doctors.get(id);
   }
 
+  /** Citas futuras que quedaron fuera del horario del médico y hay que reprogramar. */
+  @Roles('ADMIN', 'RECEPCION')
+  @Get(':id/orphans')
+  orphans(@Param('id', ParseUUIDPipe) id: string) {
+    return this.doctors.orphans(id);
+  }
+
   @Roles('ADMIN')
   @Post()
   create(@Body() body: DoctorCreateDto, @CurrentUser() user: SessionUser, @ReqMeta() meta: RequestMeta) {
