@@ -109,6 +109,9 @@ export default async function Landing() {
               <a href="#citas" className="hidden min-h-11 items-center px-3 font-bold opacity-85 hover:opacity-100 md:flex">
                 Su cita
               </a>
+              <Link href="/paciente/registro" className="hidden min-h-11 items-center px-3 font-bold opacity-85 hover:opacity-100 sm:flex">
+                Crear cuenta
+              </Link>
               <Link href="/paciente" className="hidden min-h-11 items-center px-3 font-bold opacity-85 hover:opacity-100 sm:flex">
                 Mis citas
               </Link>

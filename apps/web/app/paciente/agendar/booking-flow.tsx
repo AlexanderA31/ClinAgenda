@@ -248,22 +248,22 @@ function ChooseDoctorAndDay({
           <h2 className="font-display text-2xl font-bold">¿Qué día?</h2>
           {days.length ? (
             <>
-              <ul className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">
-                {(showAll ? days : days.slice(0, 12)).map((d) => (
+              <ul className="grid grid-cols-4 gap-1.5 sm:grid-cols-7 lg:grid-cols-10">
+                {(showAll ? days : days.slice(0, 20)).map((d) => (
                   <li key={d}>
                     <button
                       type="button"
                       onClick={() => onPickDate(d)}
-                      className="flex min-h-20 w-full flex-col items-center justify-center rounded-xl border-2 border-rule bg-surface px-2 py-2 hover:border-[var(--euc)] hover:bg-[var(--euc)]/10"
+                      className="flex min-h-14 w-full flex-col items-center justify-center rounded-lg border-2 border-rule bg-surface px-1 py-1 leading-tight hover:border-[var(--euc)] hover:bg-[var(--euc)]/10"
                     >
-                      <span className="text-sm text-ink-2">{d === todayIso() ? 'Hoy' : WEEKDAY_LABELS[weekdayOf(d)]}</span>
-                      <span className="tabular font-display text-2xl font-extrabold">{Number(d.slice(8, 10))}</span>
-                      <span className="text-sm text-ink-3">{new Intl.DateTimeFormat('es-EC', { month: 'short', timeZone: 'UTC' }).format(new Date(`${d}T12:00:00Z`))}</span>
+                      <span className="text-xs text-ink-2">{d === todayIso() ? 'Hoy' : WEEKDAY_LABELS[weekdayOf(d)].slice(0, 3)}</span>
+                      <span className="tabular font-display text-lg font-extrabold">{Number(d.slice(8, 10))}</span>
+                      <span className="text-xs text-ink-3">{new Intl.DateTimeFormat('es-EC', { month: 'short', timeZone: 'UTC' }).format(new Date(`${d}T12:00:00Z`))}</span>
                     </button>
                   </li>
                 ))}
               </ul>
-              {!showAll && days.length > 12 && (
+              {!showAll && days.length > 20 && (
                 <Button variant="secondary" className="w-fit rounded-full" onClick={() => setShowAll(true)}>
                   Ver más días
                 </Button>

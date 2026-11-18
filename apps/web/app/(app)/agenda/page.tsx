@@ -2,8 +2,8 @@
 
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { CalendarCheck, CalendarClock, CalendarPlus, ChevronLeft, ChevronRight, CloudUpload, Plus, Sparkles, Trash2, UserX } from 'lucide-react';
-import type { AppointmentStatus, AppointmentView, AvailabilitySlot } from '@clinagenda/schemas';
+import { CalendarCheck, CalendarClock, CalendarPlus, CheckCircle2, ChevronLeft, ChevronRight, CloudUpload, Plus, Sparkles, Trash2, UserX } from 'lucide-react';
+import { APPOINTMENT_STATUS_LABELS, type AppointmentStatus, type AppointmentView, type AvailabilitySlot } from '@clinagenda/schemas';
 import { addDays, dayLabel, phone, time, todayIso } from '@/lib/format';
 import { useAppointments, useAvailability, useClinics } from '@/lib/queries';
 import { discard, listPending, onQueueChange, type PendingAppointment } from '@/lib/offline-queue';
@@ -15,7 +15,6 @@ import { EmptyState, Notice, Skeleton } from '@/components/ui/misc';
 import { Stat, StatGrid } from '@/components/ui/stat';
 import { BookingWizard, type BookingPreset } from '@/components/appointments/booking-wizard';
 import { AppointmentPanel } from '@/components/appointments/appointment-panel';
-import { StatusBadge } from '@/components/appointments/status-badge';
 import landing from '@/components/landing/landing.module.css';
 import { toneClass } from '@/components/landing/tone';
 
@@ -36,6 +35,18 @@ interface Grid {
   times: string[];
   doctors: { id: string; name: string; count: number }[];
   cell: (doctorId: string, t: string) => Cell;
+}
+
+/** Ícono por estado: con el nombre del estado para lectores de pantalla y al pasar el mouse. */
+function StatusIcon({ status }: { status: AppointmentStatus }) {
+  const Icon = status === 'ATTENDED' ? CheckCircle2 : status === 'NO_SHOW' ? UserX : CalendarClock;
+  const color = status === 'ATTENDED' ? 'text-good' : status === 'NO_SHOW' ? 'text-warn' : 'text-ballpoint';
+  return (
+    <>
+      <Icon className={cn('size-4 shrink-0', color)} aria-hidden />
+      <span className="sr-only">{APPOINTMENT_STATUS_LABELS[status]}:</span>
+    </>
+  );
 }
 
 /** Borde de color por estado: se distingue también por el texto y el ícono, nunca solo por el color. */
@@ -128,13 +139,11 @@ function Agenda() {
         <button
           type="button"
           onClick={() => setOpenId(a.id)}
-          className={cn('flex h-full w-full min-w-0 flex-col items-start gap-1 rounded-md border-l-4 px-2.5 py-1.5 text-left hover:brightness-95', STATUS_BORDER[a.status])}
+          title={`${a.patient.fullName} · ${APPOINTMENT_STATUS_LABELS[a.status]}${a.patient.phone ? ' · ' + phone(a.patient.phone) : ''}`}
+          className={cn('flex h-full w-full min-w-0 items-center gap-1.5 rounded-sm border-l-4 px-2 text-left text-sm hover:brightness-95', STATUS_BORDER[a.status])}
         >
-          <span className="w-full truncate font-bold leading-tight">{a.patient.fullName}</span>
-          <span className="flex flex-wrap items-center gap-1.5 text-sm text-ink-2">
-            <StatusBadge status={a.status} />
-            {a.patient.phone && <span className="tabular">{phone(a.patient.phone)}</span>}
-          </span>
+          <StatusIcon status={a.status} />
+          <span className="min-w-0 flex-1 truncate font-bold">{a.patient.fullName}</span>
         </button>
       );
     }
@@ -143,17 +152,17 @@ function Agenda() {
         <button
           type="button"
           onClick={() => setWizard({ clinicId, date, slot: c.slot })}
-          className="group flex h-full w-full items-center gap-1.5 rounded-md border-2 border-dashed border-rule px-2.5 text-ink-3 hover:border-ballpoint hover:bg-ballpoint-soft hover:text-ballpoint"
+          className="group flex h-full w-full items-center gap-1 rounded-sm border border-dashed border-rule px-2 text-ink-3 hover:border-ballpoint hover:bg-ballpoint-soft hover:text-ballpoint"
           aria-label={`Agendar con ${grid.doctors.find((d) => d.id === doctorId)?.name} a las ${t}`}
         >
-          <Plus className="size-4" aria-hidden /> <span className="text-sm">Libre</span>
+          <Plus className="size-3.5" aria-hidden /> <span className="text-xs">Libre</span>
         </button>
       ) : (
-        <span className="flex h-full items-center px-2.5 text-sm text-ink-3">Libre</span>
+        <span className="flex h-full items-center px-2 text-xs text-ink-3">Libre</span>
       );
     }
-    if (c.kind === 'busy') return <span className="flex h-full items-center px-2.5 text-sm text-ink-3">{nowLabel && t < nowLabel ? 'Ya pasó' : 'No disponible'}</span>;
-    return <span className="block h-full rounded-md bg-[repeating-linear-gradient(135deg,var(--surface-2)_0,var(--surface-2)_6px,transparent_6px,transparent_12px)]" aria-label="No atiende" />;
+    if (c.kind === 'busy') return <span className="flex h-full items-center px-2 text-xs text-ink-3">{nowLabel && t < nowLabel ? 'Ya pasó' : 'No disponible'}</span>;
+    return <span className="block h-full rounded-sm bg-[repeating-linear-gradient(135deg,var(--surface-2)_0,var(--surface-2)_5px,transparent_5px,transparent_10px)]" aria-label="No atiende" />;
   };
 
   return (
@@ -280,10 +289,10 @@ function Agenda() {
               </div>
             )}
             <div className="max-h-[calc(100dvh-12rem)] overflow-auto rounded-lg border border-rule bg-surface">
-              <div className="grid min-w-full" style={{ gridTemplateColumns: `4.5rem repeat(${shown.length}, minmax(13rem, 1fr))` }}>
+              <div className="grid min-w-full" style={{ gridTemplateColumns: `3.75rem repeat(${shown.length}, minmax(10rem, 1fr))` }}>
                 <div className="sticky left-0 top-0 z-20 border-b border-r border-rule bg-surface-2" />
                 {shown.map((d) => (
-                  <div key={d.id} className="sticky top-0 z-10 flex items-baseline justify-between gap-2 border-b border-rule bg-surface-2 px-3 py-2.5">
+                  <div key={d.id} className="sticky top-0 z-10 flex items-baseline justify-between gap-2 border-b border-rule bg-surface-2 px-2.5 py-2 text-sm">
                     <span className="truncate font-bold">{d.name}</span>
                     <span className="tabular shrink-0 text-sm text-ink-3">{plural(d.count, 'cita', 'citas')}</span>
                   </div>
@@ -294,14 +303,14 @@ function Agenda() {
                     <div key={t} className="contents">
                       <div
                         className={cn(
-                          'tabular sticky left-0 z-10 flex min-h-16 items-start justify-end border-b border-r border-rule px-2 pt-2 text-sm',
+                          'tabular sticky left-0 z-10 flex h-10 items-center justify-end border-b border-r border-rule px-2 text-xs',
                           now ? 'bg-ballpoint font-bold text-ballpoint-ink' : 'bg-surface text-ink-2',
                         )}
                       >
                         {t}
                       </div>
                       {shown.map((d) => (
-                        <div key={d.id} className={cn('min-h-16 border-b border-rule p-1', now && 'bg-ballpoint-soft/30')}>
+                        <div key={d.id} className={cn('h-10 border-b border-rule p-0.5', now && 'bg-ballpoint-soft/30')}>
                           {renderCell(d.id, t)}
                         </div>
                       ))}
@@ -311,7 +320,16 @@ function Agenda() {
               </div>
             </div>
             <p className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-ink-3">
-              <span>Toque una cita para verla o cambiarla.</span>
+              <span className="flex items-center gap-1.5">
+                <StatusIcon status="SCHEDULED" /> Agendada
+              </span>
+              <span className="flex items-center gap-1.5">
+                <StatusIcon status="ATTENDED" /> Atendida
+              </span>
+              <span className="flex items-center gap-1.5">
+                <StatusIcon status="NO_SHOW" /> No asistió
+              </span>
+              <span>Toque una cita para ver el teléfono, el estado y cambiarla.</span>
               {canBook && <span>Toque “Libre” para agendar ahí.</span>}
               <span className="flex items-center gap-1.5">
                 <span className="inline-block size-3 rounded-sm bg-[repeating-linear-gradient(135deg,var(--rule-strong)_0,var(--rule-strong)_2px,transparent_2px,transparent_4px)]" aria-hidden />
@@ -334,9 +352,9 @@ function Agenda() {
                 {grid.times
                   .filter((t) => grid.cell(mobile.id, t).kind !== 'off')
                   .map((t) => (
-                    <li key={t} className={cn('flex items-stretch gap-2 border-b border-rule p-1.5 last:border-0', t === currentTime && 'bg-ballpoint-soft/40')}>
-                      <span className={cn('tabular w-14 shrink-0 pt-2 text-right text-sm', t === currentTime ? 'font-bold text-ballpoint' : 'text-ink-2')}>{t}</span>
-                      <div className="min-h-14 min-w-0 flex-1">{renderCell(mobile.id, t)}</div>
+                    <li key={t} className={cn('flex items-center gap-2 border-b border-rule p-0.5 last:border-0', t === currentTime && 'bg-ballpoint-soft/40')}>
+                      <span className={cn('tabular w-12 shrink-0 text-right text-xs', t === currentTime ? 'font-bold text-ballpoint' : 'text-ink-2')}>{t}</span>
+                      <div className="h-10 min-w-0 flex-1">{renderCell(mobile.id, t)}</div>
                     </li>
                   ))}
               </ol>

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Eye, EyeOff, LogIn, Phone } from 'lucide-react';
+import { Eye, EyeOff, LogIn, Phone, UserPlus } from 'lucide-react';
 import { api, errorMessage } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/field';
@@ -74,14 +74,16 @@ export function PatientLoginForm() {
           <LogIn /> {busy ? 'Ingresando…' : 'Ingresar'}
         </Button>
       </form>
+      <div className="flex flex-col gap-3 rounded-2xl border-2 border-[var(--euc)] bg-surface p-5">
+        <p className="font-display text-xl font-bold">¿Primera vez?</p>
+        <p className="text-ink-2">Cree su cuenta en dos minutos con su cédula o pasaporte y agende en línea.</p>
+        <Button variant="secondary" size="lg" className="rounded-full" asChild>
+          <Link href="/paciente/registro">
+            <UserPlus /> Crear mi cuenta
+          </Link>
+        </Button>
+      </div>
       <div className="flex flex-col gap-3 border-t border-rule pt-6 text-ink-2">
-        <p>
-          ¿Primera vez?{' '}
-          <Link href="/paciente/registro" className="font-bold text-ballpoint underline underline-offset-4 hover:no-underline">
-            Cree su cuenta
-          </Link>{' '}
-          en dos minutos.
-        </p>
         <p className="flex items-start gap-3">
           <Phone className="mt-0.5 size-5 shrink-0 text-ink-3" aria-hidden />
           <span>¿Olvidó su contraseña? Llame a su clínica: le ayudamos a recuperarla. También puede seguir agendando por teléfono.</span>
