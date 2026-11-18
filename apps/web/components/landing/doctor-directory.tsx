@@ -3,7 +3,9 @@
 import { useMemo, useState } from 'react';
 import type { PublicDirectory } from '@clinagenda/schemas';
 import { cn } from '@/lib/utils';
+import s from './landing.module.css';
 import { daysShort } from './hours';
+import { initials, toneClass } from './tone';
 
 /** Médicos y dónde atiende cada uno, filtrable por clínica. */
 export function DoctorDirectory({ data }: { data: PublicDirectory }) {
@@ -12,10 +14,10 @@ export function DoctorDirectory({ data }: { data: PublicDirectory }) {
     () => data.doctors.filter((d) => d.assignments.length && (clinicId === 'all' || d.assignments.some((a) => a.clinicId === clinicId))),
     [data, clinicId],
   );
-  const options = [{ id: 'all', name: 'Todas' }, ...data.clinics.map((c) => ({ id: c.id, name: c.name.replace('Clínica ', '') }))];
+  const options = [{ id: 'all', name: 'Todas', tone: '' }, ...data.clinics.map((c) => ({ id: c.id, name: c.name.replace('Clínica ', ''), tone: toneClass(c.name) }))];
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-8">
       <div role="radiogroup" aria-label="Filtrar por clínica" className="flex flex-wrap gap-2">
         {options.map((o) => (
           <button
@@ -24,38 +26,44 @@ export function DoctorDirectory({ data }: { data: PublicDirectory }) {
             role="radio"
             aria-checked={clinicId === o.id}
             onClick={() => setClinicId(o.id)}
-            className={cn(
-              'min-h-11 rounded-full border-2 px-5 font-bold transition-colors',
-              clinicId === o.id ? 'border-[var(--euc)] bg-[var(--euc)] text-[var(--euc-ink)]' : 'border-rule-strong text-ink-2 hover:border-[var(--euc)] hover:text-ink',
-            )}
+            className={cn(o.tone, s.chip, 'min-h-12 rounded-full border-2 px-6 text-lg font-bold')}
           >
             {o.name}
           </button>
         ))}
       </div>
-      <ul className="flex flex-col">
+      <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {doctors.map((d) => {
           const byClinic = new Map<string, { name: string; slots: typeof d.assignments }>();
           for (const a of d.assignments) {
             if (clinicId !== 'all' && a.clinicId !== clinicId) continue;
-            const entry = byClinic.get(a.clinicId) ?? { name: a.clinicName.replace('Clínica ', ''), slots: [] };
+            const entry = byClinic.get(a.clinicId) ?? { name: a.clinicName, slots: [] };
             entry.slots.push(a);
             byClinic.set(a.clinicId, entry);
           }
+          const clinics = [...byClinic.values()];
           return (
-            <li key={d.id} className="grid gap-x-8 gap-y-1 border-t border-rule py-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
-              <div className="min-w-0">
-                <p className="font-display text-xl font-bold">{d.fullName}</p>
-                <p className="text-ink-2">{d.specialty}</p>
+            <li key={d.id} className={cn(s.doctor, 'flex min-w-0 flex-col gap-4 rounded-2xl p-5')}>
+              <div className="flex items-center gap-4">
+                <span className={cn(s.avatar, toneClass(clinics[0]?.name ?? ''))} aria-hidden>
+                  {initials(d.fullName)}
+                </span>
+                <div className="min-w-0">
+                  <p className="font-display text-xl font-bold leading-tight">{d.fullName}</p>
+                  <p className="text-ink-2">{d.specialty}</p>
+                </div>
               </div>
-              <ul className="flex min-w-0 flex-col gap-1">
-                {[...byClinic.values()].map((c) => {
+              <ul className="flex flex-col gap-1.5">
+                {clinics.map((c) => {
                   // Agrupa los días que comparten horario dentro de la misma clínica.
                   const byHours = new Map<string, number[]>();
-                  for (const s of c.slots) byHours.set(`${s.startTime} a ${s.endTime}`, [...(byHours.get(`${s.startTime} a ${s.endTime}`) ?? []), s.weekday]);
+                  for (const slot of c.slots) byHours.set(`${slot.startTime} a ${slot.endTime}`, [...(byHours.get(`${slot.startTime} a ${slot.endTime}`) ?? []), slot.weekday]);
                   return [...byHours.entries()].map(([hours, days]) => (
-                    <li key={c.name + hours} className="text-ink">
-                      <strong>{c.name}</strong>: {daysShort(days)}, de {hours}
+                    <li key={c.name + hours} className="flex items-baseline gap-2">
+                      <span className={cn(s.dot, toneClass(c.name))} aria-hidden />
+                      <span>
+                        <strong>{c.name.replace('Clínica ', '')}</strong>: {daysShort(days)}, de {hours}
+                      </span>
                     </li>
                   ));
                 })}
