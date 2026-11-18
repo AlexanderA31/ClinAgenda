@@ -2,8 +2,8 @@
 
 Sistema de agendamiento de citas para las tres clínicas de la Dra. Paredes (Centro, Norte y Sur): 12 médicos, 5 recepcionistas y unos 400 pacientes al mes. Reemplaza el cuaderno y el WhatsApp con una agenda que **no deja cruzar citas**, **no pierde ninguna** y que una recepcionista sin experiencia en computadoras puede usar sola.
 
-- **Probarlo en 5 minutos:** [INSTRUCCIONES.md](INSTRUCCIONES.md)
-- **Qué se decidió y por qué (incluye lo que falta):** [DECISIONES.md](DECISIONES.md)
+- **Instalarlo, usarlo y respaldarlo:** [INSTRUCCIONES.md](INSTRUCCIONES.md)
+- **Qué se decidió ante cada preocupación de la doctora:** [DECISIONES.md](DECISIONES.md)
 - **API documentada (Swagger):** http://localhost:4000/api/docs una vez levantado
 
 ```bash
@@ -20,6 +20,10 @@ docker compose up --build
 | El Dr. Salazar atiende en dos clínicas | Su horario semanal es por clínica y nunca puede estar en dos a la vez. |
 | Se cae el internet en la Clínica Sur | La agenda abierta se sigue viendo; las citas nuevas quedan “pendientes de enviar” y se envían solas. |
 | Alguien cancela por error | Botón Deshacer. Nada se borra; todo queda en la bitácora. |
+| El paciente no puede venir | Cancela él mismo desde el enlace que recibe por WhatsApp o en su comprobante impreso (QR), hasta 2 horas antes. |
+| Pacientes que olvidan su cita | Pantalla de recordatorios con WhatsApp o llamada en un toque y marca de “avisado”. |
+| Cambia el horario de un médico | Las citas que quedan fuera no se cancelan: se listan para reprogramar. |
+| Se daña el servidor | Respaldo diario verificado y copiado fuera del servidor; la doctora ve un aviso si falla. |
 | Cédula `0000000000`, teléfono `12345`, nacido en 2090 | Se rechaza con un mensaje que dice qué corregir, sin borrar el formulario. |
 | “Juan Pérez” otra vez | Se muestran pacientes parecidos antes de crear una ficha nueva. |
 | Información médica | Cada persona con su usuario; recepción no ve notas clínicas; bitácora inmutable. |
@@ -34,7 +38,7 @@ Navegador ──► web (Next.js 15, :3000) ──/api──► api (NestJS 11, 
 ```
 
 - **`packages/schemas`** — contrato compartido: schemas Zod de cada entidad y validadores de dominio (cédula con dígito verificador, teléfonos E.164, limpieza de nombres, fechas). Lo usan la API (validación + Swagger vía `nestjs-zod`) y la web (formularios con `react-hook-form`). Una regla, un solo lugar.
-- **`apps/api`** — NestJS modular: `auth`, `users`, `clinics`, `doctors`, `patients`, `appointments`, `waitlist`, `reports`, `imports`, `audit`, `health`. Guardias globales de sesión y rol, filtro único de errores con mensajes en español, idempotencia para reintentos.
+- **`apps/api`** — NestJS modular: `auth`, `users`, `clinics`, `doctors`, `patients`, `appointments`, `waitlist`, `public` (enlace del paciente), `reports`, `imports`, `audit`, `system` (estado de respaldos), `health`. Guardias globales de sesión y rol, filtro único de errores con mensajes en español, idempotencia para reintentos.
 - **`apps/web`** — Next.js App Router con Tailwind 4 y componentes al estilo shadcn/ui; tablas con **TanStack Table** (paginación en servidor) y gráficos con **Recharts** (estilo shadcn charts). La web reenvía `/api/*` a la API, así sesión y caché son del mismo origen.
 - **Base de datos** — Prisma para el modelo; las reglas críticas están en SQL (`apps/api/prisma/migrations`): restricción `EXCLUDE` contra citas solapadas por médico y por paciente, prohibición de borrar citas, bitácora de solo agregar, índice de trigramas para nombres.
 
@@ -45,7 +49,7 @@ Navegador ──► web (Next.js 15, :3000) ──/api──► api (NestJS 11, 
 │   └── web/            Next.js (app/(app)/* pantallas internas, app/page.tsx landing, components/*)
 ├── packages/schemas/   Zod + validadores (con pruebas)
 ├── docker/             Dockerfiles, entrypoint, script de respaldo
-├── docker-compose.yml  db · api · web · backup
+├── docker-compose.yml  db · api · web · backup · https (Caddy, perfil produccion)
 ├── DECISIONES.md
 └── INSTRUCCIONES.md
 ```

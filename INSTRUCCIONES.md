@@ -1,6 +1,8 @@
-# Instrucciones de uso — probar ClinAgenda en 5 minutos
+# Instrucciones de uso — ClinAgenda
 
-## 1. Levantar el sistema (1 minuto + tiempo de descarga)
+Para quien instala el sistema y para el personal de las clínicas.
+
+## 1. Probarlo en una computadora (5 minutos)
 
 Requisito: **Docker** con Docker Compose (o Podman con `podman-compose`).
 
@@ -8,77 +10,110 @@ Requisito: **Docker** con Docker Compose (o Podman con `podman-compose`).
 git clone <url-del-repositorio> clinagenda
 cd clinagenda
 cp .env.example .env
-# Edite .env y cambie al menos POSTGRES_PASSWORD (en las dos líneas donde aparece) y JWT_SECRET:
-#   openssl rand -hex 32   ← sirve para JWT_SECRET
+# En .env cambie POSTGRES_PASSWORD (en las dos líneas donde aparece) y JWT_SECRET.
+#   Para JWT_SECRET puede usar: openssl rand -hex 32
 docker compose up --build
 ```
 
-Cuando la consola muestre `API lista en http://localhost:4000/api`, abra:
+Cuando aparezca `API lista`, abra **http://localhost:3000**. La primera vez se cargan **datos de demostración inventados**: 3 clínicas, 12 médicos, 160 pacientes y unas 950 citas.
 
-| Qué | Dirección |
-|---|---|
-| Sistema (web) | http://localhost:3000 |
-| Documentación de la API (Swagger) | http://localhost:4000/api/docs |
-| Estado del sistema | http://localhost:4000/api/health |
-
-La primera vez se cargan **datos inventados** de demostración: 3 clínicas, 12 médicos, 160 pacientes y unas 950 citas (5 semanas de historial y 2 de agenda futura).
-
-## 2. Usuarios de demostración
-
-Contraseña de todos: `Demo2026!` (variable `SEED_DEMO_PASSWORD`).
-
-| Usuario | Quién es | Qué puede hacer |
+| Usuario | Quién es | Contraseña |
 |---|---|---|
-| `rosa` | Doña Rosa, recepción Clínica Centro | Agenda, pacientes, citas, lista de espera |
-| `lucia`, `andrea`, `carmen`, `pilar` | Recepcionistas | Igual que Rosa |
-| `paredes` | Dra. Paredes, dirección | Todo, más panel, usuarios, importación y bitácora |
-| `salazar` | Dr. Salazar (atiende en Centro y Norte) | Solo su agenda, sus pacientes y sus notas clínicas |
+| `paredes` | Dra. Paredes (dirección: ve todo) | `Demo2026!` |
+| `rosa`, `lucia`, `andrea`, `carmen`, `pilar` | Recepcionistas | `Demo2026!` |
+| `salazar` | Dr. Salazar (atiende en Centro y Norte) | `Demo2026!` |
 
-## 3. Recorrido sugerido para el jurado
+## 2. Instalarlo para las clínicas (producción)
 
-1. **Agendar como doña Rosa.** Ingrese como `rosa` → *Agenda del día* → toque un horario “Agendar aquí” → busque `maria` (sin tilde) → elija una paciente → confirme. Observe la frase final para leer al paciente.
-2. **Choque de horarios.** Abra dos navegadores (uno normal y otro en incógnito) como `rosa` y `lucia`. Elijan el mismo horario libre del mismo médico y confirmen casi a la vez: una queda guardada y la otra recibe “ese horario acaba de ser ocupado”.
-3. **Médico en dos clínicas.** En la agenda, cambie a *Norte* un lunes por la mañana: el Dr. Salazar no aparece porque a esa hora está en Centro. (Por API: `POST /api/appointments` con Salazar en Norte a las 09:00 de un lunes → 409 con el motivo.)
-4. **Cancelar y deshacer.** Abra una cita → *Cancelar cita* → elija el motivo → en el aviso presione **Deshacer**. Cancelarla dos veces no da error.
-5. **Datos mal escritos.** *Pacientes → Registrar paciente*: pruebe cédula `0000000000`, teléfono `12345`, correo `juan@@gmail`, año `2090`. Cada error dice qué corregir y no borra lo escrito. Escriba un nombre parecido a uno existente (p. ej. `maria lopez`) y verá el aviso de posibles duplicados.
-6. **Sin internet (Clínica Sur).** Con la agenda abierta, en las herramientas del navegador (F12 → Red → “Sin conexión”) intente agendar: la cita queda **pendiente de enviar** con aviso amarillo. Vuelva a conectar: se envía sola.
-   *El modo sin conexión completo requiere la versión de producción (la de Docker), porque el service worker no se activa en modo desarrollo.*
-7. **Dirección.** Ingrese como `paredes`: *Panel* (gráficos), *Bitácora* (quién hizo qué, incluido lo que hizo Rosa), *Usuarios*, *Importar datos*.
-8. **Privacidad.** Como `salazar`, abra una de sus citas y escriba una nota clínica. Como `rosa`, abra la misma cita: la nota no aparece.
+Las tres clínicas deben entrar al mismo sistema por internet, así que va en un servidor (en la nube o en la clínica principal con IP fija) con un dominio.
 
-## 4. Importar los datos de prueba (entregados el martes)
+1. Apunte el dominio (ej. `agenda.clinicasparedes.ec`) a la IP del servidor.
+2. En `.env`:
+   - `DOMAIN=agenda.clinicasparedes.ec`
+   - `WEB_ORIGIN=https://agenda.clinicasparedes.ec`
+   - `COOKIE_SECURE=true`
+   - `SEED_MODE=inicial` (para **no** cargar datos de demostración)
+   - `SEED_DEMO_PASSWORD`: clave temporal del usuario `admin`
+   - `BACKUP_COPY_PATH`: carpeta fuera del servidor (ver §6)
+3. Levante con HTTPS automático:
+   ```bash
+   docker compose --profile produccion up -d --build
+   ```
+4. Ingrese con el usuario `admin` y la clave temporal: el sistema pide cambiarla. La base arranca solo con las 3 clínicas (horario base de lunes a viernes, 08:00 a 17:00). Luego:
+   - *Clínicas*: revise horarios y días cerrados.
+   - *Importar datos* o *Médicos* → *Registrar médico*: los médicos con su horario.
+   - *Usuarios*: una cuenta por persona (la doctora, cada recepcionista y cada médico).
+   - *Importar datos*: pacientes y citas futuras del cuaderno o de Excel.
+5. Abra `https://<su dominio>` desde cada clínica. En el celular o la computadora de recepción, use “Instalar aplicación” del navegador para tener un ícono propio que abra aunque falle el internet.
 
-Como `paredes` → *Importar datos* → elija el tipo (pacientes, médicos o citas) → *Revisar archivo*. Se muestra fila por fila qué entra, qué se corrigió automáticamente, qué ya existía y qué se rechazó y por qué. Nada se guarda hasta presionar *Confirmar e importar*. Orden recomendado: médicos, pacientes, citas.
+La API no queda expuesta a internet: solo la web, que le reenvía las peticiones.
 
-## 5. Respaldos
+## 3. Guía rápida para recepción
 
-El servicio `backup` guarda un respaldo comprimido cada 24 horas en la carpeta `./backups` (se conservan los últimos 14). Para restaurar uno:
+| Para… | Haga esto |
+|---|---|
+| **Dar una cita** | *Agenda del día* → toque una hora que diga “Agendar aquí” (o *Nueva cita*) → busque al paciente → elija la hora → lea la frase al paciente → *Confirmar cita*. Si tiene WhatsApp, toque **Enviar por WhatsApp**: le llega la confirmación con su enlace para cancelar. |
+| **Registrar un paciente nuevo** | Dentro de *Nueva cita* o en *Pacientes* → *Registrar paciente*. Si el sistema muestra pacientes parecidos, revise si es uno de ellos antes de crear otro. |
+| **Cancelar** | Toque la cita → *Cancelar cita* → elija el motivo → confirme. Si fue un error, toque **Deshacer**. |
+| **Cambiar de hora** | Toque la cita → *Cambiar día u hora*. |
+| **Recordar las citas de mañana** | *Recordatorios* → toque **WhatsApp** o **Llamar** en cada paciente; queda marcado como avisado. |
+| **Paciente sin WhatsApp** | En la cita, *Imprimir comprobante*: lleva un código QR para cancelar. |
+| **Paciente que pide una hora que no hay** | *Lista de espera* → *Agregar paciente*. Cuando alguien cancele, el sistema avisa. |
+| **Se fue el internet** | Siga trabajando: las citas y cancelaciones quedan “pendientes de enviar” (aviso amarillo) y se envían solas. **No confirme al paciente** una cita pendiente hasta que se envíe. |
+| **Letra pequeña o poca luz** | Arriba: *Letra grande* y el botón de luna (modo oscuro). |
+
+## 4. Guía para la dirección
+
+- **Panel**: citas por día, ocupación por clínica, horas pico, cancelaciones e inasistencias por médico. Arriba indica si los respaldos están al día.
+- **Médicos** → *Editar horario*: días, horas y clínica de cada médico. Si el cambio deja citas fuera de su horario, el sistema no las cancela: muestra la lista para reprogramarlas (también en *Citas por reprogramar*).
+- **Clínicas** → *Cerrar un día* (feriados): avisa cuántas citas hay que mover.
+- **Usuarios**: una cuenta por persona; *Nueva contraseña* también desbloquea a quien se equivocó 5 veces.
+- **Bitácora**: quién hizo qué y cuándo, incluidas las cancelaciones hechas por los propios pacientes.
+- **Importar datos**: médicos, luego pacientes, luego citas, desde Excel guardado como CSV. Siempre muestra una vista previa antes de guardar.
+
+## 5. Guía para médicos
+
+*Agenda del día* muestra solo su agenda. Al abrir una cita puede marcar si el paciente fue atendido y escribir la **nota clínica**, que solo ven usted y la dirección. En *Panel* ve sus propias cifras.
+
+## 6. Respaldos
+
+- Cada 24 horas se guarda un respaldo comprimido y verificado en `./backups` (se conservan 14) y una **copia fuera del servidor** en `BACKUP_COPY_PATH`: un disco externo montado o una carpeta sincronizada con Google Drive u OneDrive.
+- Si algo falla, la dirección ve un aviso rojo en el sistema.
+- Respaldo inmediato: `docker compose restart backup`.
+
+**Restaurar** (primero en una base aparte, para comparar):
 
 ```bash
-docker compose stop api web
+docker compose exec db createdb -U clinagenda clinagenda_restaurada
 gunzip -c backups/clinagenda-AAAAMMDD-HHMMSS.sql.gz | docker compose exec -T db psql -U clinagenda -d clinagenda_restaurada
-# (cree antes la base vacía: docker compose exec db createdb -U clinagenda clinagenda_restaurada)
 ```
 
-Se restaura en una base aparte para comparar antes de reemplazar la principal. Para un respaldo inmediato: `docker compose restart backup`.
+Para reemplazar la principal: detenga `api` y `web`, renombre las bases con `ALTER DATABASE … RENAME TO …` y vuelva a levantar.
 
-## 6. Pruebas automáticas
+## 7. Si algo no funciona
+
+| Síntoma | Qué revisar |
+|---|---|
+| Nadie puede entrar | `docker compose ps`: los servicios deben decir *healthy*. `docker compose logs api --tail 50`. |
+| Un mensaje dice “avise con el código XXXX” | Busque ese código en `docker compose logs api`. |
+| Aviso rojo de respaldos | Que el disco o la carpeta externa esté conectada; `docker compose logs backup`. |
+| La Clínica Sur no ve la agenda sin internet | Debe haberla abierto al menos una vez con conexión ese día. |
+
+## 8. Para programadores
 
 ```bash
 npm install && npm run build:schemas
-npm test -w @clinagenda/schemas            # 32 pruebas: cédula, teléfonos, nombres, fechas, reglas del paciente
-# Pruebas de punta a punta: usan una base de pruebas aparte (la de Docker Compose no publica su puerto, a propósito)
+npm test -w @clinagenda/schemas        # validadores y reglas del paciente (32 pruebas)
+
+# Pruebas de punta a punta con una base aparte (la de Docker Compose no publica su puerto)
 docker run -d --name clinagenda-test -e POSTGRES_USER=clinagenda -e POSTGRES_PASSWORD=test -e POSTGRES_DB=clinagenda -p 5432:5432 postgres:17-alpine
 cd apps/api
 export DATABASE_URL=postgresql://clinagenda:test@localhost:5432/clinagenda JWT_SECRET=$(openssl rand -hex 32)
-npx prisma migrate deploy && npm run seed && npm run test:e2e   # 9 pruebas
+npx prisma migrate deploy && npm run seed && npm run test:e2e   # 13 pruebas
+
+# Desarrollo con recarga
+npm run dev:api   # API en :4000, Swagger en /api/docs
+npm run dev:web   # Web en :3000
 ```
 
-## 7. Desarrollo sin Docker
-
-```bash
-npm install
-npm run build:schemas
-cd apps/api && npx prisma migrate deploy && npm run seed && npm run start:dev   # API en :4000
-cd apps/web && npm run dev                                                      # Web en :3000
-```
+La documentación de la API está en **/api/docs** (Swagger).
