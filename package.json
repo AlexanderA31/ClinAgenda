@@ -1,0 +1,23 @@
+{
+  "name": "clinagenda",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Sistema de agendamiento de citas para las clínicas de la Dra. Paredes",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "npm run build -w @clinagenda/schemas && npm run build -w @clinagenda/api && npm run build -w @clinagenda/web",
+    "build:schemas": "npm run build -w @clinagenda/schemas",
+    "dev:api": "npm run start:dev -w @clinagenda/api",
+    "dev:web": "npm run dev -w @clinagenda/web",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "db:up": "docker compose up -d db",
+    "up": "docker compose up --build"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

@@ -1,0 +1,27 @@
+# Dependencias
+node_modules/
+
+# Builds
+dist/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# Entorno y secretos: nunca se suben
+.env
+.env.*
+!.env.example
+
+# Respaldos de base de datos (contienen datos de pacientes)
+backups/
+*.sql.gz
+*.dump
+
+# Logs y SO
+*.log
+npm-debug.log*
+.DS_Store
+coverage/
+.vscode/*
+!.vscode/extensions.json
