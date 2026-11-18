@@ -12,7 +12,9 @@ export async function getDirectory(): Promise<PublicDirectory | null> {
     const res = await fetch(`${process.env.API_INTERNAL_URL ?? 'http://localhost:4000'}/api/public/directory`, { next: { revalidate: 300 } });
     if (!res.ok) return null;
     const data = (await res.json()) as PublicDirectory;
-    return { ...data, clinics: [...data.clinics].sort((a, b) => ORDER.indexOf(a.name) - ORDER.indexOf(b.name)) };
+    // Las clínicas nuevas van después de las tres de siempre.
+    const rank = (name: string) => (ORDER.includes(name) ? ORDER.indexOf(name) : ORDER.length);
+    return { ...data, clinics: [...data.clinics].sort((a, b) => rank(a.name) - rank(b.name) || a.name.localeCompare(b.name)) };
   } catch {
     return null;
   }

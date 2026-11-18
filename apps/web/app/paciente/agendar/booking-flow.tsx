@@ -345,7 +345,7 @@ export function BookingFlow({ directory }: { directory: PublicDirectory }) {
                   <Input aria-label="Motivo de la consulta (opcional)" placeholder="Motivo (opcional)" maxLength={200} value={reason} onChange={(e) => setReason(e.target.value)} />
                   {book.isError && <Notice tone="danger">{errorMessage(book.error)}</Notice>}
                   <Button size="lg" disabled={book.isPending} onClick={() => book.mutate()}>
-                    <CalendarCheck /> {book.isPending ? 'Agendando…' : 'Confirmar cita'}
+                    <CalendarCheck /> {book.isPending ? 'Enviando…' : 'Solicitar cita'}
                   </Button>
                 </div>
               )}
@@ -380,7 +380,7 @@ function Done({ appt: a }: { appt: PortalAppointment }) {
       <div className={cn(toneClass(a.clinic.name), 'mx-auto flex max-w-2xl flex-col gap-6 overflow-hidden rounded-2xl border-2 border-[var(--tone)] bg-surface')}>
         <div className="flex flex-col gap-2 bg-[var(--tone)] p-6 text-[var(--tone-ink)]">
           <PartyPopper className="size-10" aria-hidden />
-          <h1 className="font-display text-4xl font-extrabold">¡Cita agendada!</h1>
+          <h1 className="font-display text-4xl font-extrabold">¡Solicitud enviada!</h1>
           <p className="text-lg first-letter:uppercase">
             {longDate(a.startsAt)}, a las {time(a.startsAt)}
           </p>
@@ -390,7 +390,9 @@ function Done({ appt: a }: { appt: PortalAppointment }) {
             Con <strong>{a.doctorName}</strong> ({a.specialty.toLowerCase()}) en <strong>{a.clinic.name}</strong>
             {a.clinic.address && `, ${a.clinic.address}`}.
           </p>
-          <p className="text-ink-2">Código de su cita: {a.code}. Llegue 10 minutos antes con su documento. Si no puede venir, cancélela desde “Mis citas” hasta 2 horas antes.</p>
+          <p className="text-ink-2">
+            Ese horario ya quedó reservado para usted. La clínica revisará su solicitud y la confirmará; verá el estado en “Mis citas” (de “Por confirmar” a “Agendada”). Código: {a.code}.
+          </p>
           <div className="flex flex-wrap gap-3">
             <Button size="lg" className="rounded-full" asChild>
               <Link href="/paciente">Ver mis citas</Link>

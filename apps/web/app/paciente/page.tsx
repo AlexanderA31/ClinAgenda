@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CalendarPlus, ExternalLink, FileDown, MapPin, Phone, XCircle } from 'lucide-react';
+import { CalendarPlus, ExternalLink, FileDown, Hourglass, MapPin, Phone, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { PORTAL_LIMITS, type PortalAppointment } from '@clinagenda/schemas';
 import { api, errorMessage } from '@/lib/api';
@@ -20,7 +20,7 @@ export default function MyAppointmentsPage() {
   const me = usePortalMe();
   const list = useQuery({ queryKey: ['portal', 'appointments'], queryFn: () => api<PortalAppointment[]>('/portal/appointments') });
   const now = Date.now();
-  const upcoming = (list.data ?? []).filter((a) => a.status === 'SCHEDULED' && new Date(a.startsAt).getTime() > now).sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+  const upcoming = (list.data ?? []).filter((a) => (a.status === 'SCHEDULED' || a.status === 'REQUESTED') && new Date(a.startsAt).getTime() > now).sort((a, b) => a.startsAt.localeCompare(b.startsAt));
   const past = (list.data ?? []).filter((a) => !upcoming.includes(a));
   const atLimit = upcoming.length >= PORTAL_LIMITS.maxUpcoming;
 
@@ -96,7 +96,10 @@ export default function MyAppointmentsPage() {
                         {a.doctorName} · {a.clinic.name}
                       </span>
                     </span>
-                    <StatusBadge status={a.status} />
+                    <span className="flex flex-col items-end gap-1">
+                      <StatusBadge status={a.status} />
+                      {a.rejectedNote !== null && <span className="max-w-xs text-right text-sm text-ink-2">La clínica no pudo aceptarla{a.rejectedNote ? `: ${a.rejectedNote}` : '.'}</span>}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -143,7 +146,16 @@ function UpcomingCard({ appt: a }: { appt: PortalAppointment }) {
             <Phone className="size-4 shrink-0" aria-hidden /> {a.clinic.phone}
           </p>
         )}
-        <p className="text-sm text-ink-3">Código {a.code}. Llegue 10 minutos antes con su documento.</p>
+        {a.status === 'REQUESTED' ? (
+          <p className="flex items-start gap-2 rounded-md bg-warn-soft px-3 py-2 text-sm text-warn">
+            <Hourglass className="mt-0.5 size-4 shrink-0" aria-hidden />
+            <span>
+              <strong>Por confirmar.</strong> El horario ya es suyo; la clínica revisará la solicitud y la confirmará.
+            </span>
+          </p>
+        ) : (
+          <p className="text-sm text-ink-3">Código {a.code}. Llegue 10 minutos antes con su documento.</p>
+        )}
         <div className="mt-auto flex flex-wrap gap-2 border-t border-rule pt-4">
           <Button size="sm" asChild>
             <a href={`/api/portal/appointments/${a.id}/comprobante.pdf`} download={`comprobante-${a.code}.pdf`}>

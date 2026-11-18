@@ -23,13 +23,21 @@ const SLOT_OPTIONS = [10, 15, 20, 30, 45, 60];
 
 export default function ClinicsPage() {
   const clinics = useClinics();
-  const [editing, setEditing] = useState<ClinicView | null>(null);
+  const canEdit = useCan('clinicas.gestionar');
+  const [editing, setEditing] = useState<ClinicView | 'new' | null>(null);
   const [orphans, setOrphans] = useState<{ clinic: string; items: OrphanAppointment[] } | null>(null);
   return (
     <>
       <PageHeader
         title="Clínicas"
         description="Cada clínica tiene su propio horario. Los días cerrados (feriados) no permiten agendar. Un cambio de horario nunca cancela citas: le mostramos cuáles hay que mover."
+        actions={
+          canEdit && (
+            <Button size="lg" onClick={() => setEditing('new')}>
+              <Plus /> Nueva clínica
+            </Button>
+          )
+        }
       />
       {orphans && orphans.items.length > 0 && (
         <Notice tone="warn" title={`${orphans.items.length} cita(s) de ${orphans.clinic} quedaron fuera del nuevo horario`}>
@@ -56,13 +64,17 @@ export default function ClinicsPage() {
         </div>
       )}
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
-        <DialogContent side title={`Editar ${editing?.name ?? ''}`} description="Los cambios se aplican desde ahora para dar citas nuevas.">
+        <DialogContent
+          side
+          title={editing === 'new' ? 'Nueva clínica' : `Editar ${editing?.name ?? ''}`}
+          description={editing === 'new' ? 'Después asigne a los médicos su horario en esta clínica desde “Médicos”.' : 'Los cambios se aplican desde ahora para dar citas nuevas.'}
+        >
           {editing && (
             <ClinicEditor
-              clinic={editing}
-              onSaved={(items) => {
+              clinic={editing === 'new' ? null : editing}
+              onSaved={(items, name) => {
                 setEditing(null);
-                setOrphans(items.length ? { clinic: editing.name, items } : null);
+                setOrphans(items.length ? { clinic: name, items } : null);
               }}
             />
           )}
@@ -186,24 +198,28 @@ function toDays(schedule: WeeklySlot[]): DayRanges {
 }
 
 /** Editor del horario semanal: varios rangos por día (para el corte del almuerzo) y datos de contacto. */
-function ClinicEditor({ clinic, onSaved }: { clinic: ClinicView; onSaved: (orphans: OrphanAppointment[]) => void }) {
+/** Horario sugerido para una clínica nueva: lunes a viernes de 08:00 a 17:00. */
+const DEFAULT_SCHEDULE: WeeklySlot[] = [1, 2, 3, 4, 5].map((weekday) => ({ weekday, startTime: '08:00', endTime: '17:00' }));
+
+function ClinicEditor({ clinic, onSaved }: { clinic: ClinicView | null; onSaved: (orphans: OrphanAppointment[], name: string) => void }) {
   const qc = useQueryClient();
-  const [form, setForm] = useState({ name: clinic.name, address: clinic.address ?? '', phone: clinic.phone ?? '', slotMinutes: clinic.slotMinutes });
-  const [days, setDays] = useState<DayRanges>(() => toDays(clinic.schedule));
+  const [form, setForm] = useState({ name: clinic?.name ?? '', address: clinic?.address ?? '', phone: clinic?.phone ?? '', slotMinutes: clinic?.slotMinutes ?? 30 });
+  const [days, setDays] = useState<DayRanges>(() => toDays(clinic?.schedule ?? DEFAULT_SCHEDULE));
   const [fields, setFields] = useState<Record<string, string>>({});
 
   const schedule: WeeklySlot[] = WEEK.flatMap((d) => days[d].map((r) => ({ weekday: d, ...r })));
   const save = useMutation({
-    mutationFn: () =>
-      api<ClinicView & { appointmentsOutsideSchedule: OrphanAppointment[] }>(`/clinics/${clinic.id}`, {
-        method: 'PATCH',
-        body: { name: form.name, address: form.address || null, phone: form.phone || null, slotMinutes: form.slotMinutes, schedule },
-      }),
+    mutationFn: () => {
+      const body = { name: form.name, address: form.address || null, phone: form.phone || null, slotMinutes: form.slotMinutes, schedule };
+      return clinic
+        ? api<ClinicView & { appointmentsOutsideSchedule: OrphanAppointment[] }>(`/clinics/${clinic.id}`, { method: 'PATCH', body })
+        : api<ClinicView>('/clinics', { method: 'POST', body }).then((c) => ({ ...c, appointmentsOutsideSchedule: [] as OrphanAppointment[] }));
+    },
     onSuccess: (r) => {
       void qc.invalidateQueries({ queryKey: ['clinics'] });
       void qc.invalidateQueries({ queryKey: ['availability'] });
-      toast.success('Horario guardado.');
-      onSaved(r.appointmentsOutsideSchedule);
+      toast.success(clinic ? 'Horario guardado.' : `Clínica ${r.name} creada.`);
+      onSaved(r.appointmentsOutsideSchedule, r.name);
     },
     onError: (e) => setFields(e instanceof ApiRequestError ? e.fields : {}),
   });
@@ -326,7 +342,7 @@ function ClinicEditor({ clinic, onSaved }: { clinic: ClinicView; onSaved: (orpha
       </section>
 
       <Button type="submit" size="lg" disabled={save.isPending || !schedule.length}>
-        <Save /> Guardar horario
+        <Save /> {clinic ? 'Guardar horario' : 'Crear clínica'}
       </Button>
     </form>
   );

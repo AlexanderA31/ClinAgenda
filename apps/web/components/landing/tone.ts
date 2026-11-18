@@ -7,7 +7,9 @@ import s from './landing.module.css';
 export function toneClass(clinicName: string): string {
   if (clinicName.includes('Norte')) return s.toneNorte;
   if (clinicName.includes('Sur')) return s.toneSur;
-  return s.toneCentro;
+  if (clinicName.includes('Centro')) return s.toneCentro;
+  // Una clínica nueva (creada desde "Clínicas") lleva un tono propio, distinto de las tres de siempre.
+  return s.toneOtra;
 }
 
 /** "Verónica Paredes" -> "VP". */

@@ -2,9 +2,9 @@
 
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { CalendarCheck, CalendarClock, CalendarPlus, CheckCircle2, ChevronLeft, ChevronRight, CloudUpload, Plus, Sparkles, Trash2, UserX } from 'lucide-react';
+import { CalendarCheck, CalendarClock, CalendarPlus, CheckCircle2, ChevronLeft, ChevronRight, CloudUpload, Hourglass, Move, Plus, Sparkles, Trash2, UserX } from 'lucide-react';
 import { APPOINTMENT_STATUS_LABELS, type AppointmentStatus, type AppointmentView, type AvailabilitySlot } from '@clinagenda/schemas';
-import { addDays, dayLabel, phone, time, todayIso } from '@/lib/format';
+import { addDays, dayLabel, longDate, phone, time, todayIso } from '@/lib/format';
 import { useAppointments, useAvailability, useClinics } from '@/lib/queries';
 import { discard, listPending, onQueueChange, type PendingAppointment } from '@/lib/offline-queue';
 import { useCan, useSession } from '@/lib/session';
@@ -15,6 +15,11 @@ import { EmptyState, Notice, Skeleton } from '@/components/ui/misc';
 import { Stat, StatGrid } from '@/components/ui/stat';
 import { BookingWizard, type BookingPreset } from '@/components/appointments/booking-wizard';
 import { AppointmentPanel } from '@/components/appointments/appointment-panel';
+import { RequestActions } from '@/components/appointments/request-actions';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
+import { api, errorMessage } from '@/lib/api';
 import landing from '@/components/landing/landing.module.css';
 import { toneClass } from '@/components/landing/tone';
 
@@ -39,8 +44,8 @@ interface Grid {
 
 /** Ícono por estado: con el nombre del estado para lectores de pantalla y al pasar el mouse. */
 function StatusIcon({ status }: { status: AppointmentStatus }) {
-  const Icon = status === 'ATTENDED' ? CheckCircle2 : status === 'NO_SHOW' ? UserX : CalendarClock;
-  const color = status === 'ATTENDED' ? 'text-good' : status === 'NO_SHOW' ? 'text-warn' : 'text-ballpoint';
+  const Icon = status === 'ATTENDED' ? CheckCircle2 : status === 'NO_SHOW' ? UserX : status === 'REQUESTED' ? Hourglass : CalendarClock;
+  const color = status === 'ATTENDED' ? 'text-good' : status === 'NO_SHOW' || status === 'REQUESTED' ? 'text-warn' : 'text-ballpoint';
   return (
     <>
       <Icon className={cn('size-4 shrink-0', color)} aria-hidden />
@@ -51,6 +56,7 @@ function StatusIcon({ status }: { status: AppointmentStatus }) {
 
 /** Borde de color por estado: se distingue también por el texto y el ícono, nunca solo por el color. */
 const STATUS_BORDER: Record<AppointmentStatus, string> = {
+  REQUESTED: 'border-2 border-l-4 border-dashed border-warn bg-warn-soft/40',
   SCHEDULED: 'border-l-ballpoint bg-ballpoint-soft/50',
   ATTENDED: 'border-l-good bg-good-soft/60',
   NO_SHOW: 'border-l-warn bg-warn-soft/60',
@@ -80,6 +86,42 @@ function Agenda() {
   const [pending, setPending] = useState<PendingAppointment[]>([]);
   const [doctorFilter, setDoctorFilter] = useState<string>('');
   const [mobileDoctor, setMobileDoctor] = useState<string>('');
+  // Mover una cita arrastrándola a un horario libre (con confirmación antes de guardar).
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [move, setMove] = useState<{ appt: AppointmentView; slot: AvailabilitySlot } | null>(null);
+  const qc = useQueryClient();
+  const requests = useQuery({
+    queryKey: ['appointments', 'requests'],
+    queryFn: () => api<{ items: AppointmentView[] }>('/appointments', { query: { status: 'REQUESTED', from: todayIso(), pageSize: 50, sortBy: 'startsAt' } }),
+    enabled: canBook,
+    refetchInterval: 60_000,
+  });
+  const reschedule = useMutation({
+    mutationFn: (v: { id: string; startsAt: string; doctorId: string; clinicId: string }) =>
+      api<AppointmentView>(`/appointments/${v.id}/reschedule`, { method: 'PATCH', body: { startsAt: v.startsAt, doctorId: v.doctorId, clinicId: v.clinicId } }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['appointments'] });
+      void qc.invalidateQueries({ queryKey: ['availability'] });
+    },
+  });
+  const confirmMove = () => {
+    if (!move) return;
+    const { appt, slot } = move;
+    const back = { id: appt.id, startsAt: appt.startsAt, doctorId: appt.doctor.id, clinicId: appt.clinic.id };
+    reschedule.mutate(
+      { id: appt.id, startsAt: slot.startsAt, doctorId: slot.doctorId, clinicId: appt.clinic.id },
+      {
+        onSuccess: () => {
+          setMove(null);
+          toast.success(`Cita de ${appt.patient.fullName} movida a las ${slot.label} con ${slot.doctorName}.`, {
+            action: { label: 'Deshacer', onClick: () => reschedule.mutate(back, { onError: (e) => toast.error(errorMessage(e)) }) },
+            duration: 12000,
+          });
+        },
+        onError: (e) => toast.error(errorMessage(e)),
+      },
+    );
+  };
 
   useEffect(() => {
     const load = () => void listPending().then(setPending);
@@ -139,8 +181,15 @@ function Agenda() {
         <button
           type="button"
           onClick={() => setOpenId(a.id)}
+          draggable={canBook && (a.status === 'SCHEDULED' || a.status === 'REQUESTED') && new Date(a.startsAt).getTime() > Date.now()}
+          onDragStart={(e) => {
+            e.dataTransfer.setData('text/plain', a.id);
+            e.dataTransfer.effectAllowed = 'move';
+            setDragId(a.id);
+          }}
+          onDragEnd={() => setDragId(null)}
           title={`${a.patient.fullName} · ${APPOINTMENT_STATUS_LABELS[a.status]}${a.patient.phone ? ' · ' + phone(a.patient.phone) : ''}`}
-          className={cn('flex h-full w-full min-w-0 items-center gap-1.5 rounded-sm border-l-4 px-2 text-left text-sm hover:brightness-95', STATUS_BORDER[a.status])}
+          className={cn('flex h-full w-full min-w-0 items-center gap-1.5 rounded-sm border-l-4 px-2 text-left text-sm hover:brightness-95', STATUS_BORDER[a.status], dragId === a.id && 'opacity-40')}
         >
           <StatusIcon status={a.status} />
           <span className="min-w-0 flex-1 truncate font-bold">{a.patient.fullName}</span>
@@ -152,10 +201,24 @@ function Agenda() {
         <button
           type="button"
           onClick={() => setWizard({ clinicId, date, slot: c.slot })}
-          className="group flex h-full w-full items-center gap-1 rounded-sm border border-dashed border-rule px-2 text-ink-3 hover:border-ballpoint hover:bg-ballpoint-soft hover:text-ballpoint"
+          onDragOver={(e) => {
+            if (!dragId) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            const appt = active.find((x) => x.id === (e.dataTransfer.getData('text/plain') || dragId));
+            setDragId(null);
+            if (appt) setMove({ appt, slot: c.slot });
+          }}
+          className={cn(
+            'group flex h-full w-full items-center gap-1 rounded-sm border border-dashed border-rule px-2 text-ink-3 hover:border-ballpoint hover:bg-ballpoint-soft hover:text-ballpoint',
+            dragId && 'border-2 border-ballpoint bg-ballpoint-soft/60 text-ballpoint',
+          )}
           aria-label={`Agendar con ${grid.doctors.find((d) => d.id === doctorId)?.name} a las ${t}`}
         >
-          <Plus className="size-3.5" aria-hidden /> <span className="text-xs">Libre</span>
+          {dragId ? <Move className="size-3.5" aria-hidden /> : <Plus className="size-3.5" aria-hidden />} <span className="text-xs">{dragId ? 'Soltar aquí' : 'Libre'}</span>
         </button>
       ) : (
         <span className="flex h-full items-center px-2 text-xs text-ink-3">Libre</span>
@@ -238,6 +301,29 @@ function Agenda() {
             ))}
           </ul>
         </Notice>
+      )}
+
+      {/* Citas que los pacientes pidieron en línea: el horario ya está reservado hasta aceptarlas o rechazarlas */}
+      {canBook && (requests.data?.items.length ?? 0) > 0 && (
+        <section className="flex flex-col gap-3 rounded-lg border-2 border-dashed border-warn bg-warn-soft/40 p-4" aria-label="Solicitudes en línea por confirmar">
+          <h2 className="flex items-center gap-2 font-bold">
+            <Hourglass className="size-5 text-warn" aria-hidden /> {requests.data!.items.length}{' '}
+            {requests.data!.items.length === 1 ? 'solicitud en línea por confirmar' : 'solicitudes en línea por confirmar'}
+          </h2>
+          <ul className="flex flex-col divide-y divide-rule rounded-md border border-rule bg-surface">
+            {requests.data!.items.map((r) => (
+              <li key={r.id} className="flex flex-wrap items-center justify-between gap-3 px-3 py-2">
+                <button type="button" onClick={() => setOpenId(r.id)} className="flex min-w-0 flex-col text-left hover:underline">
+                  <span className="font-bold">{r.patient.fullName}</span>
+                  <span className="text-sm text-ink-2 first-letter:uppercase">
+                    {longDate(r.startsAt)}, {time(r.startsAt)} · {r.doctor.fullName} · {r.clinic.name}
+                  </span>
+                </button>
+                <RequestActions appt={r} size="sm" />
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
       {/* Resumen del día */}
@@ -329,7 +415,10 @@ function Agenda() {
               <span className="flex items-center gap-1.5">
                 <StatusIcon status="NO_SHOW" /> No asistió
               </span>
-              <span>Toque una cita para ver el teléfono, el estado y cambiarla.</span>
+              <span className="flex items-center gap-1.5">
+                <StatusIcon status="REQUESTED" /> Por confirmar
+              </span>
+              <span>Toque una cita para verla; arrástrela a un horario libre para moverla.</span>
               {canBook && <span>Toque “Libre” para agendar ahí.</span>}
               <span className="flex items-center gap-1.5">
                 <span className="inline-block size-3 rounded-sm bg-[repeating-linear-gradient(135deg,var(--rule-strong)_0,var(--rule-strong)_2px,transparent_2px,transparent_4px)]" aria-hidden />
@@ -382,6 +471,35 @@ function Agenda() {
 
       <BookingWizard open={!!wizard} onOpenChange={(o) => !o && setWizard(null)} preset={wizard ?? undefined} />
       <AppointmentPanel id={openId} onOpenChange={(o) => !o && setOpenId(null)} />
+      <Dialog open={!!move} onOpenChange={(o) => !o && setMove(null)}>
+        <DialogContent title="¿Mover la cita?" description="El paciente conserva su cita; solo cambia la hora o el médico.">
+          {move && (
+            <div className="flex flex-col gap-4">
+              <dl className="grid grid-cols-[6rem_minmax(0,1fr)] gap-y-2">
+                <dt className="text-ink-3">Paciente</dt>
+                <dd className="font-bold">{move.appt.patient.fullName}</dd>
+                <dt className="text-ink-3">Antes</dt>
+                <dd>
+                  {time(move.appt.startsAt)} · {move.appt.doctor.fullName}
+                </dd>
+                <dt className="text-ink-3">Ahora</dt>
+                <dd className="font-bold text-ballpoint">
+                  {move.slot.label} · {move.slot.doctorName}
+                </dd>
+              </dl>
+              <p className="text-sm text-ink-2">Recuerde avisar al paciente del cambio (por ejemplo, con el botón de WhatsApp de la cita).</p>
+              <div className="flex flex-wrap gap-2">
+                <Button disabled={reschedule.isPending} onClick={confirmMove}>
+                  <Move /> Sí, mover
+                </Button>
+                <Button variant="ghost" onClick={() => setMove(null)}>
+                  No, dejarla donde estaba
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

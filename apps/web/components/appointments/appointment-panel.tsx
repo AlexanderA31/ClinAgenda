@@ -8,7 +8,7 @@ import { CANCEL_REASON_LABELS, STAFF_CANCEL_REASONS, type AppointmentView, type 
 import { OfflineError, api, errorMessage } from '@/lib/api';
 import { enqueue, newKey } from '@/lib/offline-queue';
 import { confirmationText, patientUrl, reminderText, waLink } from '@/lib/whatsapp';
-import { dateTime, dayLabel, phone, time } from '@/lib/format';
+import { dateTime, phone, time, longDate } from '@/lib/format';
 import { useAppointment, useAppointmentEvents } from '@/lib/queries';
 import { useCan, useSession } from '@/lib/session';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,7 @@ import { Field } from '@/components/ui/field';
 import { Input, Textarea } from '@/components/ui/input';
 import { Notice, Skeleton } from '@/components/ui/misc';
 import { StatusBadge } from './status-badge';
+import { RequestActions } from './request-actions';
 import { SlotPicker } from './booking-wizard';
 import Link from 'next/link';
 
@@ -63,7 +64,12 @@ function PanelBody({ id }: { id: string }) {
   });
 
   if (appt.isPending) return <Skeleton className="h-64" />;
-  if (appt.isError) return <Notice tone="danger" title="No se pudo abrir la cita">{errorMessage(appt.error)}</Notice>;
+  if (appt.isError)
+    return (
+      <Notice tone="danger" title="No se pudo abrir la cita">
+        {errorMessage(appt.error)}
+      </Notice>
+    );
   const a = appt.data;
   const isFuture = new Date(a.startsAt).getTime() > Date.now();
   const canMark = a.status === 'SCHEDULED' && new Date(a.startsAt).getTime() <= Date.now() + 15 * 60_000;
@@ -77,7 +83,7 @@ function PanelBody({ id }: { id: string }) {
           <span className="font-mono text-sm text-ink-3">{a.code}</span>
         </div>
         <p className="text-2xl font-bold first-letter:uppercase">
-          {dayLabel(a.startsAt.slice(0, 10))}, <span className="font-mono">{time(a.startsAt)}</span>
+          {longDate(a.startsAt)}, <span className="font-mono">{time(a.startsAt)}</span>
         </p>
         <dl className="grid grid-cols-[8rem_1fr] gap-x-3 gap-y-2">
           <dt className="text-ink-3">Paciente</dt>
@@ -118,9 +124,16 @@ function PanelBody({ id }: { id: string }) {
 
       {error && <Notice tone="danger">{error}</Notice>}
 
+      {a.status === 'REQUESTED' && (
+        <Notice tone="warn" title="El paciente pidió esta cita en línea">
+          <p className="mb-3">El horario ya está reservado. Acéptela para confirmarla, o recházela con una nota para el paciente.</p>
+          <RequestActions appt={a} onDone={refresh} />
+        </Notice>
+      )}
+
       {mode === 'view' && (
         <section className="flex flex-wrap gap-2">
-          {a.status === 'SCHEDULED' && isFuture && (
+          {(a.status === 'SCHEDULED' || a.status === 'REQUESTED') && isFuture && (
             <>
               <Button variant="secondary" onClick={() => setMode('reschedule')}>
                 <CalendarClock /> Cambiar día u hora
@@ -164,7 +177,9 @@ function PanelBody({ id }: { id: string }) {
         />
       )}
 
-      {mode === 'reschedule' && <RescheduleForm appt={a} onCancel={() => setMode('view')} onDone={(n) => (refresh(n), setMode('view'), toast.success(`Cita cambiada al ${dayLabel(n.startsAt.slice(0, 10))} a las ${time(n.startsAt)}.`))} />}
+      {mode === 'reschedule' && (
+        <RescheduleForm appt={a} onCancel={() => setMode('view')} onDone={(n) => (refresh(n), setMode('view'), toast.success(`Cita cambiada al ${longDate(n.startsAt)} a las ${time(n.startsAt)}.`))} />
+      )}
 
       {a.status === 'SCHEDULED' && isFuture && canWaitlist && <NotifyPatient appt={a} onChanged={refresh} />}
 
@@ -191,17 +206,32 @@ function PanelBody({ id }: { id: string }) {
 
 type StaffReason = (typeof STAFF_CANCEL_REASONS)[number];
 
-function CancelForm({ appt, onCancel, onDone }: { appt: AppointmentView; onCancel: () => void; onDone: (r: { appointment: AppointmentView; alreadyCancelled: boolean; waitlistMatches: number }) => void }) {
+function CancelForm({
+  appt,
+  onCancel,
+  onDone,
+}: {
+  appt: AppointmentView;
+  onCancel: () => void;
+  onDone: (r: { appointment: AppointmentView; alreadyCancelled: boolean; waitlistMatches: number }) => void;
+}) {
   const [reason, setReason] = useState<StaffReason | null>(null);
   const [note, setNote] = useState('');
   const [error, setError] = useState<string | null>(null);
   const cancel = useMutation({
-    mutationFn: () => api<{ appointment: AppointmentView; alreadyCancelled: boolean; waitlistMatches: number }>(`/appointments/${appt.id}/cancel`, { method: 'POST', body: { reason, note: note || null } }),
+    mutationFn: () =>
+      api<{ appointment: AppointmentView; alreadyCancelled: boolean; waitlistMatches: number }>(`/appointments/${appt.id}/cancel`, { method: 'POST', body: { reason, note: note || null } }),
     onSuccess: onDone,
     onError: async (e) => {
       if (e instanceof OfflineError && reason) {
         // Sin internet: la cancelación se guarda en este equipo y se envía sola al volver la conexión.
-        await enqueue({ key: newKey(), kind: 'cancel', appointmentId: appt.id, cancel: { reason, note: note || null }, summary: `Cancelar ${appt.code}: ${appt.patient.fullName}, ${time(appt.startsAt)}` });
+        await enqueue({
+          key: newKey(),
+          kind: 'cancel',
+          appointmentId: appt.id,
+          cancel: { reason, note: note || null },
+          summary: `Cancelar ${appt.code}: ${appt.patient.fullName}, ${time(appt.startsAt)}`,
+        });
         toast.warning('Sin internet: la cancelación quedó guardada en este equipo y se enviará sola cuando vuelva la conexión.', { duration: 15000 });
         onCancel();
         return;
@@ -323,7 +353,11 @@ function NotifyPatient({ appt, onChanged }: { appt: AppointmentView; onChanged: 
         <input type="checkbox" className="size-6 accent-[var(--ballpoint)]" checked={!!appt.remindedAt} onChange={(e) => reminded.mutate(e.target.checked)} />
         <span>
           Ya se le recordó la cita
-          {appt.remindedAt && <span className="block text-sm text-ink-3">{appt.remindedBy ?? 'Alguien'} · {dateTime(appt.remindedAt)}</span>}
+          {appt.remindedAt && (
+            <span className="block text-sm text-ink-3">
+              {appt.remindedBy ?? 'Alguien'} · {dateTime(appt.remindedAt)}
+            </span>
+          )}
         </span>
       </label>
     </section>

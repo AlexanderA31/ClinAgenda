@@ -2,14 +2,13 @@
 
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { FileCheck2, FileSearch, Upload } from 'lucide-react';
+import { CalendarClock, FileCheck2, FileSearch, FileSpreadsheet, Stethoscope, Upload, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import type { ImportKind, ImportReport, ImportRowResult } from '@clinagenda/schemas';
 import { api, errorMessage } from '@/lib/api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Field } from '@/components/ui/field';
-import { Input, Select } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 import { Notice, PageHeader } from '@/components/ui/misc';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { RequirePermission } from '@/components/layout/require-role';
@@ -21,10 +20,11 @@ const STATUS: Record<ImportRowResult['status'], { label: string; tone: 'good' | 
   REJECTED: { label: 'Rechazado', tone: 'danger' },
 };
 
-const KINDS: { value: ImportKind; label: string; columns: string }[] = [
-  { value: 'patients', label: 'Pacientes', columns: 'nombres, apellidos, cedula, fecha_nacimiento, telefono, correo, direccion, representante' },
-  { value: 'doctors', label: 'Médicos', columns: 'nombre, especialidad, telefono' },
-  { value: 'appointments', label: 'Citas (historial)', columns: 'fecha, hora, cedula o paciente, medico, clinica, estado, motivo' },
+// En el orden en que conviene importar: primero médicos, luego pacientes y al final las citas.
+const KINDS: { value: ImportKind; label: string; icon: typeof Users; columns: string }[] = [
+  { value: 'doctors', label: 'Médicos', icon: Stethoscope, columns: 'nombre, especialidad, telefono' },
+  { value: 'patients', label: 'Pacientes', icon: Users, columns: 'nombres, apellidos, cedula, fecha_nacimiento, telefono, correo, direccion, representante' },
+  { value: 'appointments', label: 'Citas (historial)', icon: CalendarClock, columns: 'fecha, hora, cedula o paciente, medico, clinica, estado, motivo' },
 ];
 
 export default function ImportPage() {
@@ -62,29 +62,59 @@ function Importer() {
 
   return (
     <>
-      <PageHeader
-        title="Importar datos"
-        description="Cargue un archivo CSV (Excel → Guardar como → CSV). Primero se muestra una vista previa: nada se guarda hasta que usted confirme."
-      />
-      <div className="grid gap-4 sm:grid-cols-[1fr_2fr_auto] sm:items-end">
-        <Field id="imp-kind" label="¿Qué va a importar?">
-          <Select value={kind} onChange={(e) => (setKind(e.target.value as ImportKind), setReport(null))}>
+      <PageHeader title="Importar datos" description="Cargue un archivo CSV (Excel → Guardar como → CSV). Primero se muestra una vista previa: nada se guarda hasta que usted confirme." />
+      {/* Dos pasos del mismo tamaño: qué importar y qué archivo */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <fieldset className="flex flex-col gap-3 rounded-lg border border-rule bg-surface p-4">
+          <legend className="sr-only">¿Qué va a importar?</legend>
+          <p className="font-bold">1. ¿Qué va a importar?</p>
+          <div role="radiogroup" aria-label="Tipo de datos" className="grid grid-cols-3 gap-2">
             {KINDS.map((k) => (
-              <option key={k.value} value={k.value}>
-                {k.label}
-              </option>
+              <button
+                key={k.value}
+                type="button"
+                role="radio"
+                aria-checked={kind === k.value}
+                onClick={() => (setKind(k.value), setReport(null))}
+                className={cn(
+                  'flex min-h-20 flex-col items-center justify-center gap-1.5 rounded-md border-2 px-2 text-center font-bold',
+                  kind === k.value ? 'border-ballpoint bg-ballpoint-soft text-ballpoint' : 'border-rule-strong text-ink-2 hover:border-ballpoint hover:text-ink',
+                )}
+              >
+                <k.icon className="size-6" aria-hidden />
+                <span className="leading-tight">{k.label}</span>
+              </button>
             ))}
-          </Select>
-        </Field>
-        <Field id="imp-file" label="Archivo CSV" hint={`Columnas reconocidas: ${info.columns}`}>
-          <Input type="file" accept=".csv,text/csv" className="py-2" onChange={(e) => (setFile(e.target.files?.[0] ?? null), setReport(null))} />
-        </Field>
-        <Button variant="secondary" size="lg" disabled={!file || run.isPending} onClick={() => run.mutate(true)}>
-          <FileSearch /> Revisar archivo
-        </Button>
+          </div>
+          <p className="text-sm text-ink-3">
+            Columnas que reconoce: <span className="font-mono">{info.columns}</span>
+          </p>
+        </fieldset>
+
+        <div className="flex flex-col gap-3 rounded-lg border border-rule bg-surface p-4">
+          <p className="font-bold">2. Archivo CSV</p>
+          <label
+            htmlFor="imp-file"
+            className="flex min-h-20 cursor-pointer items-center gap-3 rounded-md border-2 border-dashed border-rule-strong px-4 hover:border-ballpoint hover:bg-ballpoint-soft"
+          >
+            <FileSpreadsheet className="size-7 shrink-0 text-ink-3" aria-hidden />
+            <span className="flex min-w-0 flex-col">
+              <span className="truncate font-bold">{file ? file.name : 'Elegir archivo…'}</span>
+              <span className="text-sm text-ink-3">{file ? `${Math.max(1, Math.round(file.size / 1024))} KB` : 'Excel → Guardar como → CSV'}</span>
+            </span>
+            <input id="imp-file" type="file" accept=".csv,text/csv" className="sr-only" onChange={(e) => (setFile(e.target.files?.[0] ?? null), setReport(null))} />
+          </label>
+          <Button size="lg" disabled={!file || run.isPending} onClick={() => run.mutate(true)}>
+            <FileSearch /> Revisar archivo
+          </Button>
+        </div>
       </div>
       {kind === 'appointments' && <Notice tone="info">Importe primero pacientes y médicos: las citas se enlazan por cédula (o nombre exacto) del paciente y nombre del médico.</Notice>}
-      {run.isError && <Notice tone="danger" title="No se pudo leer el archivo">{errorMessage(run.error)}</Notice>}
+      {run.isError && (
+        <Notice tone="danger" title="No se pudo leer el archivo">
+          {errorMessage(run.error)}
+        </Notice>
+      )}
 
       {report && (
         <section className="flex flex-col gap-4">

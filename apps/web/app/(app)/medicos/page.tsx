@@ -2,10 +2,10 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { CalendarClock, Pencil, Plus } from 'lucide-react';
+import { CalendarClock, Pencil, Plus, Wand2 } from 'lucide-react';
 import { WEEKDAY_LABELS, type DoctorView } from '@clinagenda/schemas';
 import { api } from '@/lib/api';
-import { useDoctors } from '@/lib/queries';
+import { useClinics, useDoctors } from '@/lib/queries';
 import { dateTime, phone } from '@/lib/format';
 import { useCan } from '@/lib/session';
 import { Badge } from '@/components/ui/badge';
@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { EmptyState, PageHeader, Skeleton } from '@/components/ui/misc';
 import { DoctorForm } from '@/components/forms/doctor-form';
+import { AutoSchedule } from '@/components/doctors/auto-schedule';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 const DAYS = [1, 2, 3, 4, 5, 6];
@@ -23,6 +24,8 @@ export default function DoctorsPage() {
   const isAdmin = useCan('medicos.gestionar');
   const [editing, setEditing] = useState<DoctorView | 'new' | null>(null);
   const [orphansOf, setOrphansOf] = useState<DoctorView | null>(null);
+  const [auto, setAuto] = useState(false);
+  const clinics = useClinics();
   return (
     <>
       <PageHeader
@@ -30,9 +33,14 @@ export default function DoctorsPage() {
         description="Horario semanal de cada médico y en qué clínica atiende cada día."
         actions={
           isAdmin && (
-            <Button size="lg" onClick={() => setEditing('new')}>
-              <Plus /> Registrar médico
-            </Button>
+            <>
+              <Button variant="secondary" size="lg" disabled={!doctors.data || !clinics.data} onClick={() => setAuto(true)}>
+                <Wand2 /> Autodistribuir horario
+              </Button>
+              <Button size="lg" onClick={() => setEditing('new')}>
+                <Plus /> Registrar médico
+              </Button>
+            </>
           )
         }
       />
@@ -100,6 +108,15 @@ export default function DoctorsPage() {
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
         <DialogContent side title={editing === 'new' ? 'Registrar médico' : `Editar a ${editing?.fullName ?? ''}`}>
           {editing && <DoctorForm doctor={editing === 'new' ? undefined : editing} onDone={() => setEditing(null)} />}
+        </DialogContent>
+      </Dialog>
+      <Dialog open={auto} onOpenChange={setAuto}>
+        <DialogContent
+          className="max-w-5xl"
+          title="Autodistribuir horario"
+          description="Propone en qué clínica atiende cada médico cada día, repartiendo parejo. Revise la propuesta: no se guarda hasta que la aplique."
+        >
+          {auto && doctors.data && clinics.data && <AutoSchedule doctors={doctors.data} clinics={clinics.data} onDone={() => setAuto(false)} />}
         </DialogContent>
       </Dialog>
       <Dialog open={!!orphansOf} onOpenChange={(o) => !o && setOrphansOf(null)}>

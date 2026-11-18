@@ -1,8 +1,9 @@
-import { CalendarClock, CheckCircle2, UserX, XCircle } from 'lucide-react';
+import { CalendarClock, CheckCircle2, Hourglass, UserX, XCircle } from 'lucide-react';
 import { APPOINTMENT_STATUS_LABELS, type AppointmentStatus } from '@clinagenda/schemas';
 import { Badge } from '@/components/ui/badge';
 
 const STYLE = {
+  REQUESTED: { tone: 'warn', Icon: Hourglass },
   SCHEDULED: { tone: 'info', Icon: CalendarClock },
   ATTENDED: { tone: 'good', Icon: CheckCircle2 },
   NO_SHOW: { tone: 'warn', Icon: UserX },

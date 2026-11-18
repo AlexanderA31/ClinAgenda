@@ -233,6 +233,10 @@
   --tone: #1d45b5;
   --tone-ink: #ffffff;
 }
+.toneOtra {
+  --tone: #6a3d8f;
+  --tone-ink: #ffffff;
+}
 .toneSur {
   --tone: #f0b429;
   --tone-ink: #2b1f00;

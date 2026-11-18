@@ -56,7 +56,8 @@ La API no queda expuesta a internet: solo la web, que le reenvía las peticiones
 | **Dar una cita** | *Agenda del día* → toque una celda que diga “Libre” (o *Nueva cita*) → busque al paciente → elija la hora → lea la frase al paciente → *Confirmar cita*. Si tiene WhatsApp, toque **Enviar por WhatsApp**: le llega la confirmación con su enlace para cancelar. |
 | **Registrar un paciente nuevo** | Dentro de *Nueva cita* o en *Pacientes* → *Registrar paciente*. Si el sistema muestra pacientes parecidos, revise si es uno de ellos antes de crear otro. |
 | **Cancelar** | Toque la cita → *Cancelar cita* → elija el motivo → confirme. Si fue un error, toque **Deshacer**. |
-| **Cambiar de hora** | Toque la cita → *Cambiar día u hora*. |
+| **Cambiar de hora** | Arrastre la cita en la agenda a una celda “Libre” y confirme (con *Deshacer* por si se equivoca), o toque la cita → *Cambiar día u hora*. |
+| **Solicitudes en línea** | Arriba de la agenda aparece “Solicitudes en línea por confirmar”: el paciente ya tiene el horario reservado. Toque **Aceptar**, o **Rechazar** con una nota que el paciente verá en “Mis citas”. |
 | **Recordar las citas de mañana** | *Recordatorios* → toque **WhatsApp** o **Llamar** en cada paciente; queda marcado como avisado. |
 | **Paciente sin WhatsApp** | En la cita, *Imprimir comprobante*: lleva un código QR para cancelar. |
 | **Paciente que pide una hora que no hay** | *Lista de espera* → *Agregar paciente*. Cuando alguien cancele, el sistema avisa. |
@@ -69,7 +70,9 @@ La API no queda expuesta a internet: solo la web, que le reenvía las peticiones
 
 - **Página pública** (la dirección del dominio, sin usuario): es la página de las clínicas para los pacientes. Muestra si cada clínica está abierta ahora, sus horarios, teléfonos y qué médico atiende dónde y cuándo. Se arma sola con los datos del sistema: al cambiar un horario, un cierre o un médico, la página se actualiza en pocos minutos.
 - **Panel**: citas por día, ocupación por clínica, horas pico, cancelaciones e inasistencias por médico. Arriba indica si los respaldos están al día.
+- **Médicos** → *Autodistribuir horario*: propone en qué clínica atiende cada médico cada día, repartiendo parejo entre las clínicas donde ya trabaja (manteniendo sus horas o usando todo el horario de la clínica). Muestra la propuesta y cuántos médicos queda en cada clínica cada día; no se guarda hasta *Aplicar*, y nunca cancela citas.
 - **Médicos** → *Editar horario*: días, horas y clínica de cada médico. Si el cambio deja citas fuera de su horario, el sistema no las cancela: muestra la lista para reprogramarlas (también en *Citas por reprogramar*).
+- **Clínicas** → *Nueva clínica*: nombre, dirección, teléfono, duración del turno y horario. Después asigne médicos a la nueva clínica desde *Médicos*.
 - **Clínicas** → *Editar*: nombre, dirección, teléfono, duración de cada turno y horario de cada día (con varios rangos por día, por ejemplo mañana y tarde, y “Copiar el lunes a martes–viernes”). Si el nuevo horario deja citas afuera, no se cancelan: aparece la lista para llamar a esos pacientes.
 - **Clínicas** → *Cerrar un día* (feriados): avisa cuántas citas hay que mover. Un cierre puesto por error se quita con *Quitar*.
 - **Portal del paciente**: desde la página pública, *Agendar en línea*. Hay **un solo ingreso** para todos (botón *Ingresar* de la página pública): el personal escribe su usuario y el paciente su cédula o pasaporte; el sistema abre la pantalla que corresponde. Debajo está el enlace *Crear mi cuenta* para pacientes nuevos. El paciente adulto crea su cuenta con su cédula o pasaporte, elige clínica, médico, día y hora, y ve o cancela sus citas en *Mis citas*, donde también puede **descargar el comprobante en PDF** (con el código QR para ver o cancelar). El personal tiene el mismo PDF en el comprobante de cada cita (*Descargar PDF*). Si olvida su contraseña, llama a la clínica (se puede atender igual por teléfono).

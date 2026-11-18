@@ -118,6 +118,7 @@ Sí. Funciona en celular (las tablas se convierten en tarjetas) y tiene modo osc
 Sí, desde la página pública (*Agendar en línea*). Decisiones para que no desordene la agenda ni exponga datos:
 - **Cuenta con cédula o pasaporte y contraseña**: es el dato que todos tienen a mano. Solo para adultos; los niños, adolescentes y quienes no tienen documento siguen agendando por teléfono.
 - **Ficha existente**: si ya hay una ficha con ese documento, la cuenta se vincula solo si coinciden la fecha de nacimiento y el celular. Si no coinciden, se pide llamar a la clínica: así nadie puede tomar la ficha de otra persona sabiendo solo su cédula.
+- **Solicitud, no cita directa**: lo que el paciente pide en línea queda **“Por confirmar”**. El horario ya queda reservado (nadie más lo puede tomar), y recepción la acepta o la rechaza desde la agenda; si la rechaza, el paciente ve el motivo en “Mis citas”. Así la clínica conserva el control sobre su agenda.
 - **Límites**: al menos 2 horas de anticipación, hasta 60 días adelante y máximo 2 citas por venir a la vez. Las mismas reglas de la agenda (horario, choques, médico en dos clínicas) se aplican igual.
 - **Lo que ve**: solo sus citas y los horarios libres, nunca datos de otros pacientes. Puede cancelar hasta 2 horas antes.
 - **Un solo ingreso**: pacientes y personal entran por la misma pantalla. Si lo escrito es el usuario de alguien del personal, se abre su sesión; si no, se busca la cuenta del paciente con ese documento. El mensaje de error es siempre el mismo, para no revelar qué usuarios o documentos existen.
