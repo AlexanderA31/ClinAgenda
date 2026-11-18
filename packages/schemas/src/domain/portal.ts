@@ -5,6 +5,7 @@ import { ADULT_AGE, BirthDateSchema, OptionalEmailSchema, nameField } from './pa
 import { CEDULA_ERROR_MESSAGES, checkCedula, normalizeCedula } from '../validators/cedula';
 import { checkPhone } from '../validators/phone';
 import { ageOn, todayIn } from '../validators/dates';
+import { IsoDateTimeSchema, IsoDaySchema } from './common';
 
 /**
  * Portal del paciente: cada paciente adulto crea su cuenta con su cédula o pasaporte y agenda solo.
@@ -89,21 +90,22 @@ export type PortalBookInput = z.infer<typeof PortalBookSchema>;
 
 export const PortalAvailabilityQuerySchema = z.object({ clinicId: z.string().uuid(), date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), doctorId: z.string().uuid().optional() });
 
-export interface PortalMe {
-  firstNames: string;
-  lastNames: string;
-  documentType: 'CEDULA' | 'PASAPORTE';
-  documentNumber: string;
-  birthDate: string;
-  age: number;
-  phone: string | null;
-  email: string | null;
-  address: string | null;
-  patientCode: string;
+export const PortalMeSchema = z.object({
+  firstNames: z.string(),
+  lastNames: z.string(),
+  documentType: z.enum(['CEDULA', 'PASAPORTE']),
+  documentNumber: z.string(),
+  birthDate: IsoDaySchema,
+  age: z.number().int(),
+  phone: z.string().nullable(),
+  email: z.string().nullable(),
+  address: z.string().nullable(),
+  patientCode: z.string(),
   /** Desde cuándo tiene cuenta en línea y su último ingreso. */
-  accountSince: string;
-  lastLoginAt: string | null;
-}
+  accountSince: IsoDateTimeSchema,
+  lastLoginAt: IsoDateTimeSchema.nullable(),
+});
+export type PortalMe = z.infer<typeof PortalMeSchema>;
 
 /**
  * Lo que el paciente puede corregir por su cuenta: cómo ubicarlo. El nombre, el documento y la fecha
@@ -117,27 +119,29 @@ export const PortalProfileUpdateSchema = z.object({
 export type PortalProfileUpdateInput = z.input<typeof PortalProfileUpdateSchema>;
 export type PortalProfileUpdate = z.output<typeof PortalProfileUpdateSchema>;
 
-export interface PortalAppointment {
-  id: string;
-  code: string;
-  status: z.infer<typeof AppointmentStatusSchema>;
-  startsAt: string;
-  endsAt: string;
-  doctorName: string;
-  specialty: string;
-  clinic: { id: string; name: string; address: string | null; phone: string | null };
-  reason: string | null;
-  canCancel: boolean;
+export const PortalAppointmentSchema = z.object({
+  id: z.string().uuid(),
+  code: z.string(),
+  status: AppointmentStatusSchema,
+  startsAt: IsoDateTimeSchema,
+  endsAt: IsoDateTimeSchema,
+  doctorName: z.string(),
+  specialty: z.string(),
+  clinic: z.object({ id: z.string().uuid(), name: z.string(), address: z.string().nullable(), phone: z.string().nullable() }),
+  reason: z.string().nullable(),
+  canCancel: z.boolean(),
   /** Si la clínica no aceptó la solicitud: su explicación ("" si no dejó nota); null en otro caso. */
-  rejectedNote: string | null;
+  rejectedNote: z.string().nullable(),
   /** Enlace del comprobante (/c/…), el mismo que recibe por WhatsApp. */
-  link: string;
-}
+  link: z.string(),
+});
+export type PortalAppointment = z.infer<typeof PortalAppointmentSchema>;
 
-export interface PortalSlot {
-  doctorId: string;
-  doctorName: string;
-  specialty: string;
-  startsAt: string;
-  label: string;
-}
+export const PortalSlotSchema = z.object({
+  doctorId: z.string().uuid(),
+  doctorName: z.string(),
+  specialty: z.string(),
+  startsAt: IsoDateTimeSchema,
+  label: z.string(),
+});
+export type PortalSlot = z.infer<typeof PortalSlotSchema>;

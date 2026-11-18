@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { IsoDateTimeSchema } from './common';
 
 /** Qué pasó. Los primeros son para el paciente; los dos últimos, para el personal que agenda. */
 export const NotificationKind = z.enum([
@@ -13,19 +14,18 @@ export const NotificationKind = z.enum([
 ]);
 export type NotificationKind = z.infer<typeof NotificationKind>;
 
-export interface NotificationView {
-  id: string;
-  kind: NotificationKind;
-  title: string;
-  body: string;
+export const NotificationViewSchema = z.object({
+  id: z.string().uuid(),
+  kind: NotificationKind,
+  title: z.string(),
+  body: z.string(),
   /** Pantalla que se abre al tocar el aviso. */
-  link: string | null;
-  appointmentId: string | null;
-  read: boolean;
-  createdAt: string;
-}
+  link: z.string().nullable(),
+  appointmentId: z.string().uuid().nullable(),
+  read: z.boolean(),
+  createdAt: IsoDateTimeSchema,
+});
+export type NotificationView = z.infer<typeof NotificationViewSchema>;
 
-export interface NotificationList {
-  items: NotificationView[];
-  unread: number;
-}
+export const NotificationListSchema = z.object({ items: z.array(NotificationViewSchema), unread: z.number().int() });
+export type NotificationList = z.infer<typeof NotificationListSchema>;

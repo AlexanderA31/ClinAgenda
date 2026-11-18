@@ -54,4 +54,6 @@ export const SignInSchema = z.object({
 });
 export type SignInInput = z.infer<typeof SignInSchema>;
 
-export type SignInResult = { kind: 'staff'; user: SessionUser } | { kind: 'patient' };
+/** Ingreso único: dice qué sesión se abrió. El personal recibe sus datos; el paciente se carga con /portal/me. */
+export const SignInResultSchema = z.discriminatedUnion('kind', [z.object({ kind: z.literal('staff'), user: SessionUserSchema }), z.object({ kind: z.literal('patient') })]);
+export type SignInResult = z.infer<typeof SignInResultSchema>;

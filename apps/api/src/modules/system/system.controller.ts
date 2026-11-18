@@ -1,10 +1,11 @@
 import { Controller, Get } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { readFile } from 'node:fs/promises';
 import type { SystemStatus } from '@clinagenda/schemas';
 import { Can } from '../../common/decorators/auth.decorators';
 import { env } from '../../config/env';
 import { PrismaService } from '../../prisma/prisma.service';
+import { BackupStatusDto, SystemStatusDto } from '../../common/dto/responses';
 
 export interface BackupStatus {
   state: 'OK' | 'SIN_COPIA_EXTERNA' | 'ATRASADO' | 'FALLO' | 'DESCONOCIDO';
@@ -22,6 +23,7 @@ export class SystemController {
   constructor(private readonly prisma: PrismaService) {}
 
   /** Lo que un administrador revisa a diario: accesos, actividad y salud de la base de datos. */
+  @ApiOkResponse({ type: SystemStatusDto })
   @Get('status')
   async status(): Promise<SystemStatus> {
     const now = new Date();
@@ -53,6 +55,7 @@ export class SystemController {
     };
   }
 
+  @ApiOkResponse({ type: BackupStatusDto })
   @Get('backup')
   async backup(): Promise<BackupStatus> {
     let raw: { at: string; file: string; bytes: number; ok: boolean; copied: boolean; error: string; intervalHours: number };

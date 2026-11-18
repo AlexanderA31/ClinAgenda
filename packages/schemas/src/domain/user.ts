@@ -1,8 +1,8 @@
 import { z } from 'zod';
 import { RoleSchema } from './enums';
 import { PasswordSchema } from './auth';
-import { cleaned } from './common';
-import type { Permission } from './permissions';
+import { IsoDateTimeSchema, cleaned } from './common';
+import { PermissionSchema } from './permissions';
 import { PERSON_NAME_PATTERN, toTitleCaseName } from '../validators/text';
 
 const fullName = cleaned(toTitleCaseName, z.string().min(3, 'Escriba el nombre completo.').max(120).regex(PERSON_NAME_PATTERN, 'El nombre solo puede tener letras y espacios.'));
@@ -31,37 +31,39 @@ export const UserUpdateSchema = z.object({
 });
 export type UserUpdateInput = z.infer<typeof UserUpdateSchema>;
 
-export interface UserView {
-  id: string;
-  username: string;
-  fullName: string;
+export const UserViewSchema = z.object({
+  id: z.string().uuid(),
+  username: z.string(),
+  fullName: z.string(),
   /** Alcance de datos del rol asignado. */
-  role: z.infer<typeof RoleSchema>;
-  roleId: string;
-  roleName: string;
-  permissions: Permission[];
-  active: boolean;
+  role: RoleSchema,
+  roleId: z.string().uuid(),
+  roleName: z.string(),
+  permissions: z.array(PermissionSchema),
+  active: z.boolean(),
   /** Bloqueado temporalmente por demasiados intentos fallidos. */
-  lockedUntil: string | null;
-  mustChangePassword: boolean;
-  doctorId: string | null;
-  clinicId: string | null;
-  lastLoginAt: string | null;
-  createdAt: string;
-}
+  lockedUntil: IsoDateTimeSchema.nullable(),
+  mustChangePassword: z.boolean(),
+  doctorId: z.string().uuid().nullable(),
+  clinicId: z.string().uuid().nullable(),
+  lastLoginAt: IsoDateTimeSchema.nullable(),
+  createdAt: IsoDateTimeSchema,
+});
+export type UserView = z.infer<typeof UserViewSchema>;
 
 /** Lo que cada persona puede cambiar de sí misma: solo su nombre. El rol y la clínica los decide la dirección. */
 export const MyProfileUpdateSchema = z.object({ fullName });
 export type MyProfileUpdateInput = z.infer<typeof MyProfileUpdateSchema>;
 
 /** "Mi usuario": datos de la propia cuenta. */
-export interface MyProfile {
-  id: string;
-  username: string;
-  fullName: string;
-  roleName: string;
-  clinicName: string | null;
-  doctorName: string | null;
-  lastLoginAt: string | null;
-  createdAt: string;
-}
+export const MyProfileSchema = z.object({
+  id: z.string().uuid(),
+  username: z.string(),
+  fullName: z.string(),
+  roleName: z.string(),
+  clinicName: z.string().nullable(),
+  doctorName: z.string().nullable(),
+  lastLoginAt: IsoDateTimeSchema.nullable(),
+  createdAt: IsoDateTimeSchema,
+});
+export type MyProfile = z.infer<typeof MyProfileSchema>;

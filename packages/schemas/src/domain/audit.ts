@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { IsoDateTimeSchema } from './common';
 
 export const AuditQuerySchema = z.object({
   entity: z.string().max(40).optional(),
@@ -11,15 +12,16 @@ export const AuditQuerySchema = z.object({
 });
 export type AuditQuery = z.infer<typeof AuditQuerySchema>;
 
-export interface AuditEntryView {
-  id: string;
-  at: string;
-  user: { id: string; fullName: string; role: string } | null;
-  action: string;
-  entity: string;
-  entityId: string | null;
-  summary: string;
-  before: unknown;
-  after: unknown;
-  ip: string | null;
-}
+export const AuditEntryViewSchema = z.object({
+  id: z.string().uuid(),
+  at: IsoDateTimeSchema,
+  user: z.object({ id: z.string().uuid(), fullName: z.string(), role: z.string() }).nullable(),
+  action: z.string(),
+  entity: z.string(),
+  entityId: z.string().nullable(),
+  summary: z.string(),
+  before: z.unknown(),
+  after: z.unknown(),
+  ip: z.string().nullable(),
+});
+export type AuditEntryView = z.infer<typeof AuditEntryViewSchema>;

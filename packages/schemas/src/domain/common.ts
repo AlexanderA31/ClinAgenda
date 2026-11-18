@@ -47,6 +47,20 @@ export interface Paginated<T> {
   pageCount: number;
 }
 
+/**
+ * Esquemas de las respuestas: solo describen lo que devuelve la API (para Swagger y los tipos de la web).
+ * Las fechas y horas van en ISO 8601 (UTC); las fechas sin hora, AAAA-MM-DD.
+ */
+export const IsoDateTimeSchema = z.string().datetime({ offset: true });
+export const IsoDaySchema = z.string().date();
+
+/** Página de resultados: `items` más los totales para la paginación. */
+export function paginatedSchema<T extends z.ZodTypeAny>(item: T) {
+  return z.object({ items: z.array(item), total: z.number().int(), page: z.number().int(), pageSize: z.number().int(), pageCount: z.number().int() });
+}
+
+export const OkSchema = z.object({ ok: z.literal(true) });
+
 /** Forma única de todos los errores que devuelve la API. `message` está escrito para personas, no para programadores. */
 export const ApiErrorSchema = z.object({
   statusCode: z.number(),

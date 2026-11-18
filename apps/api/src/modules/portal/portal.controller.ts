@@ -1,5 +1,5 @@
 import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Query, Res, StreamableFile, UseGuards } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiCreatedResponse, ApiOkResponse, ApiProduces, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { ChangePasswordSchema, PatientLoginSchema, PatientRegisterSchema, PortalAvailabilityQuerySchema, PortalBookSchema, PortalProfileUpdateSchema } from '@clinagenda/schemas';
 import { createZodDto } from 'nestjs-zod';
@@ -8,6 +8,7 @@ import { Public, ReqMeta, type RequestMeta } from '../../common/decorators/auth.
 import { CurrentPatient, PATIENT_COOKIE, PatientAuthGuard, setPatientCookie, type PatientSession } from './patient-auth.guard';
 import { PortalService } from './portal.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationListDto, OkDto, PortalAppointmentDto, PortalAvailabilityDto, PortalMeDto, PortalSessionDto } from '../../common/dto/responses';
 
 class PatientRegisterDto extends createZodDto(PatientRegisterSchema) {}
 class PatientLoginDto extends createZodDto(PatientLoginSchema) {}
@@ -27,6 +28,7 @@ export class PortalController {
     private readonly notices: NotificationsService,
   ) {}
 
+  @ApiCreatedResponse({ type: PortalSessionDto })
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('register')
   async register(@Body() body: PatientRegisterDto, @ReqMeta() meta: RequestMeta, @Res({ passthrough: true }) res: Response) {
@@ -35,6 +37,7 @@ export class PortalController {
     return { me, accessToken: token };
   }
 
+  @ApiOkResponse({ type: PortalSessionDto })
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('login')
   @HttpCode(200)
@@ -44,6 +47,7 @@ export class PortalController {
     return { me, accessToken: token };
   }
 
+  @ApiOkResponse({ type: OkDto })
   @Post('logout')
   @HttpCode(200)
   logout(@Res({ passthrough: true }) res: Response) {
@@ -51,18 +55,21 @@ export class PortalController {
     return { ok: true };
   }
 
+  @ApiOkResponse({ type: PortalMeDto })
   @UseGuards(PatientAuthGuard)
   @Get('me')
   me(@CurrentPatient() session: PatientSession) {
     return this.portal.me(session);
   }
 
+  @ApiOkResponse({ type: PortalMeDto })
   @UseGuards(PatientAuthGuard)
   @Patch('me')
   updateProfile(@CurrentPatient() session: PatientSession, @Body() body: PortalProfileUpdateDto, @ReqMeta() meta: RequestMeta) {
     return this.portal.updateProfile(session, body, meta);
   }
 
+  @ApiOkResponse({ type: OkDto })
   @UseGuards(PatientAuthGuard)
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('me/password')
@@ -72,6 +79,7 @@ export class PortalController {
     return { ok: true };
   }
 
+  @ApiOkResponse({ type: OkDto })
   @UseGuards(PatientAuthGuard)
   @Post('me/revoke-other-sessions')
   @HttpCode(200)
@@ -80,18 +88,21 @@ export class PortalController {
     return { ok: true };
   }
 
+  @ApiOkResponse({ type: PortalAvailabilityDto })
   @UseGuards(PatientAuthGuard)
   @Get('availability')
   availability(@Query() q: PortalAvailabilityQueryDto) {
     return this.portal.availability(q.clinicId, q.date, q.doctorId);
   }
 
+  @ApiOkResponse({ type: PortalAppointmentDto, isArray: true })
   @UseGuards(PatientAuthGuard)
   @Get('appointments')
   appointments(@CurrentPatient() session: PatientSession) {
     return this.portal.appointments(session);
   }
 
+  @ApiCreatedResponse({ type: PortalAppointmentDto })
   @UseGuards(PatientAuthGuard)
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('appointments')
@@ -100,6 +111,8 @@ export class PortalController {
   }
 
   /** Comprobante para descargar (PDF con QR para ver o cancelar). */
+  @ApiProduces('application/pdf')
+  @ApiOkResponse({ description: 'Comprobante en PDF', schema: { type: 'string', format: 'binary' } })
   @UseGuards(PatientAuthGuard)
   @Get('appointments/:id/comprobante.pdf')
   async receipt(@CurrentPatient() session: PatientSession, @Param('id', ParseUUIDPipe) id: string) {
@@ -107,6 +120,7 @@ export class PortalController {
     return new StreamableFile(pdf, { type: 'application/pdf', disposition: `attachment; filename="${filename}"` });
   }
 
+  @ApiOkResponse({ type: PortalAppointmentDto })
   @UseGuards(PatientAuthGuard)
   @Post('appointments/:id/cancel')
   @HttpCode(200)
@@ -115,12 +129,14 @@ export class PortalController {
   }
 
   /** Avisos del paciente: su cita fue confirmada, cambió de hora, etc. */
+  @ApiOkResponse({ type: NotificationListDto })
   @UseGuards(PatientAuthGuard)
   @Get('notifications')
   notifications(@CurrentPatient() session: PatientSession) {
     return this.notices.list({ patientId: session.patientId });
   }
 
+  @ApiOkResponse({ type: NotificationListDto })
   @UseGuards(PatientAuthGuard)
   @Post('notifications/read-all')
   @HttpCode(200)
@@ -128,6 +144,7 @@ export class PortalController {
     return this.notices.markAllRead({ patientId: session.patientId });
   }
 
+  @ApiOkResponse({ type: NotificationListDto })
   @UseGuards(PatientAuthGuard)
   @Post('notifications/:id/read')
   @HttpCode(200)

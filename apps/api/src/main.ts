@@ -9,6 +9,7 @@ import { cleanupOpenApiDoc } from 'nestjs-zod';
 import { env } from './config/env';
 import { AppModule } from './app.module';
 import { SESSION_COOKIE } from './common/guards/auth.guard';
+import { ApiErrorDto } from './common/dto/responses';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { bodyParser: true });
@@ -32,7 +33,17 @@ async function bootstrap() {
     .addBearerAuth()
     .addCookieAuth(SESSION_COOKIE)
     .build();
-  const document = cleanupOpenApiDoc(SwaggerModule.createDocument(app, config));
+  const document = cleanupOpenApiDoc(SwaggerModule.createDocument(app, config, { extraModels: [ApiErrorDto] }));
+  // Todas las rutas responden los errores con la misma forma: se documenta una vez para todas.
+  for (const path of Object.values(document.paths)) {
+    for (const op of Object.values(path) as { responses?: Record<string, unknown> }[]) {
+      if (op?.responses)
+        op.responses['4XX'] = {
+          description: 'Error: datos no válidos (400), sin sesión (401), sin permiso (403), no existe (404) o choque (409).',
+          content: { 'application/json': { schema: { $ref: '#/components/schemas/ApiErrorDto' } } },
+        };
+    }
+  }
   SwaggerModule.setup('api/docs', app, document, {
     jsonDocumentUrl: 'api/docs-json',
     swaggerOptions: { persistAuthorization: true, docExpansion: 'none', tagsSorter: 'alpha' },

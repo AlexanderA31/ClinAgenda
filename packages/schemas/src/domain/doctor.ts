@@ -58,11 +58,12 @@ export type DoctorCreateInput = z.infer<typeof DoctorCreateSchema>;
 export const DoctorUpdateSchema = DoctorCreateSchema.innerType().partial().extend({ active: z.boolean().optional() });
 export type DoctorUpdateInput = z.infer<typeof DoctorUpdateSchema>;
 
-export interface DoctorView {
-  id: string;
-  fullName: string;
-  specialty: string;
-  phone: string | null;
-  active: boolean;
-  assignments: (DoctorAssignmentInput & { id: string; clinicName: string })[];
-}
+export const DoctorViewSchema = z.object({
+  id: z.string().uuid(),
+  fullName: z.string(),
+  specialty: z.string(),
+  phone: z.string().nullable(),
+  active: z.boolean(),
+  assignments: z.array(DoctorAssignmentSchema.extend({ id: z.string().uuid(), clinicName: z.string() })),
+});
+export type DoctorView = z.infer<typeof DoctorViewSchema>;

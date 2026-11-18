@@ -1,9 +1,10 @@
 import { BadRequestException, Controller, Param, ParseBoolPipe, Post, Query, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiBody, ApiConsumes, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiConsumes, ApiCreatedResponse, ApiQuery, ApiTags } from '@nestjs/swagger';
 import type { ImportKind, SessionUser } from '@clinagenda/schemas';
 import { CurrentUser, ReqMeta, Can, type RequestMeta } from '../../common/decorators/auth.decorators';
 import { ImportsService } from './imports.service';
+import { ImportReportDto } from '../../common/dto/responses';
 
 const KINDS: ImportKind[] = ['patients', 'doctors', 'appointments'];
 
@@ -13,6 +14,7 @@ const KINDS: ImportKind[] = ['patients', 'doctors', 'appointments'];
 export class ImportsController {
   constructor(private readonly imports: ImportsService) {}
 
+  @ApiCreatedResponse({ type: ImportReportDto })
   @ApiConsumes('multipart/form-data')
   @ApiBody({ schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } } })
   @ApiQuery({ name: 'dryRun', required: false, description: 'true = solo vista previa, no guarda nada (predeterminado).' })

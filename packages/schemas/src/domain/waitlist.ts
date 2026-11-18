@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { optionalCleanString } from './common';
+import { IsoDateTimeSchema, optionalCleanString } from './common';
 
 export const WaitlistCreateSchema = z.object({
   patientId: z.string().uuid('Elija un paciente.'),
@@ -10,12 +10,13 @@ export const WaitlistCreateSchema = z.object({
 });
 export type WaitlistCreateInput = z.infer<typeof WaitlistCreateSchema>;
 
-export interface WaitlistEntryView {
-  id: string;
-  status: 'WAITING' | 'OFFERED' | 'BOOKED' | 'REMOVED';
-  preference: string | null;
-  createdAt: string;
-  patient: { id: string; fullName: string; phone: string | null };
-  clinic: { id: string; name: string };
-  doctor: { id: string; fullName: string } | null;
-}
+export const WaitlistEntryViewSchema = z.object({
+  id: z.string().uuid(),
+  status: z.enum(['WAITING', 'OFFERED', 'BOOKED', 'REMOVED']),
+  preference: z.string().nullable(),
+  createdAt: IsoDateTimeSchema,
+  patient: z.object({ id: z.string().uuid(), fullName: z.string(), phone: z.string().nullable() }),
+  clinic: z.object({ id: z.string().uuid(), name: z.string() }),
+  doctor: z.object({ id: z.string().uuid(), fullName: z.string() }).nullable(),
+});
+export type WaitlistEntryView = z.infer<typeof WaitlistEntryViewSchema>;

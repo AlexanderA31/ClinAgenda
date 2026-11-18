@@ -1,8 +1,9 @@
 import { Controller, Get, HttpCode, Param, ParseUUIDPipe, Post } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import type { SessionUser } from '@clinagenda/schemas';
 import { CurrentUser } from '../../common/decorators/auth.decorators';
 import { NotificationsService } from './notifications.service';
+import { NotificationListDto } from '../../common/dto/responses';
 
 /** Avisos de la persona que tiene la sesión abierta (los del paciente están en /portal/notifications). */
 @ApiTags('Notificaciones')
@@ -10,17 +11,20 @@ import { NotificationsService } from './notifications.service';
 export class NotificationsController {
   constructor(private readonly notifications: NotificationsService) {}
 
+  @ApiOkResponse({ type: NotificationListDto })
   @Get()
   list(@CurrentUser() user: SessionUser) {
     return this.notifications.list({ userId: user.id });
   }
 
+  @ApiOkResponse({ type: NotificationListDto })
   @Post('read-all')
   @HttpCode(200)
   readAll(@CurrentUser() user: SessionUser) {
     return this.notifications.markAllRead({ userId: user.id });
   }
 
+  @ApiOkResponse({ type: NotificationListDto })
   @Post(':id/read')
   @HttpCode(200)
   read(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: SessionUser) {

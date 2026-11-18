@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { DocumentTypeSchema, SexSchema } from './enums';
-import { cleaned, optionalCleanString } from './common';
+import { IsoDateTimeSchema, IsoDaySchema, cleaned, optionalCleanString } from './common';
 import { CEDULA_ERROR_MESSAGES, checkCedula, normalizeCedula } from '../validators/cedula';
 import { checkPhone } from '../validators/phone';
 import { PERSON_NAME_PATTERN, toTitleCaseName } from '../validators/text';
@@ -154,30 +154,32 @@ export const MergePatientsSchema = z.object({
 });
 export type MergePatientsInput = z.infer<typeof MergePatientsSchema>;
 
-export interface PatientView {
-  id: string;
-  code: string;
-  firstNames: string;
-  lastNames: string;
-  fullName: string;
-  birthDate: string;
-  birthDateEstimated: boolean;
-  age: number;
-  sex: 'F' | 'M' | 'X' | null;
-  documentType: z.infer<typeof DocumentTypeSchema>;
-  documentNumber: string | null;
-  noDocumentReason: string | null;
-  phone: string | null;
-  email: string | null;
-  address: string | null;
-  contactNote: string | null;
-  guardian: GuardianInput | null;
-  createdAt: string;
-  updatedAt: string;
-}
+export const PatientViewSchema = z.object({
+  id: z.string().uuid(),
+  code: z.string(),
+  firstNames: z.string(),
+  lastNames: z.string(),
+  fullName: z.string(),
+  birthDate: IsoDaySchema,
+  birthDateEstimated: z.boolean(),
+  age: z.number().int(),
+  sex: SexSchema.nullable(),
+  documentType: DocumentTypeSchema,
+  documentNumber: z.string().nullable(),
+  noDocumentReason: z.string().nullable(),
+  phone: z.string().nullable(),
+  email: z.string().nullable(),
+  address: z.string().nullable(),
+  contactNote: z.string().nullable(),
+  guardian: GuardianSchema.nullable(),
+  createdAt: IsoDateTimeSchema,
+  updatedAt: IsoDateTimeSchema,
+});
+export type PatientView = z.infer<typeof PatientViewSchema>;
 
-export interface DuplicateCandidate {
-  patient: PatientView;
-  score: number;
-  reasons: string[];
-}
+export const DuplicateCandidateSchema = z.object({
+  patient: PatientViewSchema,
+  score: z.number(),
+  reasons: z.array(z.string()),
+});
+export type DuplicateCandidate = z.infer<typeof DuplicateCandidateSchema>;

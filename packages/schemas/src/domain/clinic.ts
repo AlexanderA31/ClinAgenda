@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { TimeOfDaySchema, cleaned, optionalCleanString, timeToMinutes } from './common';
+import { IsoDaySchema, TimeOfDaySchema, cleaned, optionalCleanString, timeToMinutes } from './common';
 import { cleanText } from '../validators/text';
 
 /** Franja de atención semanal. weekday: 0 = domingo … 6 = sábado. */
@@ -47,20 +47,39 @@ export const ClosureCreateSchema = z.object({
 });
 export type ClosureCreateInput = z.infer<typeof ClosureCreateSchema>;
 
-export interface ClinicView {
-  id: string;
-  name: string;
-  address: string | null;
-  phone: string | null;
-  timezone: string;
-  slotMinutes: number;
-  active: boolean;
-  schedule: WeeklySlot[];
-  closures: { id: string; date: string; reason: string }[];
-}
+export const ClinicViewSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  address: z.string().nullable(),
+  phone: z.string().nullable(),
+  timezone: z.string(),
+  slotMinutes: z.number().int(),
+  active: z.boolean(),
+  schedule: z.array(WeeklySlotSchema),
+  closures: z.array(z.object({ id: z.string().uuid(), date: IsoDaySchema, reason: z.string() })),
+});
+export type ClinicView = z.infer<typeof ClinicViewSchema>;
 
 /** Información pública de la página web: clínicas, horarios y médicos. Sin teléfonos de médicos ni datos internos. */
-export interface PublicDirectory {
-  clinics: { id: string; name: string; address: string | null; phone: string | null; timezone: string; schedule: WeeklySlot[]; closures: { date: string; reason: string }[] }[];
-  doctors: { id: string; fullName: string; specialty: string; assignments: { clinicId: string; clinicName: string; weekday: number; startTime: string; endTime: string }[] }[];
-}
+export const PublicDirectorySchema = z.object({
+  clinics: z.array(
+    z.object({
+      id: z.string().uuid(),
+      name: z.string(),
+      address: z.string().nullable(),
+      phone: z.string().nullable(),
+      timezone: z.string(),
+      schedule: z.array(WeeklySlotSchema),
+      closures: z.array(z.object({ date: IsoDaySchema, reason: z.string() })),
+    }),
+  ),
+  doctors: z.array(
+    z.object({
+      id: z.string().uuid(),
+      fullName: z.string(),
+      specialty: z.string(),
+      assignments: z.array(z.object({ clinicId: z.string().uuid(), clinicName: z.string(), weekday: z.number().int(), startTime: z.string(), endTime: z.string() })),
+    }),
+  ),
+});
+export type PublicDirectory = z.infer<typeof PublicDirectorySchema>;

@@ -194,6 +194,6 @@ Cancelar es fácil pero nunca destructivo:
 | Reglas críticas dentro de la base de datos PostgreSQL | No cruzar citas, no borrarlas y no editar la bitácora no dependen de que el programa no tenga errores. |
 | Aplicación instalable que funciona sin conexión | Por la Clínica Sur. |
 | Todo empaquetado con Docker | Se instala o se mueve a otro servidor con un comando; se reinicia solo. |
-| Documentación de la API (Swagger) | Si mañana se conecta otro sistema (facturación, WhatsApp Business), los programadores tienen el contrato. |
+| Documentación de la API (Swagger) | Si mañana se conecta otro sistema (facturación, WhatsApp Business), los programadores tienen el contrato: qué se envía y qué se recibe en cada ruta, y la forma única de los errores. Las respuestas salen de los mismos esquemas con que la web arma sus tipos, así que la documentación no se desactualiza. |
 | Datos de demostración inventados | No se usan datos de personas reales para probar. |
 | Avisos internos dentro del sistema (campana), no por correo ni SMS | No dependen de servicios externos ni de que el paciente dé su correo. Se guardan en la misma transacción que el cambio de la cita: no hay aviso de algo que no pasó. El paciente solo los recibe si tiene cuenta en el portal; WhatsApp sigue siendo el canal para quien no la tiene. |

@@ -1,5 +1,5 @@
 import { Body, Controller, Get, HttpCode, Patch, Post, Res } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { ChangePasswordSchema, LoginSchema, MyProfileUpdateSchema, SignInSchema, type SessionUser, type SignInResult } from '@clinagenda/schemas';
 import { createZodDto } from 'nestjs-zod';
@@ -12,6 +12,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { PortalService } from '../portal/portal.service';
 import { setPatientCookie } from '../portal/patient-auth.guard';
 import { DomainError } from '../../common/errors/domain-error';
+import { LoginResultDto, MyProfileDto, OkDto, SessionUserDto, SignInResultDto } from '../../common/dto/responses';
 
 class LoginDto extends createZodDto(LoginSchema) {}
 class SignInDto extends createZodDto(SignInSchema) {}
@@ -38,6 +39,7 @@ export class AuthController {
    * sesión; si no, se busca la cuenta de paciente con esa cédula o pasaporte. El mensaje de error es el
    * mismo en todos los casos, para no revelar qué usuarios o documentos existen.
    */
+  @ApiOkResponse({ type: SignInResultDto })
   @Public()
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('sign-in')
@@ -64,6 +66,7 @@ export class AuthController {
   }
 
   /** Devuelve el usuario y deja la sesión en una cookie httpOnly (JavaScript no puede leerla). También devuelve el token para Swagger. */
+  @ApiOkResponse({ type: LoginResultDto })
   @Public()
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('login')
@@ -74,6 +77,7 @@ export class AuthController {
     return { user, accessToken: token };
   }
 
+  @ApiOkResponse({ type: OkDto })
   @Public()
   @Post('logout')
   @HttpCode(200)
@@ -82,11 +86,13 @@ export class AuthController {
     return { ok: true };
   }
 
+  @ApiOkResponse({ type: SessionUserDto })
   @Get('me')
   me(@CurrentUser() user: SessionUser) {
     return user;
   }
 
+  @ApiOkResponse({ type: OkDto })
   @Post('change-password')
   @HttpCode(200)
   changePassword(@CurrentUser() user: SessionUser, @Body() body: ChangePasswordDto, @ReqMeta() meta: RequestMeta) {
@@ -94,16 +100,19 @@ export class AuthController {
   }
 
   /** "Mi usuario": datos completos de la propia cuenta. */
+  @ApiOkResponse({ type: MyProfileDto })
   @Get('me/profile')
   profile(@CurrentUser() user: SessionUser) {
     return this.auth.profile(user);
   }
 
+  @ApiOkResponse({ type: MyProfileDto })
   @Patch('me')
   updateProfile(@CurrentUser() user: SessionUser, @Body() body: MyProfileUpdateDto, @ReqMeta() meta: RequestMeta) {
     return this.auth.updateProfile(user, body, meta);
   }
 
+  @ApiOkResponse({ type: OkDto })
   @Post('me/revoke-other-sessions')
   @HttpCode(200)
   async revokeOtherSessions(@CurrentUser() user: SessionUser, @ReqMeta() meta: RequestMeta, @Res({ passthrough: true }) res: Response) {

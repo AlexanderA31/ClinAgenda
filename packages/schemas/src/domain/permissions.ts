@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { RoleSchema, type Role } from './enums';
-import { cleaned, optionalCleanString } from './common';
+import { IsoDateTimeSchema, cleaned, optionalCleanString } from './common';
 import { cleanText } from '../validators/text';
 
 /**
@@ -63,27 +63,29 @@ export type RoleCreateInput = z.infer<typeof RoleCreateSchema>;
 export const RoleUpdateSchema = RoleCreateSchema.omit({ scope: true }).partial();
 export type RoleUpdateInput = z.infer<typeof RoleUpdateSchema>;
 
-export interface RoleView {
-  id: string;
-  name: string;
-  description: string | null;
-  scope: Role;
-  permissions: Permission[];
-  system: boolean;
+export const RoleViewSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  description: z.string().nullable(),
+  scope: RoleSchema,
+  permissions: z.array(PermissionSchema),
+  system: z.boolean(),
   /** La dirección siempre tiene todos los permisos: así nadie puede dejar el sistema sin administrador. */
-  locked: boolean;
-  userCount: number;
-  createdAt: string;
-}
+  locked: z.boolean(),
+  userCount: z.number().int(),
+  createdAt: IsoDateTimeSchema,
+});
+export type RoleView = z.infer<typeof RoleViewSchema>;
 
 /** Estado general para la pantalla "Sistema" del administrador. */
-export interface SystemStatus {
-  appVersion: string;
-  startedAt: string;
-  database: { version: string; bytes: number; lastMigration: string | null };
-  users: { active: number; inactive: number; locked: number; pendingPassword: number };
-  roles: number;
-  patients: number;
-  appointments: { total: number; upcoming: number };
-  activity: { changes24h: number; failedLogins24h: number };
-}
+export const SystemStatusSchema = z.object({
+  appVersion: z.string(),
+  startedAt: IsoDateTimeSchema,
+  database: z.object({ version: z.string(), bytes: z.number().int(), lastMigration: z.string().nullable() }),
+  users: z.object({ active: z.number().int(), inactive: z.number().int(), locked: z.number().int(), pendingPassword: z.number().int() }),
+  roles: z.number().int(),
+  patients: z.number().int(),
+  appointments: z.object({ total: z.number().int(), upcoming: z.number().int() }),
+  activity: z.object({ changes24h: z.number().int(), failedLogins24h: z.number().int() }),
+});
+export type SystemStatus = z.infer<typeof SystemStatusSchema>;

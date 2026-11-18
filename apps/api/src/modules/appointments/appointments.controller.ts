@@ -1,5 +1,5 @@
 import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Query, StreamableFile, UseInterceptors } from '@nestjs/common';
-import { ApiHeader, ApiTags } from '@nestjs/swagger';
+import { ApiCreatedResponse, ApiHeader, ApiOkResponse, ApiProduces, ApiTags } from '@nestjs/swagger';
 import {
   AppointmentCancelSchema,
   AppointmentRejectSchema,
@@ -17,6 +17,7 @@ import { CurrentUser, ReqMeta, Can, type RequestMeta } from '../../common/decora
 import { IdempotencyInterceptor } from '../../common/interceptors/idempotency.interceptor';
 import { AppointmentsService } from './appointments.service';
 import { SchedulingService } from './scheduling.service';
+import { AppointmentCancelResultDto, AppointmentEventViewDto, AppointmentPageDto, AppointmentViewDto, AvailabilityDto } from '../../common/dto/responses';
 
 class AppointmentCreateDto extends createZodDto(AppointmentCreateSchema) {}
 class AppointmentRescheduleDto extends createZodDto(AppointmentRescheduleSchema) {}
@@ -42,32 +43,39 @@ export class AppointmentsController {
     private readonly scheduling: SchedulingService,
   ) {}
 
+  @ApiOkResponse({ type: AppointmentPageDto })
   @Get()
   list(@Query() q: AppointmentListQueryDto, @CurrentUser() user: SessionUser) {
     return this.appointments.list(q, user);
   }
 
+  @ApiOkResponse({ type: AvailabilityDto })
   @Get('availability')
   availability(@Query() q: AvailabilityQueryDto) {
     return this.scheduling.availability(q.clinicId, q.date, q.doctorId);
   }
 
+  @ApiOkResponse({ type: AppointmentViewDto })
   @Get(':id')
   get(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: SessionUser) {
     return this.appointments.get(id, user);
   }
 
+  @ApiProduces('application/pdf')
+  @ApiOkResponse({ description: 'Comprobante en PDF', schema: { type: 'string', format: 'binary' } })
   @Get(':id/comprobante.pdf')
   async receipt(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: SessionUser) {
     const { filename, pdf } = await this.appointments.receipt(id, user);
     return new StreamableFile(pdf, { type: 'application/pdf', disposition: `attachment; filename="${filename}"` });
   }
 
+  @ApiOkResponse({ type: AppointmentEventViewDto, isArray: true })
   @Get(':id/events')
   events(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: SessionUser) {
     return this.appointments.events(id, user);
   }
 
+  @ApiCreatedResponse({ type: AppointmentViewDto })
   @IdempotencyHeader
   @UseInterceptors(IdempotencyInterceptor)
   @Can('citas.agendar')
@@ -76,6 +84,7 @@ export class AppointmentsController {
     return this.appointments.create(body, user, meta);
   }
 
+  @ApiOkResponse({ type: AppointmentViewDto })
   @IdempotencyHeader
   @UseInterceptors(IdempotencyInterceptor)
   @Can('citas.agendar')
@@ -84,6 +93,7 @@ export class AppointmentsController {
     return this.appointments.reschedule(id, body, user, meta);
   }
 
+  @ApiOkResponse({ type: AppointmentCancelResultDto })
   @Can('citas.agendar')
   @Post(':id/cancel')
   @HttpCode(200)
@@ -92,6 +102,7 @@ export class AppointmentsController {
   }
 
   /** Aceptar una cita que el paciente pidió en línea. */
+  @ApiOkResponse({ type: AppointmentViewDto })
   @Can('citas.agendar')
   @Post(':id/accept')
   @HttpCode(200)
@@ -100,6 +111,7 @@ export class AppointmentsController {
   }
 
   /** Rechazar una solicitud en línea (con una nota para el paciente). */
+  @ApiOkResponse({ type: AppointmentViewDto })
   @Can('citas.agendar')
   @Post(':id/reject')
   @HttpCode(200)
@@ -107,6 +119,7 @@ export class AppointmentsController {
     return this.appointments.reject(id, body, user, meta);
   }
 
+  @ApiOkResponse({ type: AppointmentViewDto })
   @Can('citas.agendar')
   @Post(':id/restore')
   @HttpCode(200)
@@ -114,18 +127,21 @@ export class AppointmentsController {
     return this.appointments.restore(id, user, meta);
   }
 
+  @ApiOkResponse({ type: AppointmentViewDto })
   @Can('citas.estado')
   @Patch(':id/status')
   setStatus(@Param('id', ParseUUIDPipe) id: string, @Body() body: AppointmentStatusDto, @CurrentUser() user: SessionUser, @ReqMeta() meta: RequestMeta) {
     return this.appointments.setStatus(id, body, user, meta);
   }
 
+  @ApiOkResponse({ type: AppointmentViewDto })
   @Can('recordatorios.gestionar')
   @Patch(':id/reminded')
   setReminded(@Param('id', ParseUUIDPipe) id: string, @Body() body: RemindedDto, @CurrentUser() user: SessionUser, @ReqMeta() meta: RequestMeta) {
     return this.appointments.setReminded(id, body.reminded, user, meta);
   }
 
+  @ApiOkResponse({ type: AppointmentViewDto })
   @Can('citas.notas')
   @Patch(':id/clinical-note')
   setClinicalNote(@Param('id', ParseUUIDPipe) id: string, @Body() body: ClinicalNoteDto, @CurrentUser() user: SessionUser, @ReqMeta() meta: RequestMeta) {

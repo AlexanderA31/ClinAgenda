@@ -1,8 +1,9 @@
 import { Controller, Get, ServiceUnavailableException } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { SkipThrottle } from '@nestjs/throttler';
 import { Public } from '../../common/decorators/auth.decorators';
 import { PrismaService } from '../../prisma/prisma.service';
+import { HealthDto } from '../../common/dto/responses';
 
 @ApiTags('Salud')
 @Controller('health')
@@ -11,6 +12,7 @@ export class HealthController {
   constructor(private readonly prisma: PrismaService) {}
 
   /** Lo usa Docker para saber si la API está viva y reiniciarla si no. */
+  @ApiOkResponse({ type: HealthDto })
   @Public()
   @Get()
   async check() {
