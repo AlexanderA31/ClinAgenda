@@ -1,4 +1,9 @@
 /**
+ * Carga inicial de la base. Dos modos (variable SEED_MODE):
+ *   demo    (predeterminado) — datos de demostración INVENTADOS, descritos abajo.
+ *   inicial — para la instalación real: solo las 3 clínicas con un horario base y el usuario
+ *             `admin` (dirección), que debe cambiar su contraseña al primer ingreso.
+ *
  * Datos de demostración INVENTADOS (ninguna persona real).
  * Se puede ejecutar varias veces: si ya hay clínicas, no hace nada.
  *
@@ -50,6 +55,16 @@ async function main() {
     return;
   }
   const password = await argon2.hash(process.env.SEED_DEMO_PASSWORD ?? 'Demo2026!');
+
+  if (process.env.SEED_MODE === 'inicial') {
+    const base = [1, 2, 3, 4, 5].map((weekday) => ({ weekday, startTime: '08:00', endTime: '17:00' }));
+    for (const [name, slotMinutes] of [['Clínica Centro', 30], ['Clínica Norte', 30], ['Clínica Sur', 20]] as const) {
+      await prisma.clinic.create({ data: { name, slotMinutes, schedules: { create: base } } });
+    }
+    await prisma.user.create({ data: { username: 'admin', fullName: 'Dirección', role: 'ADMIN', passwordHash: password, mustChangePassword: true } });
+    console.log('Carga inicial lista: 3 clínicas y el usuario "admin" (debe cambiar la contraseña al ingresar).');
+    return;
+  }
 
   // --- Clínicas (horarios distintos a propósito) ---
   const weekdays = [1, 2, 3, 4, 5];

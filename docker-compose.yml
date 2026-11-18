@@ -38,6 +38,7 @@ services:
       WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       SEED_ON_START: ${SEED_ON_START:-true}
+      SEED_MODE: ${SEED_MODE:-demo}
       SEED_DEMO_PASSWORD: ${SEED_DEMO_PASSWORD:-Demo2026!}
       BACKUP_STATUS_FILE: /backups/estado.json
       TZ: America/Guayaquil
