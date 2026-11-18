@@ -67,7 +67,7 @@ export class PublicService {
       throw new DomainError(
         HttpStatus.CONFLICT,
         ErrorCodes.CONFLICT,
-        appt.status !== 'SCHEDULED'
+        appt.status !== 'SCHEDULED' && appt.status !== 'REQUESTED'
           ? 'Esta cita ya no se puede cancelar.'
           : `Falta poco para su cita y ya no se puede cancelar por aquí. Por favor llame a ${appt.clinic.name}${appt.clinic.phone ? ' al ' + appt.clinic.phone : ''}.`,
       );
@@ -75,7 +75,7 @@ export class PublicService {
 
     const updated = await this.prisma.$transaction(async (tx) => {
       const { count } = await tx.appointment.updateMany({
-        where: { id: appt.id, status: 'SCHEDULED' },
+        where: { id: appt.id, status: { in: ['SCHEDULED', 'REQUESTED'] } },
         data: { status: 'CANCELLED', cancelReason: 'PACIENTE_WEB', cancelledAt: new Date(), cancelledById: null },
       });
       if (count) {
@@ -109,7 +109,7 @@ export class PublicService {
       doctorName: a.doctor.fullName,
       specialty: a.doctor.specialty,
       clinic: { name: a.clinic.name, address: a.clinic.address, phone: a.clinic.phone },
-      canCancel: a.status === 'SCHEDULED' && Date.now() < deadline.getTime(),
+      canCancel: (a.status === 'SCHEDULED' || a.status === 'REQUESTED') && Date.now() < deadline.getTime(),
       cancelDeadline: deadline.toISOString(),
     };
   }

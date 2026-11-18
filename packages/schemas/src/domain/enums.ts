@@ -16,16 +16,18 @@ export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
   SIN_DOCUMENTO: 'Sin documento',
 };
 
-export const AppointmentStatusSchema = z.enum(['SCHEDULED', 'ATTENDED', 'NO_SHOW', 'CANCELLED']);
+/** REQUESTED: el paciente la pidió en línea y la clínica aún no la confirma (el horario ya queda reservado). */
+export const AppointmentStatusSchema = z.enum(['REQUESTED', 'SCHEDULED', 'ATTENDED', 'NO_SHOW', 'CANCELLED']);
 export type AppointmentStatus = z.infer<typeof AppointmentStatusSchema>;
 export const APPOINTMENT_STATUS_LABELS: Record<AppointmentStatus, string> = {
+  REQUESTED: 'Por confirmar',
   SCHEDULED: 'Agendada',
   ATTENDED: 'Atendida',
   NO_SHOW: 'No asistió',
   CANCELLED: 'Cancelada',
 };
 
-export const CancelReasonSchema = z.enum(['PACIENTE_LLAMO', 'MEDICO_NO_DISPONIBLE', 'ERROR_AL_AGENDAR', 'REPROGRAMADA', 'PACIENTE_WEB', 'OTRO']);
+export const CancelReasonSchema = z.enum(['PACIENTE_LLAMO', 'MEDICO_NO_DISPONIBLE', 'ERROR_AL_AGENDAR', 'REPROGRAMADA', 'PACIENTE_WEB', 'SOLICITUD_RECHAZADA', 'OTRO']);
 export type CancelReason = z.infer<typeof CancelReasonSchema>;
 export const CANCEL_REASON_LABELS: Record<CancelReason, string> = {
   PACIENTE_LLAMO: 'El paciente avisó que no viene',
@@ -33,6 +35,7 @@ export const CANCEL_REASON_LABELS: Record<CancelReason, string> = {
   ERROR_AL_AGENDAR: 'Se agendó por error',
   REPROGRAMADA: 'Se cambió a otra fecha',
   PACIENTE_WEB: 'El paciente canceló desde su enlace',
+  SOLICITUD_RECHAZADA: 'La clínica no pudo aceptar la solicitud',
   OTRO: 'Otro motivo',
 };
 

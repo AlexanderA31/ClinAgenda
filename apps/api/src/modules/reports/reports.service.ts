@@ -55,7 +55,7 @@ export class ReportsService {
     const totals = { scheduled: 0, attended: 0, noShow: 0, cancelled: 0, patientsNew };
     for (const row of daily) {
       const bucket = dailyMap.get(row.date);
-      const key = ({ SCHEDULED: 'scheduled', ATTENDED: 'attended', NO_SHOW: 'noShow', CANCELLED: 'cancelled' } as const)[row.status as 'SCHEDULED'];
+      const key = ({ REQUESTED: 'scheduled', SCHEDULED: 'scheduled', ATTENDED: 'attended', NO_SHOW: 'noShow', CANCELLED: 'cancelled' } as const)[row.status as 'SCHEDULED'];
       if (bucket && key) bucket[key] += row.n;
       if (key) totals[key] += row.n;
     }

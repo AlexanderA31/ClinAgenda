@@ -8,6 +8,7 @@ import {
   type AppointmentCreate,
   type AppointmentEventView,
   type AppointmentListQuery,
+  type AppointmentRejectInput,
   type AppointmentRescheduleInput,
   type AppointmentStatusUpdateInput,
   type AppointmentView,
@@ -44,9 +45,14 @@ export class AppointmentsService {
       patientId: q.patientId,
       status: q.status,
     };
-    if (q.from || q.to) {
-      const { start, end } = rangeBoundsUtc(q.from ?? q.to!, q.to ?? q.from!, DEFAULT_TZ);
+    if (q.from && q.to) {
+      const { start, end } = rangeBoundsUtc(q.from, q.to, DEFAULT_TZ);
       where.startsAt = { gte: start, lt: end };
+    } else if (q.from) {
+      // Solo "desde": todo lo que viene a partir de ese día (por ejemplo, las solicitudes pendientes).
+      where.startsAt = { gte: rangeBoundsUtc(q.from, q.from, DEFAULT_TZ).start };
+    } else if (q.to) {
+      where.startsAt = { lt: rangeBoundsUtc(q.to, q.to, DEFAULT_TZ).end };
     }
     if (q.q) {
       const term = q.q.trim();
@@ -159,7 +165,7 @@ export class AppointmentsService {
 
   async reschedule(id: string, input: AppointmentRescheduleInput, user: SessionUser, meta: RequestMeta): Promise<AppointmentView> {
     const before = await this.load(id, user);
-    if (before.status !== 'SCHEDULED') {
+    if (before.status !== 'SCHEDULED' && before.status !== 'REQUESTED') {
       throw DomainError.validation(`Esta cita está "${APPOINTMENT_STATUS_LABELS[before.status].toLowerCase()}" y ya no se puede cambiar de hora. Agende una nueva.`);
     }
     const doctorId = input.doctorId ?? before.doctorId;
@@ -204,14 +210,14 @@ export class AppointmentsService {
     if (before.status === 'CANCELLED') {
       return { appointment: this.view(before, user, await this.userNames([before])), alreadyCancelled: true, waitlistMatches: 0 };
     }
-    if (before.status !== 'SCHEDULED') {
+    if (before.status !== 'SCHEDULED' && before.status !== 'REQUESTED') {
       throw DomainError.validation(`Esta cita ya fue marcada como "${APPOINTMENT_STATUS_LABELS[before.status].toLowerCase()}"; no se puede cancelar.`);
     }
 
     // Actualización condicional: si dos personas cancelan a la vez, solo una registra la cancelación.
     const result = await this.prisma.$transaction(async (tx) => {
       const { count } = await tx.appointment.updateMany({
-        where: { id, status: 'SCHEDULED' },
+        where: { id, status: { in: ['SCHEDULED', 'REQUESTED'] } },
         data: { status: 'CANCELLED', cancelReason: input.reason, cancelNote: input.note, cancelledAt: new Date(), cancelledById: user.id },
       });
       if (count === 0) return null;
@@ -240,6 +246,56 @@ export class AppointmentsService {
   }
 
   /** "Deshacer" una cancelación: solo si la hora no ha pasado y nadie más ocupó ese espacio. */
+  /**
+   * Aceptar una solicitud en línea: pasa a "Agendada". Si dos recepcionistas aceptan a la vez,
+   * solo una lo registra (la otra ve la cita ya agendada).
+   */
+  async accept(id: string, user: SessionUser, meta: RequestMeta): Promise<AppointmentView> {
+    const before = await this.load(id, user);
+    if (before.status === 'SCHEDULED') return this.view(before, user, await this.userNames([before]));
+    if (before.status !== 'REQUESTED') throw DomainError.validation(`Esta cita está "${APPOINTMENT_STATUS_LABELS[before.status].toLowerCase()}"; ya no se puede aceptar.`);
+    const appt = await this.prisma.$transaction(async (tx) => {
+      const { count } = await tx.appointment.updateMany({ where: { id, status: 'REQUESTED' }, data: { status: 'SCHEDULED' } });
+      if (count) {
+        await this.event(tx, id, 'ACCEPTED', user.id, {});
+        await this.audit.log(
+          { userId: user.id, action: 'ACCEPT', entity: 'Appointment', entityId: id, summary: `Aceptó la solicitud en línea ${appointmentCode(before.code)}`, before: { status: 'REQUESTED' }, after: { status: 'SCHEDULED' }, meta },
+          tx,
+        );
+      }
+      return tx.appointment.findUniqueOrThrow({ where: { id }, include });
+    });
+    return this.view(appt, user, await this.userNames([appt]));
+  }
+
+  /** Rechazar una solicitud en línea: queda cancelada con el motivo y la nota, y el horario se libera. */
+  async reject(id: string, input: AppointmentRejectInput, user: SessionUser, meta: RequestMeta): Promise<AppointmentView> {
+    const before = await this.load(id, user);
+    if (before.status !== 'REQUESTED') throw DomainError.validation('Solo se pueden rechazar las citas que el paciente pidió en línea y aún no se aceptan.');
+    const appt = await this.prisma.$transaction(async (tx) => {
+      const { count } = await tx.appointment.updateMany({
+        where: { id, status: 'REQUESTED' },
+        data: { status: 'CANCELLED', cancelReason: 'SOLICITUD_RECHAZADA', cancelNote: input.note ?? null, cancelledAt: new Date(), cancelledById: user.id },
+      });
+      if (count) {
+        await this.event(tx, id, 'CANCELLED', user.id, { reason: 'SOLICITUD_RECHAZADA', note: input.note });
+        await this.audit.log(
+          {
+            userId: user.id,
+            action: 'REJECT',
+            entity: 'Appointment',
+            entityId: id,
+            summary: `No aceptó la solicitud en línea ${appointmentCode(before.code)}${input.note ? ': ' + input.note : ''}`,
+            meta,
+          },
+          tx,
+        );
+      }
+      return tx.appointment.findUniqueOrThrow({ where: { id }, include });
+    });
+    return this.view(appt, user, await this.userNames([appt]));
+  }
+
   async restore(id: string, user: SessionUser, meta: RequestMeta): Promise<AppointmentView> {
     const before = await this.load(id, user);
     if (before.status !== 'CANCELLED') return this.view(before, user, await this.userNames([before]));
@@ -276,6 +332,7 @@ export class AppointmentsService {
   async setStatus(id: string, input: AppointmentStatusUpdateInput, user: SessionUser, meta: RequestMeta): Promise<AppointmentView> {
     const before = await this.load(id, user);
     if (before.status === 'CANCELLED') throw DomainError.validation('La cita está cancelada. Si fue un error, primero reactívela.');
+    if (before.status === 'REQUESTED') throw DomainError.validation('Esta cita la pidió el paciente en línea y aún no se acepta. Acéptela primero.');
     if (before.startsAt.getTime() > Date.now() + 15 * 60000) {
       throw DomainError.validation('Solo se puede marcar la asistencia cuando llega la hora de la cita.');
     }
@@ -369,6 +426,8 @@ function describeEvent(type: string, data: Prisma.JsonValue): string {
       return `Cambio de hora (${d.clinic}, ${d.doctor})`;
     case 'CANCELLED':
       return `Cancelada: ${CANCEL_REASON_LABELS[d.reason as keyof typeof CANCEL_REASON_LABELS] ?? d.reason}${d.note ? ' — ' + d.note : ''}`;
+    case 'ACCEPTED':
+      return 'La clínica aceptó la solicitud';
     case 'RESTORED':
       return 'Se deshizo la cancelación';
     case 'ATTENDED':

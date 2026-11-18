@@ -30,11 +30,17 @@ export type AppointmentRescheduleInput = z.infer<typeof AppointmentRescheduleSch
 
 export const AppointmentCancelSchema = z
   .object({
-    reason: CancelReasonSchema.exclude(['PACIENTE_WEB']),
+    reason: CancelReasonSchema.exclude(['PACIENTE_WEB', 'SOLICITUD_RECHAZADA']),
     note: optionalCleanString(200, 'La nota'),
   })
   .refine((v) => v.reason !== 'OTRO' || Boolean(v.note), { path: ['note'], message: 'Escriba brevemente el motivo.' });
 export type AppointmentCancelInput = z.infer<typeof AppointmentCancelSchema>;
+
+/** Rechazar una solicitud en línea: la nota se le muestra al paciente (por ejemplo, "el médico no atiende ese día"). */
+export const AppointmentRejectSchema = z.object({
+  note: optionalCleanString(200, 'La nota'),
+});
+export type AppointmentRejectInput = z.infer<typeof AppointmentRejectSchema>;
 
 export const AppointmentStatusUpdateSchema = z.object({
   status: z.enum(['ATTENDED', 'NO_SHOW']),

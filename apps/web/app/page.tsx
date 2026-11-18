@@ -11,6 +11,7 @@ import { initials, slug, toneClass } from '@/components/landing/tone';
 import { dayLabel } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { getServerSession } from '@/lib/server-session';
+import { getDirectory } from '@/lib/directory';
 
 export const metadata: Metadata = {
   title: { absolute: 'Clínicas Paredes' },
@@ -21,17 +22,6 @@ export const metadata: Metadata = {
 // la página se actualiza sola (se consulta como máximo cada 5 minutos).
 export const dynamic = 'force-dynamic';
 
-async function getDirectory(): Promise<PublicDirectory | null> {
-  try {
-    const res = await fetch(`${process.env.API_INTERNAL_URL ?? 'http://localhost:4000'}/api/public/directory`, { next: { revalidate: 300 } });
-    return res.ok ? ((await res.json()) as PublicDirectory) : null;
-  } catch {
-    return null;
-  }
-}
-
-// De norte a sur, como está la ciudad.
-const ORDER = ['Clínica Norte', 'Clínica Centro', 'Clínica Sur'];
 
 function telHref(phone: string) {
   return `tel:${phone.replace(/\D/g, '')}`;
@@ -81,7 +71,8 @@ function attendingTitle(day: NonNullable<ReturnType<typeof attendingDay>>) {
 
 export default async function Landing() {
   const [data, session] = await Promise.all([getDirectory(), getServerSession()]);
-  const clinics = data ? [...data.clinics].sort((a, b) => ORDER.indexOf(a.name) - ORDER.indexOf(b.name)) : [];
+  // getDirectory ya las ordena de norte a sur (y las nuevas al final).
+  const clinics = data?.clinics ?? [];
   const doctorCount = data?.doctors.filter((d) => d.assignments.length).length ?? 0;
   const day = data ? attendingDay(data, clinics) : null;
   // El mensaje de ejemplo usa un médico y una clínica reales, para que el paciente reconozca lo que va a recibir.

@@ -2,6 +2,7 @@ import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Que
 import { ApiHeader, ApiTags } from '@nestjs/swagger';
 import {
   AppointmentCancelSchema,
+  AppointmentRejectSchema,
   AppointmentCreateSchema,
   AppointmentListQuerySchema,
   AppointmentRescheduleSchema,
@@ -20,6 +21,7 @@ import { SchedulingService } from './scheduling.service';
 class AppointmentCreateDto extends createZodDto(AppointmentCreateSchema) {}
 class AppointmentRescheduleDto extends createZodDto(AppointmentRescheduleSchema) {}
 class AppointmentCancelDto extends createZodDto(AppointmentCancelSchema) {}
+class AppointmentRejectDto extends createZodDto(AppointmentRejectSchema) {}
 class AppointmentStatusDto extends createZodDto(AppointmentStatusUpdateSchema) {}
 class ClinicalNoteDto extends createZodDto(ClinicalNoteSchema) {}
 class AppointmentListQueryDto extends createZodDto(AppointmentListQuerySchema) {}
@@ -87,6 +89,22 @@ export class AppointmentsController {
   @HttpCode(200)
   cancel(@Param('id', ParseUUIDPipe) id: string, @Body() body: AppointmentCancelDto, @CurrentUser() user: SessionUser, @ReqMeta() meta: RequestMeta) {
     return this.appointments.cancel(id, body, user, meta);
+  }
+
+  /** Aceptar una cita que el paciente pidió en línea. */
+  @Can('citas.agendar')
+  @Post(':id/accept')
+  @HttpCode(200)
+  accept(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: SessionUser, @ReqMeta() meta: RequestMeta) {
+    return this.appointments.accept(id, user, meta);
+  }
+
+  /** Rechazar una solicitud en línea (con una nota para el paciente). */
+  @Can('citas.agendar')
+  @Post(':id/reject')
+  @HttpCode(200)
+  reject(@Param('id', ParseUUIDPipe) id: string, @Body() body: AppointmentRejectDto, @CurrentUser() user: SessionUser, @ReqMeta() meta: RequestMeta) {
+    return this.appointments.reject(id, body, user, meta);
   }
 
   @Can('citas.agendar')

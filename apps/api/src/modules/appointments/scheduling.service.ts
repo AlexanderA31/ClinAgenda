@@ -8,7 +8,8 @@ import { dayBoundsUtc, formatLocal, hhmmToMinutes, inZone, localToUtc, minutesOf
 
 /** Hasta cuánto tiempo en el futuro se puede agendar. */
 export const MAX_DAYS_AHEAD = 365;
-const ACTIVE_STATUSES = ['SCHEDULED', 'ATTENDED', 'NO_SHOW'] as const;
+// Una solicitud en línea (REQUESTED) ya ocupa su horario hasta que la clínica la acepte o la rechace.
+const ACTIVE_STATUSES = ['REQUESTED', 'SCHEDULED', 'ATTENDED', 'NO_SHOW'] as const;
 
 export interface SlotRequest {
   clinic: Clinic & { schedules: ClinicSchedule[] };

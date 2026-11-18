@@ -160,7 +160,7 @@ export class PortalService {
     if (startsAt.getTime() > Date.now() + PORTAL_LIMITS.maxDaysAhead * 86400_000) {
       throw DomainError.validation(`En línea se agenda hasta ${PORTAL_LIMITS.maxDaysAhead} días adelante.`);
     }
-    const upcoming = await this.prisma.appointment.count({ where: { patientId: session.patientId, status: 'SCHEDULED', startsAt: { gt: new Date() } } });
+    const upcoming = await this.prisma.appointment.count({ where: { patientId: session.patientId, status: { in: ['SCHEDULED', 'REQUESTED'] }, startsAt: { gt: new Date() } } });
     if (upcoming >= PORTAL_LIMITS.maxUpcoming) {
       throw new DomainError(
         HttpStatus.CONFLICT,
@@ -181,7 +181,8 @@ export class PortalService {
     const created = await this.prisma.$transaction(async (tx) => {
       await this.scheduling.assertBookable({ clinic, doctor, patientId: patient.id, startsAt, endsAt }, tx);
       const appt = await tx.appointment.create({
-        data: { patientId: patient.id, doctorId: doctor.id, clinicId: clinic.id, startsAt, endsAt, reason: input.reason ?? null, source: 'web' },
+        // Queda como solicitud: la clínica la acepta desde su agenda.
+        data: { patientId: patient.id, doctorId: doctor.id, clinicId: clinic.id, startsAt, endsAt, reason: input.reason ?? null, source: 'web', status: 'REQUESTED' },
         include: { doctor: true, clinic: true },
       });
       await tx.appointmentEvent.create({ data: { appointmentId: appt.id, type: 'CREATED', data: { startsAt, clinic: clinic.name, doctor: doctor.fullName, via: 'web' } } });
@@ -252,7 +253,8 @@ export class PortalService {
       specialty: a.doctor.specialty,
       clinic: { id: a.clinic.id, name: a.clinic.name, address: a.clinic.address, phone: a.clinic.phone },
       reason: a.reason,
-      canCancel: a.status === 'SCHEDULED' && Date.now() < a.startsAt.getTime() - CANCEL_LINK_HOURS * 3600_000,
+      canCancel: (a.status === 'SCHEDULED' || a.status === 'REQUESTED') && Date.now() < a.startsAt.getTime() - CANCEL_LINK_HOURS * 3600_000,
+      rejectedNote: a.cancelReason === 'SOLICITUD_RECHAZADA' ? (a.cancelNote ?? '') : null,
       link: `/c/${a.publicToken}`,
     };
   }

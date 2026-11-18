@@ -34,6 +34,7 @@ enum Sex {
 }
 
 enum AppointmentStatus {
+  REQUESTED
   SCHEDULED
   ATTENDED
   NO_SHOW
@@ -46,6 +47,7 @@ enum CancelReason {
   ERROR_AL_AGENDAR
   REPROGRAMADA
   PACIENTE_WEB
+  SOLICITUD_RECHAZADA
   OTRO
 }
 

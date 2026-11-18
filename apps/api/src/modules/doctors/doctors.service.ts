@@ -99,7 +99,7 @@ export class DoctorsService {
   async orphans(doctorId: string): Promise<OrphanAppointment[]> {
     const doctor = await this.prisma.doctor.findUniqueOrThrow({ where: { id: doctorId }, include: { assignments: true } });
     const future = await this.prisma.appointment.findMany({
-      where: { doctorId, status: 'SCHEDULED', startsAt: { gt: new Date() } },
+      where: { doctorId, status: { in: ['SCHEDULED', 'REQUESTED'] }, startsAt: { gt: new Date() } },
       include: { clinic: true, patient: true },
       orderBy: { startsAt: 'asc' },
     });

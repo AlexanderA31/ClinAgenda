@@ -38,7 +38,7 @@ async function freeSlots(): Promise<PortalSlot[]> {
 
 async function cancelAllUpcoming() {
   const list: PortalAppointment[] = (await http.get('/api/portal/appointments').set(bearer(patient)).expect(200)).body;
-  for (const a of list.filter((x) => x.status === 'SCHEDULED' && x.canCancel)) {
+  for (const a of list.filter((x) => (x.status === 'SCHEDULED' || x.status === 'REQUESTED') && x.canCancel)) {
     await http.post(`/api/portal/appointments/${a.id}/cancel`).set(bearer(patient)).expect(200);
   }
 }
@@ -87,12 +87,12 @@ describe('Portal del paciente', () => {
     expect(res.body.fields.birthDate).toMatch(/mayores de edad/);
   });
 
-  it('agenda, ve su cita y aparece en la agenda de recepción', async () => {
+  it('solicita, ve su cita y aparece en la agenda de recepción para aceptarla', async () => {
     const [slot] = await freeSlots();
     const created: PortalAppointment = (
       await http.post('/api/portal/appointments').set(bearer(patient)).send({ clinicId: centro.id, doctorId: slot.doctorId, startsAt: slot.startsAt }).expect(201)
     ).body;
-    expect(created.status).toBe('SCHEDULED');
+    expect(created.status).toBe('REQUESTED');
     const mine: PortalAppointment[] = (await http.get('/api/portal/appointments').set(bearer(patient))).body;
     expect(mine.some((a) => a.id === created.id)).toBe(true);
 
@@ -100,11 +100,31 @@ describe('Portal del paciente', () => {
     expect(staff.body.patient.fullName).toContain('Prueba');
     const events = await http.get(`/api/appointments/${created.id}/events`).set(bearer(admin)).expect(200);
     expect(events.body[0].summary).toMatch(/en línea/);
+
+    // No se marca asistencia de una solicitud sin aceptar; recepción la acepta y pasa a agendada.
+    await http.patch(`/api/appointments/${created.id}/status`).set(bearer(admin)).send({ status: 'ATTENDED' }).expect(400);
+    const accepted = await http.post(`/api/appointments/${created.id}/accept`).set(bearer(admin)).expect(200);
+    expect(accepted.body.status).toBe('SCHEDULED');
+    const again = await http.post(`/api/appointments/${created.id}/accept`).set(bearer(admin)).expect(200);
+    expect(again.body.status).toBe('SCHEDULED');
+  });
+
+  it('recepción puede rechazar una solicitud con una nota y el horario se libera', async () => {
+    const slots = await freeSlots();
+    const s = slots[slots.length - 1];
+    const created: PortalAppointment = (await http.post('/api/portal/appointments').set(bearer(patient)).send({ clinicId: centro.id, doctorId: s.doctorId, startsAt: s.startsAt }).expect(201)).body;
+    const rejected = await http.post(`/api/appointments/${created.id}/reject`).set(bearer(admin)).send({ note: 'El médico estará en un congreso' }).expect(200);
+    expect(rejected.body.status).toBe('CANCELLED');
+    const mine: PortalAppointment[] = (await http.get('/api/portal/appointments').set(bearer(patient))).body;
+    expect(mine.find((a) => a.id === created.id)?.status).toBe('CANCELLED');
+    const date = s.startsAt.slice(0, 10);
+    const after = await http.get('/api/portal/availability').query({ clinicId: centro.id, date, doctorId: s.doctorId }).set(bearer(patient));
+    expect(after.body.slots.some((x: PortalSlot) => x.startsAt === s.startsAt)).toBe(true);
   });
 
   it('descarga el comprobante en PDF (el paciente y el personal)', async () => {
     const mine: PortalAppointment[] = (await http.get('/api/portal/appointments').set(bearer(patient))).body;
-    const target = mine.find((a) => a.status === 'SCHEDULED')!;
+    const target = mine.find((a) => a.status === 'SCHEDULED' || a.status === 'REQUESTED')!;
     const pdf = await http.get(`/api/portal/appointments/${target.id}/comprobante.pdf`).set(bearer(patient)).buffer(true).parse((res, cb) => {
       const parts: Buffer[] = [];
       res.on('data', (c: Buffer) => parts.push(c));
@@ -122,7 +142,7 @@ describe('Portal del paciente', () => {
 
   it('máximo 2 citas por venir', async () => {
     const slots = await freeSlots();
-    const upcoming = (await http.get('/api/portal/appointments').set(bearer(patient))).body.filter((a: PortalAppointment) => a.status === 'SCHEDULED').length;
+    const upcoming = (await http.get('/api/portal/appointments').set(bearer(patient))).body.filter((a: PortalAppointment) => a.status === 'SCHEDULED' || a.status === 'REQUESTED').length;
     for (let i = upcoming; i < 2; i++) {
       await http.post('/api/portal/appointments').set(bearer(patient)).send({ clinicId: centro.id, doctorId: slots[i + 1].doctorId, startsAt: slots[i + 1].startsAt }).expect(201);
     }
@@ -138,7 +158,7 @@ describe('Portal del paciente', () => {
 
   it('cancela su propia cita', async () => {
     const mine: PortalAppointment[] = (await http.get('/api/portal/appointments').set(bearer(patient))).body;
-    const target = mine.find((a) => a.status === 'SCHEDULED')!;
+    const target = mine.find((a) => a.status === 'SCHEDULED' || a.status === 'REQUESTED')!;
     const res = await http.post(`/api/portal/appointments/${target.id}/cancel`).set(bearer(patient)).expect(200);
     expect(res.body.status).toBe('CANCELLED');
   });

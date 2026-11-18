@@ -110,6 +110,8 @@ export interface PortalAppointment {
   clinic: { id: string; name: string; address: string | null; phone: string | null };
   reason: string | null;
   canCancel: boolean;
+  /** Si la clínica no aceptó la solicitud: su explicación ("" si no dejó nota); null en otro caso. */
+  rejectedNote: string | null;
   /** Enlace del comprobante (/c/…), el mismo que recibe por WhatsApp. */
   link: string;
 }
