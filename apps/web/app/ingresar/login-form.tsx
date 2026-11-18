@@ -28,7 +28,8 @@ export function LoginForm() {
       const { user } = await api<{ user: SessionUser }>('/auth/login', { method: 'POST', body: values });
       qc.setQueryData(['me'], user);
       const next = params.get('next');
-      router.replace(user.mustChangePassword ? '/cuenta?primera=1' : next && next.startsWith('/') ? next : '/agenda');
+      // Si la contraseña es temporal, la agenda se abre con el aviso obligatorio para cambiarla.
+      router.replace(next && next.startsWith('/') ? next : '/agenda');
     } catch (e) {
       setError(errorMessage(e));
     }

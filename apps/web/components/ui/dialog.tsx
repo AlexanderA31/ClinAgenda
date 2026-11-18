@@ -15,8 +15,9 @@ export function DialogContent({
   title,
   description,
   side,
+  closable = true,
   ...props
-}: React.ComponentProps<typeof DialogPrimitive.Content> & { title: string; description?: string; side?: boolean }) {
+}: React.ComponentProps<typeof DialogPrimitive.Content> & { title: string; description?: string; side?: boolean; closable?: boolean }) {
   return (
     <DialogPrimitive.Portal>
       <DialogPrimitive.Overlay className="fixed inset-0 z-40 bg-[#0a1218]/50" />
@@ -39,9 +40,11 @@ export function DialogContent({
               <DialogPrimitive.Description className="sr-only">{title}</DialogPrimitive.Description>
             )}
           </div>
-          <DialogPrimitive.Close className="-mr-2 -mt-1 rounded-md p-2 text-ink-2 hover:bg-surface-2" aria-label="Cerrar">
-            <X className="size-6" />
-          </DialogPrimitive.Close>
+          {closable && (
+            <DialogPrimitive.Close className="-mr-2 -mt-1 rounded-md p-2 text-ink-2 hover:bg-surface-2" aria-label="Cerrar">
+              <X className="size-6" />
+            </DialogPrimitive.Close>
+          )}
         </div>
         <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
       </DialogPrimitive.Content>
