@@ -56,11 +56,31 @@ enum WaitlistStatus {
   REMOVED
 }
 
+/// Rol armado por la dirección: un alcance de datos (scope) y una lista de permisos.
+/// Los tres roles de fábrica (system) no se borran; el de dirección tampoco se edita.
+model AccessRole {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @unique
+  description String?
+  scope       Role
+  permissions String[]
+  system      Boolean  @default(false)
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+
+  users User[]
+}
+
 model User {
-  id                 String    @id @default(uuid()) @db.Uuid
-  username           String    @unique
+  id                 String     @id @default(uuid()) @db.Uuid
+  username           String     @unique
   fullName           String
+  /// Copia del alcance del rol (no cambia después de crear el rol); la usan los filtros de datos.
   role               Role
+  accessRoleId       String     @db.Uuid
+  accessRole         AccessRole @relation(fields: [accessRoleId], references: [id])
+  /// Sube cada vez que la dirección cierra las sesiones de esta persona: los tokens anteriores dejan de valer.
+  tokenVersion       Int        @default(0)
   passwordHash       String
   active             Boolean   @default(true)
   mustChangePassword Boolean   @default(false)

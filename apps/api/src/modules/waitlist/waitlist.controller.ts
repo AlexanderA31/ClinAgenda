@@ -2,14 +2,14 @@ import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Post, Query } from
 import { ApiQuery, ApiTags } from '@nestjs/swagger';
 import { WaitlistCreateSchema, type SessionUser } from '@clinagenda/schemas';
 import { createZodDto } from 'nestjs-zod';
-import { CurrentUser, ReqMeta, Roles, type RequestMeta } from '../../common/decorators/auth.decorators';
+import { CurrentUser, ReqMeta, Can, type RequestMeta } from '../../common/decorators/auth.decorators';
 import { WaitlistService } from './waitlist.service';
 
 class WaitlistCreateDto extends createZodDto(WaitlistCreateSchema) {}
 
 @ApiTags('Lista de espera')
 @Controller('waitlist')
-@Roles('ADMIN', 'RECEPCION')
+@Can('lista_espera.gestionar')
 export class WaitlistController {
   constructor(private readonly waitlist: WaitlistService) {}
 

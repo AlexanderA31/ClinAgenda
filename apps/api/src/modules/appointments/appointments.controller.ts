@@ -12,7 +12,7 @@ import {
 } from '@clinagenda/schemas';
 import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';
-import { CurrentUser, ReqMeta, Roles, type RequestMeta } from '../../common/decorators/auth.decorators';
+import { CurrentUser, ReqMeta, Can, type RequestMeta } from '../../common/decorators/auth.decorators';
 import { IdempotencyInterceptor } from '../../common/interceptors/idempotency.interceptor';
 import { AppointmentsService } from './appointments.service';
 import { SchedulingService } from './scheduling.service';
@@ -62,6 +62,7 @@ export class AppointmentsController {
 
   @IdempotencyHeader
   @UseInterceptors(IdempotencyInterceptor)
+  @Can('citas.agendar')
   @Post()
   create(@Body() body: AppointmentCreateDto, @CurrentUser() user: SessionUser, @ReqMeta() meta: RequestMeta) {
     return this.appointments.create(body, user, meta);
@@ -69,35 +70,39 @@ export class AppointmentsController {
 
   @IdempotencyHeader
   @UseInterceptors(IdempotencyInterceptor)
+  @Can('citas.agendar')
   @Patch(':id/reschedule')
   reschedule(@Param('id', ParseUUIDPipe) id: string, @Body() body: AppointmentRescheduleDto, @CurrentUser() user: SessionUser, @ReqMeta() meta: RequestMeta) {
     return this.appointments.reschedule(id, body, user, meta);
   }
 
+  @Can('citas.agendar')
   @Post(':id/cancel')
   @HttpCode(200)
   cancel(@Param('id', ParseUUIDPipe) id: string, @Body() body: AppointmentCancelDto, @CurrentUser() user: SessionUser, @ReqMeta() meta: RequestMeta) {
     return this.appointments.cancel(id, body, user, meta);
   }
 
+  @Can('citas.agendar')
   @Post(':id/restore')
   @HttpCode(200)
   restore(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: SessionUser, @ReqMeta() meta: RequestMeta) {
     return this.appointments.restore(id, user, meta);
   }
 
+  @Can('citas.estado')
   @Patch(':id/status')
   setStatus(@Param('id', ParseUUIDPipe) id: string, @Body() body: AppointmentStatusDto, @CurrentUser() user: SessionUser, @ReqMeta() meta: RequestMeta) {
     return this.appointments.setStatus(id, body, user, meta);
   }
 
-  @Roles('ADMIN', 'RECEPCION')
+  @Can('recordatorios.gestionar')
   @Patch(':id/reminded')
   setReminded(@Param('id', ParseUUIDPipe) id: string, @Body() body: RemindedDto, @CurrentUser() user: SessionUser, @ReqMeta() meta: RequestMeta) {
     return this.appointments.setReminded(id, body.reminded, user, meta);
   }
 
-  @Roles('ADMIN', 'MEDICO')
+  @Can('citas.notas')
   @Patch(':id/clinical-note')
   setClinicalNote(@Param('id', ParseUUIDPipe) id: string, @Body() body: ClinicalNoteDto, @CurrentUser() user: SessionUser, @ReqMeta() meta: RequestMeta) {
     return this.appointments.setClinicalNote(id, body, user, meta);

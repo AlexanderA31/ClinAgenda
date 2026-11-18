@@ -2,14 +2,14 @@ import { BadRequestException, Controller, Param, ParseBoolPipe, Post, Query, Upl
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBody, ApiConsumes, ApiQuery, ApiTags } from '@nestjs/swagger';
 import type { ImportKind, SessionUser } from '@clinagenda/schemas';
-import { CurrentUser, ReqMeta, Roles, type RequestMeta } from '../../common/decorators/auth.decorators';
+import { CurrentUser, ReqMeta, Can, type RequestMeta } from '../../common/decorators/auth.decorators';
 import { ImportsService } from './imports.service';
 
 const KINDS: ImportKind[] = ['patients', 'doctors', 'appointments'];
 
 @ApiTags('Importación')
 @Controller('imports')
-@Roles('ADMIN')
+@Can('datos.importar')
 export class ImportsController {
   constructor(private readonly imports: ImportsService) {}
 

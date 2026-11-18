@@ -2,7 +2,7 @@ import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post } from '@nestj
 import { ApiTags } from '@nestjs/swagger';
 import { ClinicCreateSchema, ClinicUpdateSchema, ClosureCreateSchema, type SessionUser } from '@clinagenda/schemas';
 import { createZodDto } from 'nestjs-zod';
-import { CurrentUser, ReqMeta, Roles, type RequestMeta } from '../../common/decorators/auth.decorators';
+import { CurrentUser, ReqMeta, Can, type RequestMeta } from '../../common/decorators/auth.decorators';
 import { ClinicsService } from './clinics.service';
 
 class ClinicCreateDto extends createZodDto(ClinicCreateSchema) {}
@@ -24,19 +24,19 @@ export class ClinicsController {
     return this.clinics.get(id);
   }
 
-  @Roles('ADMIN')
+  @Can('clinicas.gestionar')
   @Post()
   create(@Body() body: ClinicCreateDto, @CurrentUser() user: SessionUser, @ReqMeta() meta: RequestMeta) {
     return this.clinics.create(body, user, meta);
   }
 
-  @Roles('ADMIN')
+  @Can('clinicas.gestionar')
   @Patch(':id')
   update(@Param('id', ParseUUIDPipe) id: string, @Body() body: ClinicUpdateDto, @CurrentUser() user: SessionUser, @ReqMeta() meta: RequestMeta) {
     return this.clinics.update(id, body, user, meta);
   }
 
-  @Roles('ADMIN')
+  @Can('clinicas.gestionar')
   @Post(':id/closures')
   addClosure(@Param('id', ParseUUIDPipe) id: string, @Body() body: ClosureCreateDto, @CurrentUser() user: SessionUser, @ReqMeta() meta: RequestMeta) {
     return this.clinics.addClosure(id, body, user, meta);

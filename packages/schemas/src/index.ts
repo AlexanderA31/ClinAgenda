@@ -6,6 +6,7 @@ export * from './validators/dates';
 export * from './domain/enums';
 export * from './domain/common';
 export * from './domain/auth';
+export * from './domain/permissions';
 export * from './domain/user';
 export * from './domain/clinic';
 export * from './domain/doctor';

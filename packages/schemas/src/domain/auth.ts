@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { RoleSchema } from './enums';
+import { PermissionSchema } from './permissions';
 
 export const LoginSchema = z.object({
   username: z
@@ -29,7 +30,10 @@ export const SessionUserSchema = z.object({
   id: z.string().uuid(),
   username: z.string(),
   fullName: z.string(),
+  /** Alcance de datos del rol (ver SCOPE_LABELS). */
   role: RoleSchema,
+  roleName: z.string(),
+  permissions: z.array(PermissionSchema),
   doctorId: z.string().uuid().nullable(),
   clinicId: z.string().uuid().nullable(),
   mustChangePassword: z.boolean(),

@@ -1,8 +1,10 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { readFile } from 'node:fs/promises';
-import { Roles } from '../../common/decorators/auth.decorators';
+import type { SystemStatus } from '@clinagenda/schemas';
+import { Can } from '../../common/decorators/auth.decorators';
 import { env } from '../../config/env';
+import { PrismaService } from '../../prisma/prisma.service';
 
 export interface BackupStatus {
   state: 'OK' | 'SIN_COPIA_EXTERNA' | 'ATRASADO' | 'FALLO' | 'DESCONOCIDO';
@@ -15,8 +17,42 @@ export interface BackupStatus {
 /** Para que la dirección "duerma tranquila": el panel avisa si el respaldo falló, está atrasado o no salió del servidor. */
 @ApiTags('Sistema')
 @Controller('system')
-@Roles('ADMIN')
+@Can('sistema.ver')
 export class SystemController {
+  constructor(private readonly prisma: PrismaService) {}
+
+  /** Lo que un administrador revisa a diario: accesos, actividad y salud de la base de datos. */
+  @Get('status')
+  async status(): Promise<SystemStatus> {
+    const now = new Date();
+    const dayAgo = new Date(now.getTime() - 24 * 3600_000);
+    const [usersActive, usersInactive, usersLocked, usersPending, roles, patients, futureAppointments, totalAppointments, changes24h, failedLogins24h, db, migration] =
+      await this.prisma.$transaction([
+        this.prisma.user.count({ where: { active: true } }),
+        this.prisma.user.count({ where: { active: false } }),
+        this.prisma.user.count({ where: { active: true, lockedUntil: { gt: now } } }),
+        this.prisma.user.count({ where: { active: true, mustChangePassword: true } }),
+        this.prisma.accessRole.count(),
+        this.prisma.patient.count(),
+        this.prisma.appointment.count({ where: { startsAt: { gte: now }, status: 'SCHEDULED' } }),
+        this.prisma.appointment.count(),
+        this.prisma.auditLog.count({ where: { at: { gte: dayAgo }, action: { notIn: ['LOGIN', 'LOGIN_FAILED'] } } }),
+        this.prisma.auditLog.count({ where: { at: { gte: dayAgo }, action: 'LOGIN_FAILED' } }),
+        this.prisma.$queryRaw<{ bytes: bigint; version: string }[]>`SELECT pg_database_size(current_database()) AS bytes, current_setting('server_version') AS version`,
+        this.prisma.$queryRaw<{ name: string; at: Date }[]>`SELECT migration_name AS name, finished_at AS at FROM _prisma_migrations WHERE finished_at IS NOT NULL ORDER BY finished_at DESC LIMIT 1`,
+      ]);
+    return {
+      appVersion: process.env.npm_package_version ?? '0.1.0',
+      startedAt: new Date(now.getTime() - process.uptime() * 1000).toISOString(),
+      database: { version: db[0]?.version ?? '', bytes: Number(db[0]?.bytes ?? 0), lastMigration: migration[0]?.name ?? null },
+      users: { active: usersActive, inactive: usersInactive, locked: usersLocked, pendingPassword: usersPending },
+      roles,
+      patients,
+      appointments: { total: totalAppointments, upcoming: futureAppointments },
+      activity: { changes24h, failedLogins24h },
+    };
+  }
+
   @Get('backup')
   async backup(): Promise<BackupStatus> {
     let raw: { at: string; file: string; bytes: number; ok: boolean; copied: boolean; error: string; intervalHours: number };

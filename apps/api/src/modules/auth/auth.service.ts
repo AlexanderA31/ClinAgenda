@@ -20,7 +20,7 @@ export class AuthService {
   ) {}
 
   async login(input: LoginInput, meta: RequestMeta): Promise<{ token: string; user: SessionUser }> {
-    const user = await this.prisma.user.findUnique({ where: { username: input.username } });
+    const user = await this.prisma.user.findUnique({ where: { username: input.username }, include: { accessRole: true } });
     // Mismo mensaje si el usuario no existe o la clave es incorrecta: no revelamos qué usuarios existen.
     const invalid = DomainError.validation('Usuario o contraseña incorrectos. Revise que no tenga activadas las mayúsculas.');
 
@@ -53,7 +53,7 @@ export class AuthService {
     await this.prisma.user.update({ where: { id: user.id }, data: { failedAttempts: 0, lockedUntil: null, lastLoginAt: new Date() } });
     await this.audit.log({ userId: user.id, action: 'LOGIN', entity: 'User', entityId: user.id, summary: 'Ingresó al sistema', meta });
 
-    const token = await this.jwt.signAsync({ sub: user.id, role: user.role });
+    const token = await this.jwt.signAsync({ sub: user.id, v: user.tokenVersion });
     return { token, user: toSessionUser(user) };
   }
 

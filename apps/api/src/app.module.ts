@@ -6,11 +6,12 @@ import { ZodValidationPipe } from 'nestjs-zod';
 import { env } from './config/env';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthGuard } from './common/guards/auth.guard';
-import { RolesGuard } from './common/guards/roles.guard';
+import { PermissionsGuard } from './common/guards/permissions.guard';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { AuditModule } from './modules/audit/audit.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
+import { RolesModule } from './modules/roles/roles.module';
 import { ClinicsModule } from './modules/clinics/clinics.module';
 import { DoctorsModule } from './modules/doctors/doctors.module';
 import { PatientsModule } from './modules/patients/patients.module';
@@ -30,6 +31,7 @@ import { SystemModule } from './modules/system/system.module';
     AuditModule,
     AuthModule,
     UsersModule,
+    RolesModule,
     ClinicsModule,
     DoctorsModule,
     PatientsModule,
@@ -45,7 +47,7 @@ import { SystemModule } from './modules/system/system.module';
     // Orden: límite de peticiones -> sesión -> rol.
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: AuthGuard },
-    { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_GUARD, useClass: PermissionsGuard },
     { provide: APP_PIPE, useClass: ZodValidationPipe },
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
   ],

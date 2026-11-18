@@ -1,14 +1,17 @@
 import { ExecutionContext, SetMetadata, createParamDecorator } from '@nestjs/common';
-import type { Role, SessionUser } from '@clinagenda/schemas';
+import type { Permission, SessionUser } from '@clinagenda/schemas';
 import type { Request } from 'express';
 
 export const IS_PUBLIC = 'isPublic';
 /** Ruta accesible sin iniciar sesión (login, salud del sistema). */
 export const Public = () => SetMetadata(IS_PUBLIC, true);
 
-export const ROLES = 'roles';
-/** Solo estos roles pueden usar la ruta. Sin @Roles, cualquier usuario con sesión puede. */
-export const Roles = (...roles: Role[]) => SetMetadata(ROLES, roles);
+export const PERMISSIONS_KEY = 'permissions';
+/**
+ * Hace falta al menos uno de estos permisos para usar la ruta. Sin @Can, cualquier usuario con
+ * sesión puede (ver la agenda, buscar pacientes…). Los permisos de cada rol los decide la dirección.
+ */
+export const Can = (...permissions: Permission[]) => SetMetadata(PERMISSIONS_KEY, permissions);
 
 export interface AuthedRequest extends Request {
   user: SessionUser;

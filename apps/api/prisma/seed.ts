@@ -10,13 +10,14 @@
  * Usuarios creados (contraseña = SEED_DEMO_PASSWORD, por defecto "Demo2026!"):
  *   paredes  → Dirección (Dra. Paredes)
  *   rosa     → Recepción Clínica Centro (doña Rosa)
- *   lucia, andrea, carmen, pilar → Recepción
+ *   lucia    → Coordinación de recepción (rol creado a medida: además ve el panel y une duplicados)
+ *   andrea, carmen, pilar → Recepción
  *   salazar  → Médico (Dr. Salazar, atiende en Centro y Norte)
  */
 import { PrismaClient, type AppointmentStatus, type CancelReason } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { DateTime } from 'luxon';
-import { checkPhone, normalizeForSearch } from '@clinagenda/schemas';
+import { SYSTEM_ROLE_IDS, checkPhone, normalizeForSearch } from '@clinagenda/schemas';
 
 const prisma = new PrismaClient();
 const TZ = 'America/Guayaquil';
@@ -61,7 +62,9 @@ async function main() {
     for (const [name, slotMinutes] of [['Clínica Centro', 30], ['Clínica Norte', 30], ['Clínica Sur', 20]] as const) {
       await prisma.clinic.create({ data: { name, slotMinutes, schedules: { create: base } } });
     }
-    await prisma.user.create({ data: { username: 'admin', fullName: 'Dirección', role: 'ADMIN', passwordHash: password, mustChangePassword: true } });
+    await prisma.user.create({
+      data: { username: 'admin', fullName: 'Dirección', role: 'ADMIN', accessRoleId: SYSTEM_ROLE_IDS.ADMIN, passwordHash: password, mustChangePassword: true },
+    });
     console.log('Carga inicial lista: 3 clínicas y el usuario "admin" (debe cambiar la contraseña al ingresar).');
     return;
   }
@@ -138,8 +141,18 @@ async function main() {
     { username: 'pilar', fullName: 'Pilar Toapanta', role: 'RECEPCION' as const, clinicId: sur.id },
     { username: 'salazar', fullName: 'Ernesto Salazar', role: 'MEDICO' as const, doctorId: salazar.id },
   ];
-  const admin = await prisma.user.create({ data: { ...users[0], passwordHash: password } });
-  for (const u of users.slice(1)) await prisma.user.create({ data: { ...u, passwordHash: password } });
+  // Un rol creado por la dirección, para mostrar que los permisos se arman a medida.
+  const coordinacion = await prisma.accessRole.create({
+    data: {
+      name: 'Coordinación de recepción',
+      description: 'Recepcionista que además revisa el panel y une pacientes duplicados.',
+      scope: 'RECEPCION',
+      permissions: ['citas.agendar', 'citas.estado', 'recordatorios.gestionar', 'lista_espera.gestionar', 'pacientes.editar', 'pacientes.fusionar', 'panel.ver'],
+    },
+  });
+  const roleId = (u: (typeof users)[number]) => (u.username === 'lucia' ? coordinacion.id : SYSTEM_ROLE_IDS[u.role]);
+  const admin = await prisma.user.create({ data: { ...users[0], accessRoleId: roleId(users[0]), passwordHash: password } });
+  for (const u of users.slice(1)) await prisma.user.create({ data: { ...u, accessRoleId: roleId(u), passwordHash: password } });
 
   // --- Pacientes (casos variados a propósito) ---
   const today = DateTime.now().setZone(TZ);
