@@ -159,3 +159,52 @@ describe('Calidad de datos', () => {
     expect(Object.keys(res.body.fields).sort()).toEqual(['birthDate', 'documentNumber', 'email', 'phone']);
   });
 });
+
+describe('Enlace del paciente', () => {
+  it('el paciente ve lo mínimo y cancela solo con confirmación explícita', async () => {
+    const [slot] = await nextFreeSlots();
+    const created = await http.post('/api/appointments').set(as('rosa')).send({ patientId: patients[5].id, doctorId: salazar.id, clinicId: centro.id, startsAt: slot.startsAt }).expect(201);
+    const token = String(created.body.patientLink).replace('/c/', '');
+
+    const view = await http.get(`/api/public/appointments/${token}`).expect(200);
+    expect(view.body.canCancel).toBe(true);
+    // Solo estos campos: nada de cédula, teléfono del paciente ni datos médicos.
+    expect(Object.keys(view.body).sort()).toEqual(['canCancel', 'cancelDeadline', 'clinic', 'code', 'doctorName', 'endsAt', 'patientFirstName', 'specialty', 'startsAt', 'status']);
+
+    // Abrir el enlace (o su vista previa en WhatsApp) no cancela: hace falta confirmar.
+    await http.post(`/api/public/appointments/${token}/cancel`).send({}).expect(400);
+    const c1 = await http.post(`/api/public/appointments/${token}/cancel`).send({ confirm: true }).expect(200);
+    expect(c1.body.status).toBe('CANCELLED');
+    const c2 = await http.post(`/api/public/appointments/${token}/cancel`).send({ confirm: true }).expect(200);
+    expect(c2.body.alreadyCancelled).toBe(true);
+
+    // Recepción la ve cancelada "desde el enlace" y puede reactivarla.
+    const staff = await http.get(`/api/appointments/${created.body.id}`).set(as('rosa')).expect(200);
+    expect(staff.body.cancelReason).toBe('PACIENTE_WEB');
+    await http.post(`/api/appointments/${created.body.id}/restore`).set(as('rosa')).expect(200);
+  });
+
+  it('un enlace inventado no revela nada', async () => {
+    await http.get('/api/public/appointments/no-existe').expect(404);
+    await http.get(`/api/public/appointments/${'a'.repeat(36)}`).expect(404);
+  });
+});
+
+describe('Recordatorios y cambios de horario', () => {
+  it('marcar "avisado" guarda quién lo hizo', async () => {
+    const list = await http.get('/api/appointments').query({ status: 'SCHEDULED', pageSize: 1 }).set(as('rosa')).expect(200);
+    const res = await http.patch(`/api/appointments/${list.body.items[0].id}/reminded`).set(as('rosa')).send({ reminded: true }).expect(200);
+    expect(res.body.remindedBy).toBe('Rosa Elvira Chávez');
+  });
+
+  it('quitar un bloque del horario no cancela citas: las lista para reprogramar', async () => {
+    const doctors: DoctorView[] = (await http.get('/api/doctors').set(as('paredes'))).body;
+    const doc = doctors.find((d) => d.fullName === 'Fernando Jaramillo')!;
+    const original = doc.assignments.map(({ clinicId, weekday, startTime, endTime }) => ({ clinicId, weekday, startTime, endTime }));
+    const res = await http.patch(`/api/doctors/${doc.id}`).set(as('paredes')).send({ assignments: [] }).expect(200);
+    const future = await http.get('/api/appointments').query({ doctorId: doc.id, status: 'SCHEDULED', pageSize: 500 }).set(as('paredes'));
+    const upcoming = future.body.items.filter((a: { startsAt: string }) => new Date(a.startsAt) > new Date());
+    expect(res.body.appointmentsOutsideSchedule).toHaveLength(upcoming.length);
+    await http.patch(`/api/doctors/${doc.id}`).set(as('paredes')).send({ assignments: original }).expect(200);
+  });
+});
