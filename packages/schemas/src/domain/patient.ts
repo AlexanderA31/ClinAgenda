@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { DocumentTypeSchema, SexSchema } from './enums';
-import { optionalCleanString } from './common';
+import { cleaned, optionalCleanString } from './common';
 import { CEDULA_ERROR_MESSAGES, checkCedula, normalizeCedula } from '../validators/cedula';
 import { checkPhone } from '../validators/phone';
 import { PERSON_NAME_PATTERN, toTitleCaseName } from '../validators/text';
@@ -9,16 +9,14 @@ import { MAX_AGE_YEARS, ageOn, isRealIsoDate, todayIn } from '../validators/date
 export const ADULT_AGE = 18;
 
 const nameField = (label: string) =>
-  z
-    .string({ required_error: `Escriba ${label}.` })
-    .transform(toTitleCaseName)
-    .pipe(
-      z
-        .string()
-        .min(2, `Escriba ${label}.`)
-        .max(80, `${label} no puede pasar de 80 letras.`)
-        .regex(PERSON_NAME_PATTERN, `${label[0].toUpperCase()}${label.slice(1)} solo puede tener letras, espacios, guion o apóstrofe (sin números ni símbolos).`),
-    );
+  cleaned(
+    toTitleCaseName,
+    z
+      .string({ required_error: `Escriba ${label}.`, invalid_type_error: `Escriba ${label}.` })
+      .min(2, `Escriba ${label}.`)
+      .max(80, `${label} no puede pasar de 80 letras.`)
+      .regex(PERSON_NAME_PATTERN, `${label[0].toUpperCase()}${label.slice(1)} solo puede tener letras, espacios, guion o apóstrofe (sin números ni símbolos).`),
+  );
 
 /** Teléfono opcional: vacío -> null; con contenido -> E.164 o error explicativo. */
 export const OptionalPhoneSchema = z
@@ -35,18 +33,14 @@ export const OptionalPhoneSchema = z
     return r.e164;
   });
 
-export const OptionalEmailSchema = z
-  .string()
-  .optional()
-  .nullable()
-  .transform((v) => (v && v.trim() ? v.trim().toLowerCase() : null))
-  .pipe(
-    z
-      .string()
-      .max(120)
-      .regex(/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i, 'El correo no parece válido. Debe verse así: nombre@dominio.com (una sola @, sin espacios).')
-      .nullable(),
-  );
+export const OptionalEmailSchema = z.preprocess(
+  (v) => (typeof v === 'string' ? v.trim().toLowerCase() || null : (v ?? null)),
+  z
+    .string()
+    .max(120)
+    .regex(/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i, 'El correo no parece válido. Debe verse así: nombre@dominio.com (una sola @, sin espacios).')
+    .nullable(),
+);
 
 export const BirthDateSchema = z
   .string({ required_error: 'Escriba la fecha de nacimiento.' })
@@ -56,10 +50,7 @@ export const BirthDateSchema = z
 
 export const GuardianSchema = z.object({
   fullName: nameField('el nombre del representante'),
-  relationship: z
-    .string()
-    .transform((v) => v.trim())
-    .pipe(z.string().min(3, 'Indique el parentesco (madre, padre, hijo, cuidador…).').max(40)),
+  relationship: cleaned((v) => v.trim(), z.string().min(3, 'Indique el parentesco (madre, padre, hijo, cuidador…).').max(40)),
   phone: OptionalPhoneSchema,
   documentNumber: optionalCleanString(20, 'El documento del representante'),
 });
@@ -107,7 +98,8 @@ function refinePatient(v: Partial<PatientBase>, ctx: z.RefinementCtx, partial: b
   }
 
   if (partial && !v.birthDate) return;
-  const isMinor = v.birthDate ? ageOn(v.birthDate, todayIn()) < ADULT_AGE : false;
+  const birthOk = !!v.birthDate && isRealIsoDate(v.birthDate) && v.birthDate <= todayIn();
+  const isMinor = birthOk ? ageOn(v.birthDate!, todayIn()) < ADULT_AGE : false;
   if (isMinor && !v.guardian) {
     ctx.addIssue({ code: 'custom', path: ['guardian'], message: 'El paciente es menor de edad: registre a su madre, padre o representante.' });
   }

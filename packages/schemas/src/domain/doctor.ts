@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { WeeklySlotSchema, slotsOverlap } from './clinic';
-import { cleanString } from './common';
-import { PERSON_NAME_PATTERN, toTitleCaseName } from '../validators/text';
+import { cleaned } from './common';
+import { PERSON_NAME_PATTERN, cleanText, toTitleCaseName } from '../validators/text';
 import { checkPhone } from '../validators/phone';
 
 /** Horario semanal de un médico en una clínica concreta. */
@@ -12,17 +12,15 @@ export type DoctorAssignmentInput = z.infer<typeof DoctorAssignmentSchema>;
 
 export const DoctorCreateSchema = z
   .object({
-    fullName: z
-      .string({ required_error: 'Escriba el nombre del médico.' })
-      .transform(toTitleCaseName)
-      .pipe(
-        z
-          .string()
-          .min(5, 'Escriba nombre y apellido del médico.')
-          .max(120)
-          .regex(PERSON_NAME_PATTERN, 'El nombre solo puede tener letras y espacios.'),
-      ),
-    specialty: cleanString(80, 'La especialidad').pipe(z.string().min(3, 'Escriba la especialidad.')),
+    fullName: cleaned(
+      toTitleCaseName,
+      z
+        .string({ required_error: 'Escriba el nombre del médico.' })
+        .min(5, 'Escriba nombre y apellido del médico.')
+        .max(120)
+        .regex(PERSON_NAME_PATTERN, 'El nombre solo puede tener letras y espacios.'),
+    ),
+    specialty: cleaned(cleanText, z.string({ required_error: 'Escriba la especialidad.' }).min(3, 'Escriba la especialidad.').max(80)),
     phone: z
       .string()
       .optional()

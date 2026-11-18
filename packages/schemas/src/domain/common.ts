@@ -4,19 +4,21 @@ import { cleanText } from '../validators/text';
 export const IdSchema = z.string().uuid({ message: 'Identificador no válido.' });
 
 /** Texto libre corto ya limpio de emojis/caracteres de control. */
+/** Limpia el texto ANTES de validar, así la validación ve lo mismo que se guardará. */
+export const cleaned = <T extends z.ZodTypeAny>(clean: (v: string) => string, schema: T) =>
+  z.preprocess((v) => (typeof v === 'string' ? clean(v) : v), schema);
+
 export const cleanString = (max: number, label: string) =>
-  z
-    .string({ required_error: `${label} es obligatorio.`, invalid_type_error: `${label} debe ser texto.` })
-    .transform(cleanText)
-    .pipe(z.string().max(max, `${label} no puede pasar de ${max} caracteres.`));
+  cleaned(
+    cleanText,
+    z.string({ required_error: `${label} es obligatorio.`, invalid_type_error: `${label} debe ser texto.` }).max(max, `${label} no puede pasar de ${max} caracteres.`),
+  );
 
 export const optionalCleanString = (max: number, label: string) =>
-  z
-    .string()
-    .optional()
-    .nullable()
-    .transform((v) => (v == null ? null : cleanText(v) || null))
-    .pipe(z.string().max(max, `${label} no puede pasar de ${max} caracteres.`).nullable());
+  z.preprocess(
+    (v) => (v == null ? null : typeof v === 'string' ? cleanText(v) || null : v),
+    z.string().max(max, `${label} no puede pasar de ${max} caracteres.`).nullable(),
+  );
 
 /** "08:30" en formato 24 h. */
 export const TimeOfDaySchema = z
