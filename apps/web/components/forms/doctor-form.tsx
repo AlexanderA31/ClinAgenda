@@ -107,7 +107,7 @@ export function DoctorForm({ doctor, onDone }: { doctor?: DoctorView; onDone: ()
           const err = fields[`assignments.${i}`] ?? fields[`assignments.${i}.endTime`];
           return (
             <div key={i} className="flex flex-col gap-1">
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-[1.3fr_1fr_6rem_6rem_auto]">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-[1fr_1fr_8rem_8rem_auto]">
                 <Select aria-label="Clínica" value={r.clinicId} onChange={(e) => update(i, { clinicId: e.target.value })} aria-invalid={!!err || undefined}>
                   <option value="">Clínica…</option>
                   {clinics.data?.map((c) => (
