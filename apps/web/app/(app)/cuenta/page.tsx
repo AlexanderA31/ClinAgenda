@@ -1,23 +1,6 @@
-'use client';
+import { redirect } from 'next/navigation';
 
-import { useSession } from '@/lib/session';
-import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
-import { PageHeader } from '@/components/ui/misc';
-import { ChangePasswordForm } from '@/components/forms/change-password-form';
-
+/** "Mi usuario" ahora es un modal: los enlaces antiguos a /cuenta lo abren sobre la agenda. */
 export default function AccountPage() {
-  const user = useSession();
-  return (
-    <>
-      <PageHeader title="Mi cuenta" description={`${user.fullName} · ${user.roleName} · usuario ${user.username}`} />
-      <Card className="max-w-xl">
-        <CardHeader>
-          <CardTitle>Cambiar contraseña</CardTitle>
-        </CardHeader>
-        <CardBody>
-          <ChangePasswordForm />
-        </CardBody>
-      </Card>
-    </>
-  );
+  redirect('/agenda?cuenta=1');
 }

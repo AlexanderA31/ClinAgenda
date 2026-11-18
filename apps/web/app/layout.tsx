@@ -8,6 +8,7 @@ import '@fontsource/caveat/latin-500.css';
 import '@fontsource/ibm-plex-mono/latin-400.css';
 import '@fontsource/ibm-plex-mono/latin-500.css';
 import { Providers } from './providers';
+import { AccessibilityButton } from '@/components/layout/accessibility-button';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -27,8 +28,8 @@ export const viewport: Viewport = {
   ],
 };
 
-// Aplica tema y tamaño de letra guardados antes de pintar, para que no "parpadee".
-const prefsScript = `try{var t=localStorage.getItem('ca-theme');if(t==='dark'||t==='light')document.documentElement.dataset.theme=t;if(localStorage.getItem('ca-text')==='grande')document.documentElement.dataset.text='grande'}catch(e){}`;
+// Aplica las opciones de accesibilidad guardadas antes de pintar, para que no "parpadee".
+const prefsScript = `try{var d=document.documentElement.dataset,g=function(k){return localStorage.getItem(k)};var t=g('ca-theme');if(t==='dark'||t==='light')d.theme=t;var x=g('ca-text');if(x==='grande'||x==='muy-grande')d.text=x;if(g('ca-contrast')==='alto')d.contrast='alto';if(g('ca-motion')==='reducido')d.motion='reducido';if(g('ca-links')==='subrayados')d.links='subrayados';if(g('ca-spacing')==='amplio')d.spacing='amplio'}catch(e){}`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -38,6 +39,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <Providers>{children}</Providers>
+        <AccessibilityButton />
       </body>
     </html>
   );

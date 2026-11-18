@@ -1,28 +1,15 @@
 import { Suspense } from 'react';
 import Link from 'next/link';
 import type { Metadata } from 'next';
-import type { PublicDirectory } from '@clinagenda/schemas';
 import s from '@/components/landing/landing.module.css';
 import { QuitoPanorama } from '@/components/landing/quito-panorama';
 import { openState, quitoNow } from '@/components/landing/hours';
 import { cn } from '@/lib/utils';
+import { getDirectory } from '@/lib/directory';
 import { LoginForm } from './login-form';
 
 export const metadata: Metadata = { title: 'Ingresar' };
 export const dynamic = 'force-dynamic';
-
-const ORDER = ['Clínica Norte', 'Clínica Centro', 'Clínica Sur'];
-
-async function getClinics(): Promise<PublicDirectory['clinics']> {
-  try {
-    const res = await fetch(`${process.env.API_INTERNAL_URL ?? 'http://localhost:4000'}/api/public/directory`, { next: { revalidate: 300 } });
-    if (!res.ok) return [];
-    const data = (await res.json()) as PublicDirectory;
-    return [...data.clinics].sort((a, b) => ORDER.indexOf(a.name) - ORDER.indexOf(b.name));
-  } catch {
-    return [];
-  }
-}
 
 /** Saludo según la hora de Quito, no la del servidor. */
 function greeting() {
@@ -31,7 +18,7 @@ function greeting() {
 }
 
 export default async function LoginPage() {
-  const clinics = await getClinics();
+  const clinics = (await getDirectory())?.clinics ?? [];
   return (
     <div className={cn(s.page, 'grid min-h-dvh lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]')}>
       {/* El mismo Quito de la página pública: el personal entra por la misma puerta que los pacientes */}

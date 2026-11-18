@@ -1,4 +1,4 @@
-import { BellRing, CalendarDays, ClipboardList, FileUp, Hourglass, KeyRound, LayoutDashboard, ListChecks, Server, ShieldCheck, Stethoscope, Building2, UserCog, Users } from 'lucide-react';
+import { BellRing, CalendarDays, FileUp, Hourglass, KeyRound, LayoutDashboard, ListChecks, Server, ShieldCheck, Stethoscope, Building2, UserCog, Users } from 'lucide-react';
 import type { Permission } from '@clinagenda/schemas';
 
 export interface NavItem {
@@ -45,5 +45,4 @@ export const NAV: NavGroup[] = [
       { href: '/sistema', label: 'Sistema', icon: Server, permission: 'sistema.ver', hint: 'Respaldos y estado' },
     ],
   },
-  { label: 'Usted', items: [{ href: '/cuenta', label: 'Mi cuenta', icon: ClipboardList, hint: 'Cambiar contraseña' }] },
 ];

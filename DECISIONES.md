@@ -96,7 +96,8 @@ Las citas **no se pueden borrar**, solo cancelar. Cada cambio queda en la **bit�
 
 **¿Podría doña Rosa usarlo sin ayuda?**
 Lo diseñamos para eso:
-- Letra base grande (18 px) con un botón “Letra grande” para agrandarla más; tipografía creada para personas con baja visión.
+- Letra base grande (18 px) y un **botón de accesibilidad** flotante, abajo a la derecha en todas las pantallas (también la página pública y el portal): letra grande o muy grande, modo claro/oscuro, alto contraste, menos movimiento, enlaces subrayados y más espacio entre líneas. Se guarda en cada equipo. Tipografía creada para personas con baja visión.
+- La agenda del día es una cuadrícula de horas por médico, con el resumen del día arriba y la hora actual marcada, para ver de un vistazo qué está libre.
 - Botones del tamaño de un dedo; agendar en 3 pasos, uno por pantalla: paciente, día y hora (solo se muestran horas libres), confirmar.
 - Al confirmar aparece una frase para leerle al paciente por teléfono: “María López, con el Dr. Salazar, en Clínica Centro, el viernes 20 de noviembre a las 09:00”.
 - La fecha de nacimiento se escribe en día, mes (por nombre) y año, no con un calendario.
@@ -112,6 +113,14 @@ Sí. Cancelar muestra un botón **Deshacer**, y una cita cancelada se puede reac
 
 **¿Desde un celular? ¿Con letra pequeña o poca luz?**
 Sí. Funciona en celular (las tablas se convierten en tarjetas) y tiene modo oscuro automático o manual. Los estados nunca dependen solo del color: llevan ícono y texto.
+
+**¿Pueden los pacientes agendar solos?**
+Sí, desde la página pública (*Agendar en línea*). Decisiones para que no desordene la agenda ni exponga datos:
+- **Cuenta con cédula o pasaporte y contraseña**: es el dato que todos tienen a mano. Solo para adultos; los niños, adolescentes y quienes no tienen documento siguen agendando por teléfono.
+- **Ficha existente**: si ya hay una ficha con ese documento, la cuenta se vincula solo si coinciden la fecha de nacimiento y el celular. Si no coinciden, se pide llamar a la clínica: así nadie puede tomar la ficha de otra persona sabiendo solo su cédula.
+- **Límites**: al menos 2 horas de anticipación, hasta 60 días adelante y máximo 2 citas por venir a la vez. Las mismas reglas de la agenda (horario, choques, médico en dos clínicas) se aplican igual.
+- **Lo que ve**: solo sus citas y los horarios libres, nunca datos de otros pacientes. Puede cancelar hasta 2 horas antes.
+- **Sesión separada**: la sesión del paciente no abre el sistema interno, y la del personal no abre el portal.
 
 ## 5. Los fallos
 

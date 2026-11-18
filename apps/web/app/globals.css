@@ -137,6 +137,18 @@
   html[data-text='grande'] {
     font-size: 125%;
   }
+  html[data-text='muy-grande'] {
+    font-size: 140%;
+  }
+  html[data-links='subrayados'] a {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  html[data-spacing='amplio'] body {
+    line-height: 1.9;
+    letter-spacing: 0.02em;
+    word-spacing: 0.08em;
+  }
   body {
     background: var(--paper);
     color: var(--ink);
@@ -178,4 +190,59 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
   }
+}
+
+/* Menos movimiento elegido desde el botón de accesibilidad (mismo efecto que la preferencia del sistema). */
+html[data-motion='reducido'] *,
+html[data-motion='reducido'] *::before,
+html[data-motion='reducido'] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+}
+
+/* Alto contraste: tinta casi negra sobre blanco (o al revés en modo oscuro) y bordes marcados. */
+html[data-contrast='alto'] {
+  --paper: #ffffff;
+  --surface: #ffffff;
+  --surface-2: #eef1f3;
+  --ink: #000000;
+  --ink-2: #111111;
+  --ink-3: #2b2b2b;
+  --rule: #5c6670;
+  --rule-strong: #000000;
+  --ballpoint: #0a2d8f;
+  --redpen: #8f1510;
+  --good: #0a5527;
+  --warn: #5c3b00;
+}
+@media (prefers-color-scheme: dark) {
+  html[data-contrast='alto']:not([data-theme='light']) {
+    --paper: #000000;
+    --surface: #000000;
+    --surface-2: #161616;
+    --ink: #ffffff;
+    --ink-2: #f2f2f2;
+    --ink-3: #dcdcdc;
+    --rule: #9aa5ad;
+    --rule-strong: #ffffff;
+    --ballpoint: #b3c6ff;
+    --redpen: #ffb4ad;
+    --good: #a3f0bd;
+    --warn: #ffd98a;
+  }
+}
+html[data-contrast='alto'][data-theme='dark'] {
+  --paper: #000000;
+  --surface: #000000;
+  --surface-2: #161616;
+  --ink: #ffffff;
+  --ink-2: #f2f2f2;
+  --ink-3: #dcdcdc;
+  --rule: #9aa5ad;
+  --rule-strong: #ffffff;
+  --ballpoint: #b3c6ff;
+  --redpen: #ffb4ad;
+  --good: #a3f0bd;
+  --warn: #ffd98a;
 }

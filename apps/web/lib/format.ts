@@ -19,6 +19,11 @@ export function todayIso(): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: CLINIC_TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 }
 
+/** Fecha local de la clínica ("2026-11-18") de un instante: una cita a las 19:00 no cae al día siguiente. */
+export function localDate(iso: string | Date): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: CLINIC_TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(iso));
+}
+
 export function addDays(iso: string, days: number): string {
   const d = new Date(`${iso}T12:00:00Z`);
   d.setUTCDate(d.getUTCDate() + days);

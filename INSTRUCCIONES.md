@@ -52,7 +52,8 @@ La API no queda expuesta a internet: solo la web, que le reenvía las peticiones
 
 | Para… | Haga esto |
 |---|---|
-| **Dar una cita** | *Agenda del día* → toque una hora que diga “Agendar aquí” (o *Nueva cita*) → busque al paciente → elija la hora → lea la frase al paciente → *Confirmar cita*. Si tiene WhatsApp, toque **Enviar por WhatsApp**: le llega la confirmación con su enlace para cancelar. |
+| **Leer la agenda** | *Agenda del día* es una cuadrícula: las horas hacia abajo y los médicos hacia los lados. Arriba, el resumen del día; los botones con nombres muestran un solo médico. La hora actual está marcada en azul. En el celular se ve un médico a la vez. |
+| **Dar una cita** | *Agenda del día* → toque una celda que diga “Libre” (o *Nueva cita*) → busque al paciente → elija la hora → lea la frase al paciente → *Confirmar cita*. Si tiene WhatsApp, toque **Enviar por WhatsApp**: le llega la confirmación con su enlace para cancelar. |
 | **Registrar un paciente nuevo** | Dentro de *Nueva cita* o en *Pacientes* → *Registrar paciente*. Si el sistema muestra pacientes parecidos, revise si es uno de ellos antes de crear otro. |
 | **Cancelar** | Toque la cita → *Cancelar cita* → elija el motivo → confirme. Si fue un error, toque **Deshacer**. |
 | **Cambiar de hora** | Toque la cita → *Cambiar día u hora*. |
@@ -60,14 +61,18 @@ La API no queda expuesta a internet: solo la web, que le reenvía las peticiones
 | **Paciente sin WhatsApp** | En la cita, *Imprimir comprobante*: lleva un código QR para cancelar. |
 | **Paciente que pide una hora que no hay** | *Lista de espera* → *Agregar paciente*. Cuando alguien cancele, el sistema avisa. |
 | **Se fue el internet** | Siga trabajando: las citas y cancelaciones quedan “pendientes de enviar” (aviso amarillo) y se envían solas. **No confirme al paciente** una cita pendiente hasta que se envíe. |
-| **Letra pequeña o poca luz** | Arriba: *Letra grande* y el botón de luna (modo oscuro). |
+| **Letra pequeña o poca luz** | Botón azul redondo abajo a la derecha (en todas las pantallas): tamaño de letra, modo claro u oscuro, alto contraste, menos movimiento, enlaces subrayados y más espacio entre líneas. |
+| **Mis datos y contraseña** | Toque su nombre arriba a la izquierda: se abre *Mi usuario* con sus datos, lo que puede hacer, el cambio de contraseña y el botón para cerrar su sesión en otros equipos. |
+| **Cita agendada por el paciente en línea** | Aparece en la agenda como cualquier otra; en su historial dice “El paciente agendó en línea”. |
 
 ## 4. Guía para la dirección
 
 - **Página pública** (la dirección del dominio, sin usuario): es la página de las clínicas para los pacientes. Muestra si cada clínica está abierta ahora, sus horarios, teléfonos y qué médico atiende dónde y cuándo. Se arma sola con los datos del sistema: al cambiar un horario, un cierre o un médico, la página se actualiza en pocos minutos.
 - **Panel**: citas por día, ocupación por clínica, horas pico, cancelaciones e inasistencias por médico. Arriba indica si los respaldos están al día.
 - **Médicos** → *Editar horario*: días, horas y clínica de cada médico. Si el cambio deja citas fuera de su horario, el sistema no las cancela: muestra la lista para reprogramarlas (también en *Citas por reprogramar*).
-- **Clínicas** → *Cerrar un día* (feriados): avisa cuántas citas hay que mover.
+- **Clínicas** → *Editar*: nombre, dirección, teléfono, duración de cada turno y horario de cada día (con varios rangos por día, por ejemplo mañana y tarde, y “Copiar el lunes a martes–viernes”). Si el nuevo horario deja citas afuera, no se cancelan: aparece la lista para llamar a esos pacientes.
+- **Clínicas** → *Cerrar un día* (feriados): avisa cuántas citas hay que mover. Un cierre puesto por error se quita con *Quitar*.
+- **Portal del paciente**: desde la página pública, *Agendar en línea*. El paciente adulto crea su cuenta con su cédula o pasaporte, elige clínica, médico, día y hora, y ve o cancela sus citas en *Mis citas*. Si olvida su contraseña, llama a la clínica (se puede atender igual por teléfono).
 - **Usuarios**: una cuenta por persona. Con *Administrar* puede cambiar el rol, dar una contraseña temporal, desbloquear, cerrar sus sesiones en todos los equipos o desactivar la cuenta (el historial se conserva).
 - **Roles y permisos**: qué ve y qué puede hacer cada rol. Puede crear roles a medida o duplicar uno existente y ajustarlo. La tabla de abajo muestra de un vistazo qué permiso tiene cada rol. El rol Dirección siempre tiene todo.
 - **Sistema**: respaldos, usuarios bloqueados, intentos fallidos de ingreso en las últimas 24 horas y datos del servidor para soporte. Conviene mirarlo cada mañana.

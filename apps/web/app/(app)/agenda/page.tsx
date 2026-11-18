@@ -2,19 +2,22 @@
 
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { CalendarPlus, ChevronLeft, ChevronRight, CloudUpload, Plus, Trash2 } from 'lucide-react';
-import type { AppointmentView, AvailabilitySlot } from '@clinagenda/schemas';
+import { CalendarCheck, CalendarClock, CalendarPlus, ChevronLeft, ChevronRight, CloudUpload, Plus, Sparkles, Trash2, UserX } from 'lucide-react';
+import type { AppointmentStatus, AppointmentView, AvailabilitySlot } from '@clinagenda/schemas';
 import { addDays, dayLabel, phone, time, todayIso } from '@/lib/format';
 import { useAppointments, useAvailability, useClinics } from '@/lib/queries';
 import { discard, listPending, onQueueChange, type PendingAppointment } from '@/lib/offline-queue';
 import { useCan, useSession } from '@/lib/session';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Input, Select } from '@/components/ui/input';
 import { EmptyState, Notice, Skeleton } from '@/components/ui/misc';
+import { Stat, StatGrid } from '@/components/ui/stat';
 import { BookingWizard, type BookingPreset } from '@/components/appointments/booking-wizard';
 import { AppointmentPanel } from '@/components/appointments/appointment-panel';
 import { StatusBadge } from '@/components/appointments/status-badge';
+import landing from '@/components/landing/landing.module.css';
+import { toneClass } from '@/components/landing/tone';
 
 export default function AgendaPage() {
   return (
@@ -26,7 +29,22 @@ export default function AgendaPage() {
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
-type Row = { kind: 'free'; slot: AvailabilitySlot } | { kind: 'appt'; appt: AppointmentView };
+/** Lo que hay en una celda de la cuadrícula (un médico a una hora). */
+type Cell = { kind: 'appt'; appt: AppointmentView } | { kind: 'free'; slot: AvailabilitySlot } | { kind: 'busy' } | { kind: 'off' };
+
+interface Grid {
+  times: string[];
+  doctors: { id: string; name: string; count: number }[];
+  cell: (doctorId: string, t: string) => Cell;
+}
+
+/** Borde de color por estado: se distingue también por el texto y el ícono, nunca solo por el color. */
+const STATUS_BORDER: Record<AppointmentStatus, string> = {
+  SCHEDULED: 'border-l-ballpoint bg-ballpoint-soft/50',
+  ATTENDED: 'border-l-good bg-good-soft/60',
+  NO_SHOW: 'border-l-warn bg-warn-soft/60',
+  CANCELLED: 'border-l-redpen',
+};
 
 function Agenda() {
   const user = useSession();
@@ -49,48 +67,109 @@ function Agenda() {
   const [wizard, setWizard] = useState<BookingPreset | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   const [pending, setPending] = useState<PendingAppointment[]>([]);
+  const [doctorFilter, setDoctorFilter] = useState<string>('');
+  const [mobileDoctor, setMobileDoctor] = useState<string>('');
 
   useEffect(() => {
     const load = () => void listPending().then(setPending);
     load();
     return onQueueChange(load);
   }, []);
+  // Al cambiar de día o de clínica, el filtro de médico deja de tener sentido.
+  useEffect(() => setDoctorFilter(''), [date, clinicId]);
 
   const clinic = clinics.data?.find((c) => c.id === clinicId);
+  const isToday = date === todayIso();
   const isPastDay = date < todayIso();
-
-  // Una columna por médico: horarios libres + citas, en orden de hora.
-  const columns = useMemo(() => {
+  const { active, cancelled } = useMemo(() => {
     const items = appts.data?.items ?? [];
-    const active = items.filter((a) => a.status !== 'CANCELLED');
-    const docs = new Map<string, { name: string; rows: Row[] }>();
-    for (const s of av.data?.slots ?? []) {
-      if (!docs.has(s.doctorId)) docs.set(s.doctorId, { name: s.doctorName, rows: [] });
-      if (s.available) docs.get(s.doctorId)!.rows.push({ kind: 'free', slot: s });
-    }
-    for (const a of active) {
-      if (!docs.has(a.doctor.id)) docs.set(a.doctor.id, { name: a.doctor.fullName, rows: [] });
-      docs.get(a.doctor.id)!.rows.push({ kind: 'appt', appt: a });
-    }
-    for (const d of docs.values()) d.rows.sort((x, y) => (x.kind === 'free' ? x.slot.startsAt : x.appt.startsAt).localeCompare(y.kind === 'free' ? y.slot.startsAt : y.appt.startsAt));
-    const visible = [...docs.entries()].filter(([id]) => user.role !== 'MEDICO' || id === user.doctorId);
-    return { visible, cancelled: items.filter((a) => a.status === 'CANCELLED') };
-  }, [appts.data, av.data, user]);
+    return { active: items.filter((a) => a.status !== 'CANCELLED'), cancelled: items.filter((a) => a.status === 'CANCELLED') };
+  }, [appts.data]);
 
+  // Filas = horas del día; columnas = médicos. Cada cita y cada turno libre cae en su celda.
+  const grid: Grid = useMemo(() => {
+    const slots = av.data?.slots ?? [];
+    const names = new Map<string, string>();
+    for (const s of slots) names.set(s.doctorId, s.doctorName);
+    for (const a of active) names.set(a.doctor.id, a.doctor.fullName);
+    const slotAt = new Map(slots.map((s) => [`${s.doctorId}|${s.label}`, s]));
+    const apptAt = new Map(active.map((a) => [`${a.doctor.id}|${time(a.startsAt)}`, a]));
+    const times = [...new Set([...slots.map((s) => s.label), ...active.map((a) => time(a.startsAt))])].sort();
+    const doctors = [...names.entries()]
+      .filter(([id]) => user.role !== 'MEDICO' || id === user.doctorId)
+      .map(([id, name]) => ({ id, name, count: active.filter((a) => a.doctor.id === id).length }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    return {
+      times,
+      doctors,
+      cell: (doctorId, t) => {
+        const appt = apptAt.get(`${doctorId}|${t}`);
+        if (appt) return { kind: 'appt', appt };
+        const slot = slotAt.get(`${doctorId}|${t}`);
+        if (!slot) return { kind: 'off' };
+        return slot.available ? { kind: 'free', slot } : { kind: 'busy' };
+      },
+    };
+  }, [av.data, active, user]);
+
+  const shown = doctorFilter ? grid.doctors.filter((d) => d.id === doctorFilter) : grid.doctors;
+  const mobile = grid.doctors.find((d) => d.id === mobileDoctor) ?? grid.doctors[0];
+  const freeCount = (av.data?.slots ?? []).filter((s) => s.available && grid.doctors.some((d) => d.id === s.doctorId)).length;
+  const nowLabel = isToday ? time(new Date()) : null;
+  // Fila "actual": la última hora que ya empezó.
+  const currentTime = nowLabel ? [...grid.times].reverse().find((t) => t <= nowLabel) : undefined;
   const pendingToday = pending.filter((p) => !p.input || (p.input.clinicId === clinicId && p.input.startsAt.slice(0, 10) === date));
-  const total = appts.data?.items.filter((a) => a.status !== 'CANCELLED').length ?? 0;
+
+  const renderCell = (doctorId: string, t: string) => {
+    const c = grid.cell(doctorId, t);
+    if (c.kind === 'appt') {
+      const a = c.appt;
+      return (
+        <button
+          type="button"
+          onClick={() => setOpenId(a.id)}
+          className={cn('flex h-full w-full min-w-0 flex-col items-start gap-1 rounded-md border-l-4 px-2.5 py-1.5 text-left hover:brightness-95', STATUS_BORDER[a.status])}
+        >
+          <span className="w-full truncate font-bold leading-tight">{a.patient.fullName}</span>
+          <span className="flex flex-wrap items-center gap-1.5 text-sm text-ink-2">
+            <StatusBadge status={a.status} />
+            {a.patient.phone && <span className="tabular">{phone(a.patient.phone)}</span>}
+          </span>
+        </button>
+      );
+    }
+    if (c.kind === 'free') {
+      return canBook ? (
+        <button
+          type="button"
+          onClick={() => setWizard({ clinicId, date, slot: c.slot })}
+          className="group flex h-full w-full items-center gap-1.5 rounded-md border-2 border-dashed border-rule px-2.5 text-ink-3 hover:border-ballpoint hover:bg-ballpoint-soft hover:text-ballpoint"
+          aria-label={`Agendar con ${grid.doctors.find((d) => d.id === doctorId)?.name} a las ${t}`}
+        >
+          <Plus className="size-4" aria-hidden /> <span className="text-sm">Libre</span>
+        </button>
+      ) : (
+        <span className="flex h-full items-center px-2.5 text-sm text-ink-3">Libre</span>
+      );
+    }
+    if (c.kind === 'busy') return <span className="flex h-full items-center px-2.5 text-sm text-ink-3">{nowLabel && t < nowLabel ? 'Ya pasó' : 'No disponible'}</span>;
+    return <span className="block h-full rounded-md bg-[repeating-linear-gradient(135deg,var(--surface-2)_0,var(--surface-2)_6px,transparent_6px,transparent_12px)]" aria-label="No atiende" />;
+  };
 
   return (
     <>
+      {/* Encabezado: día, navegación, clínica y la acción principal */}
       <div className="flex flex-col gap-4">
         <div className="flex flex-wrap items-end justify-between gap-4">
-          <div className="flex flex-col gap-1">
-            <p className="text-sm font-bold uppercase tracking-wider text-ink-3">{clinic?.name ?? 'Agenda'}</p>
-            <h1 className="text-3xl font-extrabold first-letter:uppercase">
-              {date === todayIso() ? 'Hoy, ' : ''}
+          <div className="flex min-w-0 flex-col gap-1">
+            <h1 className="text-3xl font-extrabold first-letter:uppercase sm:text-4xl">
+              {isToday ? 'Hoy, ' : ''}
               {dayLabel(date)}
             </h1>
-            <p className="tabular text-ink-2">{appts.isPending ? 'Cargando…' : plural(total, 'cita agendada', 'citas agendadas')}</p>
+            <p className="text-ink-2">
+              {clinic?.name ?? 'Agenda'}
+              {clinic && ` · turnos de ${clinic.slotMinutes} minutos`}
+            </p>
           </div>
           {canBook && (
             <Button size="lg" onClick={() => setWizard({ clinicId, date: isPastDay ? todayIso() : date })}>
@@ -99,7 +178,7 @@ function Agenda() {
           )}
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-rule bg-surface p-2">
           <div className="flex items-center gap-2">
             <Button variant="secondary" size="icon" aria-label="Día anterior" onClick={() => setParam('fecha', addDays(date, -1))}>
               <ChevronLeft />
@@ -108,21 +187,22 @@ function Agenda() {
             <Button variant="secondary" size="icon" aria-label="Día siguiente" onClick={() => setParam('fecha', addDays(date, 1))}>
               <ChevronRight />
             </Button>
-            {date !== todayIso() && (
+            {!isToday && (
               <Button variant="ghost" onClick={() => setParam('fecha', todayIso())}>
                 Hoy
               </Button>
             )}
           </div>
-          <div role="tablist" aria-label="Clínica" className="flex flex-wrap gap-1 rounded-md bg-surface-2 p-1">
+          <div role="tablist" aria-label="Clínica" className="flex flex-wrap gap-1">
             {clinics.data?.map((c) => (
               <button
                 key={c.id}
                 role="tab"
                 aria-selected={c.id === clinicId}
                 onClick={() => setParam('clinica', c.id)}
-                className={cn('min-h-10 rounded-sm px-4 font-bold', c.id === clinicId ? 'bg-surface text-ballpoint shadow-sm' : 'text-ink-2 hover:text-ink')}
+                className={cn('flex min-h-11 items-center gap-2 rounded-md px-4 font-bold', c.id === clinicId ? 'bg-ballpoint text-ballpoint-ink' : 'text-ink-2 hover:bg-surface-2 hover:text-ink')}
               >
+                <span className={cn(landing.dot, toneClass(c.name), c.id === clinicId && 'ring-2 ring-ballpoint-ink')} aria-hidden />
                 {c.name.replace('Clínica ', '')}
               </button>
             ))}
@@ -151,75 +231,128 @@ function Agenda() {
         </Notice>
       )}
 
+      {/* Resumen del día */}
+      <StatGrid>
+        <Stat label="Citas del día" value={appts.isPending ? '…' : active.length} icon={CalendarClock} tone="info" note={plural(grid.doctors.length, 'médico atiende', 'médicos atienden')} />
+        <Stat label="Atendidas" value={appts.isPending ? '…' : active.filter((a) => a.status === 'ATTENDED').length} icon={CalendarCheck} tone="good" note="Ya pasaron por consulta" />
+        <Stat
+          label="Por atender"
+          value={appts.isPending ? '…' : active.filter((a) => a.status === 'SCHEDULED').length}
+          icon={UserX}
+          tone="warn"
+          note={`${active.filter((a) => a.status === 'NO_SHOW').length} no asistieron`}
+        />
+        <Stat label="Horarios libres" value={av.isPending ? '…' : freeCount} icon={Sparkles} tone="neutral" note={freeCount ? 'Para dar citas hoy' : 'Agenda llena'} />
+      </StatGrid>
+
       {av.data?.closed ? (
         <EmptyState title="Este día no se atiende">{av.data.closed}</EmptyState>
       ) : appts.isPending || av.isPending ? (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {[0, 1, 2].map((i) => (
-            <Skeleton key={i} className="h-80" />
-          ))}
-        </div>
+        <Skeleton className="h-96" />
       ) : appts.isError ? (
         <Notice tone="warn" title="No se pudo cargar la agenda">
           Revise la conexión. Si está sin internet, se muestra la última agenda guardada en este equipo cuando exista.
         </Notice>
-      ) : columns.visible.length === 0 ? (
+      ) : grid.doctors.length === 0 ? (
         <EmptyState title="No hay médicos este día">Elija otro día u otra clínica.</EmptyState>
       ) : (
-        <div className="grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {columns.visible.map(([doctorId, d]) => (
-            <section key={doctorId} className="flex min-w-0 flex-col rounded-lg border border-rule bg-surface" aria-label={d.name}>
-              <header className="flex items-baseline justify-between gap-2 border-b border-rule px-4 py-3">
-                <h2 className="text-lg font-bold">{d.name}</h2>
-                <span className="tabular text-sm text-ink-3">{plural(d.rows.filter((r) => r.kind === 'appt').length, 'cita', 'citas')}</span>
-              </header>
-              <ol className="flex flex-col">
-                {d.rows.length === 0 && <li className="px-4 py-6 text-ink-3">Sin horarios libres ni citas.</li>}
-                {d.rows.map((r) =>
-                  r.kind === 'free' ? (
-                    <li key={`f-${r.slot.startsAt}`} className="flex min-h-14 items-center gap-3 border-b border-rule/70 px-4">
-                      <span className="w-14 font-mono text-ink-3">{r.slot.label}</span>
-                      {canBook ? (
-                        <button
-                          type="button"
-                          onClick={() => setWizard({ clinicId, date, slot: r.slot })}
-                          className="flex min-h-11 flex-1 items-center gap-2 rounded-md px-2 text-left text-ink-3 hover:bg-ballpoint-soft hover:text-ballpoint"
-                        >
-                          <Plus className="size-5" aria-hidden /> Agendar aquí
-                        </button>
-                      ) : (
-                        <span className="text-ink-3">Libre</span>
-                      )}
+        <>
+          {/* Computadora y tableta: cuadrícula horas × médicos */}
+          <section className="hidden flex-col gap-3 md:flex" aria-label="Agenda por médico y hora">
+            {grid.doctors.length > 1 && (
+              <div role="radiogroup" aria-label="Mostrar médico" className="flex flex-wrap gap-2">
+                {[{ id: '', name: 'Todos', count: active.length }, ...grid.doctors].map((d) => (
+                  <button
+                    key={d.id || 'all'}
+                    type="button"
+                    role="radio"
+                    aria-checked={doctorFilter === d.id}
+                    onClick={() => setDoctorFilter(d.id)}
+                    className={cn(
+                      'flex min-h-10 items-center gap-2 rounded-full border-2 px-4 text-sm font-bold',
+                      doctorFilter === d.id ? 'border-ballpoint bg-ballpoint text-ballpoint-ink' : 'border-rule-strong text-ink-2 hover:border-ballpoint hover:text-ink',
+                    )}
+                  >
+                    {d.name}
+                    <span className={cn('tabular rounded-full px-1.5 text-xs', doctorFilter === d.id ? 'bg-ballpoint-ink/20' : 'bg-surface-2')}>{d.count}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="max-h-[calc(100dvh-12rem)] overflow-auto rounded-lg border border-rule bg-surface">
+              <div className="grid min-w-full" style={{ gridTemplateColumns: `4.5rem repeat(${shown.length}, minmax(13rem, 1fr))` }}>
+                <div className="sticky left-0 top-0 z-20 border-b border-r border-rule bg-surface-2" />
+                {shown.map((d) => (
+                  <div key={d.id} className="sticky top-0 z-10 flex items-baseline justify-between gap-2 border-b border-rule bg-surface-2 px-3 py-2.5">
+                    <span className="truncate font-bold">{d.name}</span>
+                    <span className="tabular shrink-0 text-sm text-ink-3">{plural(d.count, 'cita', 'citas')}</span>
+                  </div>
+                ))}
+                {grid.times.map((t) => {
+                  const now = t === currentTime;
+                  return (
+                    <div key={t} className="contents">
+                      <div
+                        className={cn(
+                          'tabular sticky left-0 z-10 flex min-h-16 items-start justify-end border-b border-r border-rule px-2 pt-2 text-sm',
+                          now ? 'bg-ballpoint font-bold text-ballpoint-ink' : 'bg-surface text-ink-2',
+                        )}
+                      >
+                        {t}
+                      </div>
+                      {shown.map((d) => (
+                        <div key={d.id} className={cn('min-h-16 border-b border-rule p-1', now && 'bg-ballpoint-soft/30')}>
+                          {renderCell(d.id, t)}
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            <p className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-ink-3">
+              <span>Toque una cita para verla o cambiarla.</span>
+              {canBook && <span>Toque “Libre” para agendar ahí.</span>}
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block size-3 rounded-sm bg-[repeating-linear-gradient(135deg,var(--rule-strong)_0,var(--rule-strong)_2px,transparent_2px,transparent_4px)]" aria-hidden />
+                El médico no atiende a esa hora
+              </span>
+            </p>
+          </section>
+
+          {/* Celular: un médico a la vez, como lista de horas */}
+          <section className="flex flex-col gap-3 md:hidden" aria-label="Agenda del médico elegido">
+            <Select aria-label="Médico" value={mobile?.id ?? ''} onChange={(e) => setMobileDoctor(e.target.value)}>
+              {grid.doctors.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name} ({plural(d.count, 'cita', 'citas')})
+                </option>
+              ))}
+            </Select>
+            {mobile && (
+              <ol className="flex flex-col overflow-hidden rounded-lg border border-rule bg-surface">
+                {grid.times
+                  .filter((t) => grid.cell(mobile.id, t).kind !== 'off')
+                  .map((t) => (
+                    <li key={t} className={cn('flex items-stretch gap-2 border-b border-rule p-1.5 last:border-0', t === currentTime && 'bg-ballpoint-soft/40')}>
+                      <span className={cn('tabular w-14 shrink-0 pt-2 text-right text-sm', t === currentTime ? 'font-bold text-ballpoint' : 'text-ink-2')}>{t}</span>
+                      <div className="min-h-14 min-w-0 flex-1">{renderCell(mobile.id, t)}</div>
                     </li>
-                  ) : (
-                    <li key={r.appt.id} className="border-b border-rule/70">
-                      <button type="button" onClick={() => setOpenId(r.appt.id)} className="flex w-full items-start gap-3 px-4 py-3 text-left hover:bg-surface-2">
-                        <span className="w-14 pt-0.5 font-mono font-medium">{time(r.appt.startsAt)}</span>
-                        <span className="flex min-w-0 flex-1 flex-col gap-1">
-                          <span className="truncate font-bold">{r.appt.patient.fullName}</span>
-                          <span className="flex flex-wrap items-center gap-2 text-sm text-ink-2">
-                            <StatusBadge status={r.appt.status} />
-                            <span className="font-mono">{phone(r.appt.patient.phone)}</span>
-                          </span>
-                        </span>
-                      </button>
-                    </li>
-                  ),
-                )}
+                  ))}
               </ol>
-            </section>
-          ))}
-        </div>
+            )}
+          </section>
+        </>
       )}
 
-      {columns.cancelled.length > 0 && (
+      {cancelled.length > 0 && (
         <details className="rounded-lg border border-rule bg-surface px-4 py-3">
-          <summary className="cursor-pointer font-bold">Canceladas este día ({columns.cancelled.length}) — se pueden reactivar</summary>
+          <summary className="cursor-pointer font-bold">Canceladas este día ({cancelled.length}): se pueden reactivar</summary>
           <ul className="mt-3 flex flex-col gap-1">
-            {columns.cancelled.map((a) => (
+            {cancelled.map((a) => (
               <li key={a.id}>
                 <button type="button" onClick={() => setOpenId(a.id)} className="flex w-full flex-wrap items-center gap-3 rounded-md px-2 py-2 text-left hover:bg-surface-2">
-                  <span className="font-mono text-ink-3 line-through decoration-redpen">{time(a.startsAt)}</span>
+                  <span className="tabular text-ink-3 line-through decoration-redpen">{time(a.startsAt)}</span>
                   <span className="font-bold">{a.patient.fullName}</span>
                   <span className="text-ink-2">{a.doctor.fullName}</span>
                 </button>
