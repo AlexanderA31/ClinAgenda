@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CalendarPlus, ExternalLink, MapPin, Phone, XCircle } from 'lucide-react';
+import { CalendarPlus, ExternalLink, FileDown, MapPin, Phone, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { PORTAL_LIMITS, type PortalAppointment } from '@clinagenda/schemas';
 import { api, errorMessage } from '@/lib/api';
@@ -145,9 +145,14 @@ function UpcomingCard({ appt: a }: { appt: PortalAppointment }) {
         )}
         <p className="text-sm text-ink-3">Código {a.code}. Llegue 10 minutos antes con su documento.</p>
         <div className="mt-auto flex flex-wrap gap-2 border-t border-rule pt-4">
+          <Button size="sm" asChild>
+            <a href={`/api/portal/appointments/${a.id}/comprobante.pdf`} download={`comprobante-${a.code}.pdf`}>
+              <FileDown /> Descargar PDF
+            </a>
+          </Button>
           <Button variant="secondary" size="sm" asChild>
             <a href={a.link} target="_blank" rel="noreferrer">
-              <ExternalLink /> Comprobante
+              <ExternalLink /> Ver en línea
             </a>
           </Button>
           {a.canCancel ? (

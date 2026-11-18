@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Query, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Query, Res, StreamableFile, UseGuards } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { PatientLoginSchema, PatientRegisterSchema, PortalAvailabilityQuerySchema, PortalBookSchema } from '@clinagenda/schemas';
@@ -68,6 +68,14 @@ export class PortalController {
   @Post('appointments')
   book(@CurrentPatient() session: PatientSession, @Body() body: PortalBookDto, @ReqMeta() meta: RequestMeta) {
     return this.portal.book(session, body, meta);
+  }
+
+  /** Comprobante para descargar (PDF con QR para ver o cancelar). */
+  @UseGuards(PatientAuthGuard)
+  @Get('appointments/:id/comprobante.pdf')
+  async receipt(@CurrentPatient() session: PatientSession, @Param('id', ParseUUIDPipe) id: string) {
+    const { filename, pdf } = await this.portal.receipt(session, id);
+    return new StreamableFile(pdf, { type: 'application/pdf', disposition: `attachment; filename="${filename}"` });
   }
 
   @UseGuards(PatientAuthGuard)

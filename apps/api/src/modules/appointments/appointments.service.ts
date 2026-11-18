@@ -19,6 +19,7 @@ import { Db, PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { DomainError } from '../../common/errors/domain-error';
 import { DEFAULT_TZ, formatLocal, rangeBoundsUtc } from '../../common/utils/time';
+import { receiptPdf } from '../../common/utils/receipt-pdf';
 import { AppointmentWithRelations, appointmentCode, canSeeClinicalNote, toAppointmentView } from '../../common/utils/views';
 import type { RequestMeta } from '../../common/decorators/auth.decorators';
 import { SchedulingService } from './scheduling.service';
@@ -85,6 +86,24 @@ export class AppointmentsService {
       await this.audit.log({ userId: user.id, action: 'VIEW_CLINICAL', entity: 'Appointment', entityId: id, summary: `Consultó la nota clínica de ${appointmentCode(appt.code)}` });
     }
     return this.view(appt, user, await this.userNames([appt]));
+  }
+
+  /** Comprobante en PDF para imprimir o enviar al paciente. */
+  async receipt(id: string, user: SessionUser): Promise<{ filename: string; pdf: Buffer }> {
+    const a = await this.load(id, user);
+    const code = appointmentCode(a.code);
+    const pdf = await receiptPdf({
+      code,
+      status: a.status,
+      startsAt: a.startsAt,
+      timezone: a.clinic.timezone,
+      patientName: `${a.patient.firstNames} ${a.patient.lastNames}`,
+      doctorName: a.doctor.fullName,
+      specialty: a.doctor.specialty,
+      clinic: { name: a.clinic.name, address: a.clinic.address, phone: a.clinic.phone },
+      publicToken: a.publicToken,
+    });
+    return { filename: `comprobante-${code}.pdf`, pdf };
   }
 
   async events(id: string, user: SessionUser): Promise<AppointmentEventView[]> {

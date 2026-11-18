@@ -20,6 +20,7 @@ import { DomainError } from '../../common/errors/domain-error';
 import type { RequestMeta } from '../../common/decorators/auth.decorators';
 import { appointmentCode, patientCode } from '../../common/utils/views';
 import { formatLocal } from '../../common/utils/time';
+import { receiptPdf } from '../../common/utils/receipt-pdf';
 import { SchedulingService } from '../appointments/scheduling.service';
 import { PublicService } from '../public/public.service';
 import type { PatientSession } from './patient-auth.guard';
@@ -215,6 +216,25 @@ export class PortalService {
     if (!appt) throw DomainError.notFound('esa cita');
     await this.publicLinks.cancel(appt.publicToken, meta);
     return this.toView(await this.prisma.appointment.findUniqueOrThrow({ where: { id }, include: { doctor: true, clinic: true } }));
+  }
+
+  /** Comprobante en PDF de una cita propia. */
+  async receipt(session: PatientSession, id: string): Promise<{ filename: string; pdf: Buffer }> {
+    const a = await this.prisma.appointment.findFirst({ where: { id, patientId: session.patientId }, include: { patient: true, doctor: true, clinic: true } });
+    if (!a) throw DomainError.notFound('esa cita');
+    const code = appointmentCode(a.code);
+    const pdf = await receiptPdf({
+      code,
+      status: a.status,
+      startsAt: a.startsAt,
+      timezone: a.clinic.timezone,
+      patientName: `${a.patient.firstNames} ${a.patient.lastNames}`,
+      doctorName: a.doctor.fullName,
+      specialty: a.doctor.specialty,
+      clinic: { name: a.clinic.name, address: a.clinic.address, phone: a.clinic.phone },
+      publicToken: a.publicToken,
+    });
+    return { filename: `comprobante-${code}.pdf`, pdf };
   }
 
   private sign(accountId: string, version: number) {

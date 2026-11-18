@@ -2,9 +2,9 @@
 
 import { use, useEffect, useState } from 'react';
 import QRCode from 'qrcode';
-import { Printer } from 'lucide-react';
+import { FileDown, Printer } from 'lucide-react';
 import { errorMessage } from '@/lib/api';
-import { dayLabel, time } from '@/lib/format';
+import { longDate, time } from '@/lib/format';
 import { useAppointment } from '@/lib/queries';
 import { patientUrl } from '@/lib/whatsapp';
 import { Button } from '@/components/ui/button';
@@ -25,12 +25,22 @@ export default function Comprobante({ params }: { params: Promise<{ id: string }
   }, [appt.data]);
 
   if (appt.isPending) return <Skeleton className="m-8 h-96" />;
-  if (appt.isError) return <div className="p-8"><Notice tone="danger">{errorMessage(appt.error)}</Notice></div>;
+  if (appt.isError)
+    return (
+      <div className="p-8">
+        <Notice tone="danger">{errorMessage(appt.error)}</Notice>
+      </div>
+    );
   const a = appt.data;
 
   return (
     <main className="mx-auto flex max-w-xl flex-col gap-6 bg-white p-8 text-black print:p-0">
-      <div className="flex justify-end print:hidden">
+      <div className="flex justify-end gap-2 print:hidden">
+        <Button variant="secondary" asChild>
+          <a href={`/api/appointments/${a.id}/comprobante.pdf`} download={`comprobante-${a.code}.pdf`}>
+            <FileDown /> Descargar PDF
+          </a>
+        </Button>
         <Button onClick={() => window.print()}>
           <Printer /> Imprimir
         </Button>
@@ -43,11 +53,13 @@ export default function Comprobante({ params }: { params: Promise<{ id: string }
         <dt className="font-bold">Paciente</dt>
         <dd>{a.patient.fullName}</dd>
         <dt className="font-bold">Día</dt>
-        <dd className="first-letter:uppercase">{dayLabel(a.startsAt.slice(0, 10))}</dd>
+        <dd className="first-letter:uppercase">{longDate(a.startsAt)}</dd>
         <dt className="font-bold">Hora</dt>
         <dd className="font-mono text-2xl font-bold">{time(a.startsAt)}</dd>
         <dt className="font-bold">Médico</dt>
-        <dd>{a.doctor.fullName} ({a.doctor.specialty})</dd>
+        <dd>
+          {a.doctor.fullName} ({a.doctor.specialty})
+        </dd>
         <dt className="font-bold">Código</dt>
         <dd className="font-mono">{a.code}</dd>
       </dl>

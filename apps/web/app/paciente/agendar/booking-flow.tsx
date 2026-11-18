@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CalendarCheck, ChevronLeft, ChevronRight, ExternalLink, MapPin, PartyPopper } from 'lucide-react';
+import { CalendarCheck, ChevronLeft, ChevronRight, FileDown, MapPin, PartyPopper } from 'lucide-react';
 import { PORTAL_LIMITS, type PortalAppointment, type PortalSlot, type PublicDirectory } from '@clinagenda/schemas';
 import { ApiRequestError, api, errorMessage } from '@/lib/api';
 import { addDays, dayLabel, longDate, time, todayIso } from '@/lib/format';
@@ -127,7 +127,7 @@ export function BookingFlow({ directory }: { directory: PublicDirectory }) {
               </p>
             )}
           </div>
-          <div role="radiogroup" aria-label="Clínica" className="flex flex-wrap gap-2">
+          <div role="radiogroup" aria-label="Clínica" className="flex flex-wrap gap-1 rounded-lg border border-rule bg-surface p-1.5">
             {directory.clinics.map((c) => (
               <button
                 key={c.id}
@@ -135,165 +135,194 @@ export function BookingFlow({ directory }: { directory: PublicDirectory }) {
                 role="radio"
                 aria-checked={c.id === clinicId}
                 onClick={() => pickClinic(c.id)}
-                className={cn(
-                  toneClass(c.name),
-                  'flex min-h-11 items-center gap-2 rounded-full border-2 px-4 font-bold',
-                  c.id === clinicId ? 'border-[var(--tone)] bg-[var(--tone)] text-[var(--tone-ink)]' : 'border-rule-strong text-ink-2 hover:border-[var(--tone)]',
-                )}
+                className={cn('flex min-h-11 items-center gap-2 rounded-md px-4 font-bold', c.id === clinicId ? 'bg-ballpoint text-ballpoint-ink' : 'text-ink-2 hover:bg-surface-2 hover:text-ink')}
               >
-                <span className={cn(landing.dot, c.id === clinicId && 'ring-2 ring-[var(--tone-ink)]')} aria-hidden />
-                {c.name}
+                <span className={cn(landing.dot, toneClass(c.name), c.id === clinicId && 'ring-2 ring-ballpoint-ink')} aria-hidden />
+                {c.name.replace('Clínica ', '')}
               </button>
             ))}
           </div>
         </div>
 
         {/* Una sola sección: médico | calendario | hora */}
-        <section
-          className={cn(
-            clinic && toneClass(clinic.name),
-            'grid overflow-hidden rounded-2xl border-2 border-[var(--tone,var(--rule))] bg-surface lg:grid-cols-[minmax(0,19rem)_minmax(0,1fr)_minmax(0,19rem)]',
-          )}
-          aria-label="Elegir médico, día y hora"
-        >
+        <section className="grid overflow-hidden rounded-lg border border-rule bg-surface lg:grid-cols-[minmax(0,19rem)_minmax(0,1fr)_minmax(0,19rem)]" aria-label="Elegir médico, día y hora">
           {/* 1. Médico */}
-          <div className="flex min-w-0 flex-col gap-3 border-b border-rule p-4 lg:border-b-0 lg:border-r">
-            <h2 className="font-display text-lg font-bold">1. Médico</h2>
-            {specialties.length > 1 && (
-              <Select aria-label="Especialidad" value={specialty} onChange={(e) => setSpecialty(e.target.value)}>
-                <option value="">Todas las especialidades</option>
-                {specialties.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </Select>
-            )}
-            <ul className="flex max-h-[19rem] flex-col gap-1 overflow-y-auto pr-1">
-              {doctors.map((d) => {
-                const selected = d.id === doctorId;
-                return (
-                  <li key={d.id}>
-                    <button
-                      type="button"
-                      aria-pressed={selected}
-                      onClick={() => pickDoctor(d.id)}
-                      className={cn(
-                        'flex w-full items-center gap-3 rounded-xl border-2 p-2.5 text-left',
-                        selected ? 'border-[var(--tone)] bg-[var(--tone)]/10' : 'border-transparent hover:border-rule',
-                      )}
-                    >
-                      <span className={cn(landing.avatar, landing.avatarSmall)} aria-hidden>
-                        {initials(d.fullName)}
-                      </span>
-                      <span className="flex min-w-0 flex-col leading-tight">
-                        <span className="truncate font-bold">{d.fullName}</span>
-                        <span className="truncate text-sm text-ink-2">{d.specialty}</span>
-                        <span className="text-xs text-ink-3">{daysShort(d.assignments.filter((a) => a.clinicId === clinicId).map((a) => a.weekday))}</span>
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
+          <div className="flex min-w-0 flex-col border-b border-rule lg:border-b-0 lg:border-r">
+            <ColumnHead title="1. Médico" note={`${doctors.length} en ${clinic?.name.replace('Clínica ', '') ?? ''}`} />
+            <div className="flex min-w-0 flex-col gap-2 p-3">
+              {specialties.length > 1 && (
+                <Select aria-label="Especialidad" value={specialty} onChange={(e) => setSpecialty(e.target.value)}>
+                  <option value="">Todas las especialidades</option>
+                  {specialties.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </Select>
+              )}
+              <ul className="flex max-h-[19rem] flex-col gap-1 overflow-y-auto">
+                {doctors.map((d) => {
+                  const selected = d.id === doctorId;
+                  return (
+                    <li key={d.id}>
+                      <button
+                        type="button"
+                        aria-pressed={selected}
+                        onClick={() => pickDoctor(d.id)}
+                        className={cn('flex w-full items-center gap-3 rounded-md px-2.5 py-2 text-left', selected ? 'bg-ballpoint text-ballpoint-ink' : 'hover:bg-surface-2')}
+                      >
+                        <span
+                          className={cn('grid size-10 shrink-0 place-items-center rounded-full font-bold', selected ? 'bg-ballpoint-ink/20 text-ballpoint-ink' : 'bg-ballpoint-soft text-ballpoint')}
+                          aria-hidden
+                        >
+                          {initials(d.fullName)}
+                        </span>
+                        <span className="flex min-w-0 flex-col leading-tight">
+                          <span className="truncate font-bold">{d.fullName}</span>
+                          <span className={cn('truncate text-sm', selected ? 'opacity-90' : 'text-ink-2')}>{d.specialty}</span>
+                          <span className={cn('text-xs', selected ? 'opacity-80' : 'text-ink-3')}>{daysShort(d.assignments.filter((a) => a.clinicId === clinicId).map((a) => a.weekday))}</span>
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
           </div>
 
           {/* 2. Calendario del mes */}
-          <div className="flex min-w-0 flex-col gap-3 border-b border-rule p-4 lg:border-b-0 lg:border-r">
-            <div className="flex items-center justify-between gap-2">
-              <h2 className="whitespace-nowrap font-display text-lg font-bold">2. Día</h2>
+          <div className="flex min-w-0 flex-col border-b border-rule lg:border-b-0 lg:border-r">
+            <div className="flex items-center justify-between gap-2 border-b border-rule bg-surface-2 px-4 py-1.5">
+              <h2 className="whitespace-nowrap font-bold">2. Día</h2>
               <div className="flex items-center gap-1">
-                <Button variant="ghost" size="icon" className="size-9" aria-label="Mes anterior" disabled={month === 0} onClick={() => setMonth((m) => m - 1)}>
+                <Button variant="secondary" size="icon" className="size-9" aria-label="Mes anterior" disabled={month === 0} onClick={() => setMonth((m) => m - 1)}>
                   <ChevronLeft />
                 </Button>
                 <span className="whitespace-nowrap text-center text-sm font-bold first-letter:uppercase sm:min-w-36 sm:text-base">{monthName(first)}</span>
-                <Button variant="ghost" size="icon" className="size-9" aria-label="Mes siguiente" disabled={monthStart(today, month + 1) > lastAllowed} onClick={() => setMonth((m) => m + 1)}>
+                <Button variant="secondary" size="icon" className="size-9" aria-label="Mes siguiente" disabled={monthStart(today, month + 1) > lastAllowed} onClick={() => setMonth((m) => m + 1)}>
                   <ChevronRight />
                 </Button>
               </div>
             </div>
-            <div className="grid grid-cols-7 gap-1 text-center" role="grid" aria-label={`Calendario de ${monthName(first)}`}>
-              {WEEK_HEAD.map((w) => (
-                <span key={w} className="py-1 text-xs font-bold text-ink-3" role="columnheader">
-                  {w}
-                </span>
-              ))}
-              {cells.map((d, i) =>
-                d === null ? (
-                  <span key={`b${i}`} />
+            <div className="flex flex-col gap-3 p-3">
+              <div className="grid grid-cols-7 gap-1 text-center" role="grid" aria-label={`Calendario de ${monthName(first)}`}>
+                {WEEK_HEAD.map((w) => (
+                  <span key={w} className="py-1 text-xs font-bold text-ink-3" role="columnheader">
+                    {w}
+                  </span>
+                ))}
+                {cells.map((d, i) =>
+                  d === null ? (
+                    <span key={`b${i}`} />
+                  ) : (
+                    <button
+                      key={d}
+                      type="button"
+                      role="gridcell"
+                      disabled={!bookable.has(d)}
+                      aria-selected={d === date}
+                      aria-label={dayLabel(d)}
+                      onClick={() => pickDate(d)}
+                      className={cn(
+                        'tabular flex h-10 w-full items-center justify-center rounded-md text-sm sm:text-base',
+                        d === date
+                          ? 'bg-ballpoint font-bold text-ballpoint-ink'
+                          : bookable.has(d)
+                            ? 'border-2 border-dashed border-rule font-bold text-ink hover:border-ballpoint hover:bg-ballpoint-soft hover:text-ballpoint'
+                            : 'bg-[repeating-linear-gradient(135deg,var(--surface-2)_0,var(--surface-2)_5px,transparent_5px,transparent_10px)] text-ink-3',
+                        d === today && d !== date && 'ring-2 ring-ballpoint ring-offset-1 ring-offset-surface',
+                      )}
+                    >
+                      {Number(d.slice(8, 10))}
+                    </button>
+                  ),
+                )}
+              </div>
+              <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-ink-3">
+                {doctor ? (
+                  <>
+                    <span className="flex items-center gap-1.5">
+                      <span className="inline-block size-3 rounded-sm border-2 border-dashed border-rule-strong" aria-hidden /> Atiende ese día
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="inline-block size-3 rounded-sm bg-[repeating-linear-gradient(135deg,var(--rule-strong)_0,var(--rule-strong)_2px,transparent_2px,transparent_4px)]" aria-hidden />{' '}
+                      No atiende
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="inline-block size-3 rounded-sm ring-2 ring-ballpoint" aria-hidden /> Hoy
+                    </span>
+                  </>
                 ) : (
-                  <button
-                    key={d}
-                    type="button"
-                    role="gridcell"
-                    disabled={!bookable.has(d)}
-                    aria-selected={d === date}
-                    aria-label={dayLabel(d)}
-                    onClick={() => pickDate(d)}
-                    className={cn(
-                      'tabular flex h-10 w-full items-center justify-center rounded-lg text-sm font-bold sm:text-base',
-                      d === date ? 'bg-[var(--tone)] text-[var(--tone-ink)]' : bookable.has(d) ? 'border-2 border-[var(--tone)]/40 text-ink hover:bg-[var(--tone)]/15' : 'font-normal text-ink-3/50',
-                      d === today && d !== date && 'underline decoration-2 underline-offset-4',
-                    )}
-                  >
-                    {Number(d.slice(8, 10))}
-                  </button>
-                ),
-              )}
+                  'Elija un médico para ver sus días de atención.'
+                )}
+              </p>
             </div>
-            <p className="text-sm text-ink-3">{doctor ? `Días con borde: ${doctor.fullName} atiende en ${clinic?.name}.` : 'Elija un médico para ver sus días de atención.'}</p>
           </div>
 
           {/* 3. Hora y confirmación */}
-          <div className="flex min-w-0 flex-col gap-3 p-4">
-            <h2 className="font-display text-lg font-bold">3. Hora</h2>
-            {!date ? (
-              <p className="text-ink-3">{doctor ? 'Toque un día en el calendario.' : 'Primero elija médico y día.'}</p>
-            ) : av.isPending ? (
-              <Skeleton className="h-32" />
-            ) : av.isError ? (
-              <Notice tone="danger">{errorMessage(av.error)}</Notice>
-            ) : av.data.closed ? (
-              <Notice tone="warn">{av.data.closed}</Notice>
-            ) : !av.data.slots.length ? (
-              <Notice tone="info">No quedan horas libres ese día. Elija otro (en línea se agenda con {PORTAL_LIMITS.minHoursAhead} horas de anticipación).</Notice>
-            ) : (
-              <>
-                <div className="grid max-h-44 grid-cols-3 gap-1.5 overflow-y-auto">
-                  {av.data.slots.map((s) => (
-                    <button
-                      key={s.startsAt}
-                      type="button"
-                      aria-pressed={slot?.startsAt === s.startsAt}
-                      onClick={() => setSlot(s)}
-                      className={cn(
-                        'tabular min-h-10 rounded-lg border-2 font-bold',
-                        slot?.startsAt === s.startsAt ? 'border-[var(--tone)] bg-[var(--tone)] text-[var(--tone-ink)]' : 'border-rule hover:border-[var(--tone)]',
-                      )}
-                    >
-                      {s.label}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
+          <div className="flex min-w-0 flex-col">
+            <ColumnHead title="3. Hora" note={date ? dayLabel(date) : undefined} />
+            <div className="flex min-w-0 flex-col gap-3 p-3">
+              {!date ? (
+                <p className="text-ink-3">{doctor ? 'Toque un día en el calendario.' : 'Primero elija médico y día.'}</p>
+              ) : av.isPending ? (
+                <Skeleton className="h-32" />
+              ) : av.isError ? (
+                <Notice tone="danger">{errorMessage(av.error)}</Notice>
+              ) : av.data.closed ? (
+                <Notice tone="warn">{av.data.closed}</Notice>
+              ) : !av.data.slots.length ? (
+                <Notice tone="info">No quedan horas libres ese día. Elija otro (en línea se agenda con {PORTAL_LIMITS.minHoursAhead} horas de anticipación).</Notice>
+              ) : (
+                <>
+                  <div className="grid max-h-44 grid-cols-3 gap-1.5 overflow-y-auto">
+                    {av.data.slots.map((s) => (
+                      <button
+                        key={s.startsAt}
+                        type="button"
+                        aria-pressed={slot?.startsAt === s.startsAt}
+                        onClick={() => setSlot(s)}
+                        className={cn(
+                          'tabular min-h-10 rounded-md font-bold',
+                          slot?.startsAt === s.startsAt
+                            ? 'bg-ballpoint text-ballpoint-ink'
+                            : 'border-2 border-dashed border-rule text-ink hover:border-ballpoint hover:bg-ballpoint-soft hover:text-ballpoint',
+                        )}
+                      >
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
 
-            {slot && doctor && date && (
-              <div className="flex flex-col gap-2 border-t border-rule pt-3">
-                <p className="text-sm">
-                  <strong className="first-letter:uppercase">{dayLabel(date)}</strong>, a las <strong>{slot.label}</strong>, con <strong>{doctor.fullName}</strong>.
-                </p>
-                <Input aria-label="Motivo de la consulta (opcional)" placeholder="Motivo (opcional)" maxLength={200} value={reason} onChange={(e) => setReason(e.target.value)} />
-                {book.isError && <Notice tone="danger">{errorMessage(book.error)}</Notice>}
-                <Button size="lg" className="rounded-full" disabled={book.isPending} onClick={() => book.mutate()}>
-                  <CalendarCheck /> {book.isPending ? 'Agendando…' : 'Confirmar cita'}
-                </Button>
-              </div>
-            )}
+              {slot && doctor && date && (
+                <div className="flex flex-col gap-2 border-t border-rule pt-3">
+                  <p className="text-sm">
+                    <strong className="first-letter:uppercase">{dayLabel(date)}</strong>, a las <strong>{slot.label}</strong>, con <strong>{doctor.fullName}</strong>.
+                  </p>
+                  <Input aria-label="Motivo de la consulta (opcional)" placeholder="Motivo (opcional)" maxLength={200} value={reason} onChange={(e) => setReason(e.target.value)} />
+                  {book.isError && <Notice tone="danger">{errorMessage(book.error)}</Notice>}
+                  <Button size="lg" disabled={book.isPending} onClick={() => book.mutate()}>
+                    <CalendarCheck /> {book.isPending ? 'Agendando…' : 'Confirmar cita'}
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
         </section>
       </div>
     </main>
+  );
+}
+
+/** Encabezado de columna con el mismo aspecto que los de la cuadrícula de la agenda del personal. */
+function ColumnHead({ title, note }: { title: string; note?: string }) {
+  return (
+    <div className="flex min-h-12 items-baseline justify-between gap-2 border-b border-rule bg-surface-2 px-4 py-2.5">
+      <h2 className="whitespace-nowrap font-bold">{title}</h2>
+      {note && <span className="truncate text-sm text-ink-3 first-letter:uppercase">{note}</span>}
+    </div>
   );
 }
 
@@ -319,8 +348,8 @@ function Done({ appt: a }: { appt: PortalAppointment }) {
               <Link href="/paciente">Ver mis citas</Link>
             </Button>
             <Button variant="secondary" size="lg" className="rounded-full" asChild>
-              <a href={a.link} target="_blank" rel="noreferrer">
-                <ExternalLink /> Comprobante
+              <a href={`/api/portal/appointments/${a.id}/comprobante.pdf`} download={`comprobante-${a.code}.pdf`}>
+                <FileDown /> Descargar comprobante (PDF)
               </a>
             </Button>
           </div>

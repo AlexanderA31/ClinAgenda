@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Query, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Query, StreamableFile, UseInterceptors } from '@nestjs/common';
 import { ApiHeader, ApiTags } from '@nestjs/swagger';
 import {
   AppointmentCancelSchema,
@@ -53,6 +53,12 @@ export class AppointmentsController {
   @Get(':id')
   get(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: SessionUser) {
     return this.appointments.get(id, user);
+  }
+
+  @Get(':id/comprobante.pdf')
+  async receipt(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: SessionUser) {
+    const { filename, pdf } = await this.appointments.receipt(id, user);
+    return new StreamableFile(pdf, { type: 'application/pdf', disposition: `attachment; filename="${filename}"` });
   }
 
   @Get(':id/events')

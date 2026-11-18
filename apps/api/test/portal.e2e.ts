@@ -102,6 +102,24 @@ describe('Portal del paciente', () => {
     expect(events.body[0].summary).toMatch(/en línea/);
   });
 
+  it('descarga el comprobante en PDF (el paciente y el personal)', async () => {
+    const mine: PortalAppointment[] = (await http.get('/api/portal/appointments').set(bearer(patient))).body;
+    const target = mine.find((a) => a.status === 'SCHEDULED')!;
+    const pdf = await http.get(`/api/portal/appointments/${target.id}/comprobante.pdf`).set(bearer(patient)).buffer(true).parse((res, cb) => {
+      const parts: Buffer[] = [];
+      res.on('data', (c: Buffer) => parts.push(c));
+      res.on('end', () => cb(null, Buffer.concat(parts)));
+    });
+    expect(pdf.status).toBe(200);
+    expect(pdf.headers['content-type']).toContain('application/pdf');
+    expect(pdf.headers['content-disposition']).toContain(`comprobante-${target.code}.pdf`);
+    expect((pdf.body as Buffer).subarray(0, 4).toString()).toBe('%PDF');
+    await http.get(`/api/appointments/${target.id}/comprobante.pdf`).set(bearer(admin)).expect(200);
+    // Una cita de otro paciente no se puede descargar desde el portal.
+    const other = (await http.get('/api/appointments').query({ pageSize: 1 }).set(bearer(admin))).body.items[0];
+    if (other.id !== target.id) await http.get(`/api/portal/appointments/${other.id}/comprobante.pdf`).set(bearer(patient)).expect(404);
+  });
+
   it('máximo 2 citas por venir', async () => {
     const slots = await freeSlots();
     const upcoming = (await http.get('/api/portal/appointments').set(bearer(patient))).body.filter((a: PortalAppointment) => a.status === 'SCHEDULED').length;
