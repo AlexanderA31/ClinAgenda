@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { BellRing, CalendarClock, CheckCircle2, Copy, History, MessageCircle, NotebookPen, Printer, Undo2, UserX, XCircle } from 'lucide-react';
+import { BellRing, CalendarClock, CheckCircle2, ClipboardList, Copy, History, MessageCircle, NotebookPen, Printer, Undo2, UserX, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { CANCEL_REASON_LABELS, STAFF_CANCEL_REASONS, type AppointmentView, type AvailabilitySlot } from '@clinagenda/schemas';
 import { OfflineError, api, errorMessage } from '@/lib/api';
@@ -74,6 +74,9 @@ function PanelBody({ id }: { id: string }) {
   const isFuture = new Date(a.startsAt).getTime() > Date.now();
   const canMark = a.status === 'SCHEDULED' && new Date(a.startsAt).getTime() <= Date.now() + 15 * 60_000;
   const canNote = user.permissions.includes('citas.notas') && (user.role === 'ADMIN' || (user.role === 'MEDICO' && user.doctorId === a.doctor.id));
+  // El médico de la cita, cuando ya llegó la hora, va directo a registrar la consulta en la ficha.
+  const canConsult =
+    user.permissions.includes('fichas.editar') && user.doctorId === a.doctor.id && ['SCHEDULED', 'ATTENDED', 'NO_SHOW'].includes(a.status) && new Date(a.startsAt).getTime() <= Date.now() + 3600_000;
 
   return (
     <div className="flex flex-col gap-6">
@@ -183,6 +186,13 @@ function PanelBody({ id }: { id: string }) {
 
       {a.status === 'SCHEDULED' && isFuture && canWaitlist && <NotifyPatient appt={a} onChanged={refresh} />}
 
+      {user.role !== 'RECEPCION' && (
+        <Button asChild variant={canConsult ? 'primary' : 'secondary'} className="self-start">
+          <Link href={`/pacientes/${a.patient.id}?vista=ficha${canConsult ? `&consulta=${a.id}` : ''}`}>
+            <ClipboardList /> {canConsult ? 'Registrar consulta en la ficha' : 'Ver ficha médica'}
+          </Link>
+        </Button>
+      )}
       {canNote && <ClinicalNote appt={a} onSaved={refresh} />}
 
       <section className="flex flex-col gap-2">

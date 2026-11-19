@@ -78,10 +78,20 @@ Los permisos se aplican en el servidor, no solo ocultando botones, y un cambio d
 - Tras 5 contraseñas equivocadas el usuario se bloquea 15 minutos; la dirección puede desbloquearlo.
 - La sesión se cierra sola a las 8 horas. Al salir se borra del equipo la copia de datos guardada para trabajar sin internet.
 - Las notas clínicas solo viajan al médico de la cita y a la dirección, y cada lectura queda registrada.
+- La **ficha médica** (antecedentes y consultas) la ven la dirección y los médicos que atienden o atendieron a ese paciente; un médico no puede abrir la de pacientes que nunca vio. Recepción no la ve nunca, aunque la dirección le dé por error el permiso de escribir: el alcance del rol manda sobre los permisos. Cada lectura queda en la bitácora.
 - En producción el sistema funciona solo por **HTTPS** (conexión cifrada) y la API no queda expuesta a internet.
 - El enlace que recibe el paciente muestra únicamente su primer nombre, la hora, el médico y la clínica: nada de cédula, teléfono ni datos médicos.
 
 Son datos de salud, que la Ley Orgánica de Protección de Datos Personales del Ecuador considera sensibles. Recomendamos además un acuerdo de confidencialidad firmado por el personal y un aviso de privacidad para los pacientes (texto a cargo de la clínica).
+
+**¿Cómo se lleva la ficha médica?**
+- Es **una sola ficha por paciente, compartida** por todos sus médicos. Si el pediatra de Norte anota una alergia, la ve el médico general de Sur.
+- Tiene **antecedentes**, que se corrigen cuando cambian, y **consultas**, una por atención, con signos vitales, diagnóstico y plan. Una consulta puede quedar ligada a su cita, y cada cita tiene como máximo una.
+- **Las consultas no se borran.** Su autor puede corregirlas durante 24 horas, para errores de tipeo. Pasado ese tiempo la ficha queda fija: si hay que corregir algo, se registra una consulta nueva. Así nadie puede reescribir después lo que se le indicó al paciente.
+- **Los signos vitales tienen rangos** que atrapan errores de tipeo, como un peso de 700 kg o una temperatura de 3,65 °C, sin rechazar casos clínicos raros.
+- **La bitácora anota quién cambió qué campo, pero no copia el contenido clínico**: así quien puede leer la bitácora no lee también las fichas.
+- **Al unir pacientes duplicados**, las consultas pasan al paciente que se conserva y los antecedentes se completan. Si los dos dicen cosas distintas, se conservan ambos textos.
+- **No se incluyen todavía** recetas impresas, códigos CIE-10, adjuntos (exámenes o imágenes) ni que el paciente vea su ficha en el portal. Quedan para cuando la doctora lo pida.
 
 **Si alguien cambia o borra una cita, ¿cómo se sabe quién y cuándo?**
 Las citas **no se pueden borrar**, solo cancelar. Cada cambio queda en la **bitácora** con usuario, fecha, equipo y lo que había antes y después; la bitácora no la puede editar nadie, ni la dirección. Cada cita muestra además su propio historial.

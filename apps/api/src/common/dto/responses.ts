@@ -7,12 +7,14 @@ import {
   AuditEntryViewSchema,
   AvailabilitySlotSchema,
   ClinicViewSchema,
+  ConsultationViewSchema,
   DashboardReportSchema,
   DoctorViewSchema,
   DuplicateCandidateSchema,
   ImportReportSchema,
   IsoDateTimeSchema,
   IsoDaySchema,
+  MedicalRecordViewSchema,
   MyProfileSchema,
   NotificationListSchema,
   OkSchema,
@@ -61,6 +63,8 @@ export class PublicDirectoryDto extends createZodDto(PublicDirectorySchema) {}
 export class PatientViewDto extends createZodDto(PatientViewSchema) {}
 export class PatientDetailDto extends createZodDto(PatientViewSchema.extend({ mergedIntoId: z.string().uuid().nullable() })) {}
 export class PatientPageDto extends createZodDto(paginatedSchema(PatientViewSchema)) {}
+export class MedicalRecordViewDto extends createZodDto(MedicalRecordViewSchema) {}
+export class ConsultationViewDto extends createZodDto(ConsultationViewSchema) {}
 export class DuplicateCandidateDto extends createZodDto(DuplicateCandidateSchema) {}
 export class MergeResultDto extends createZodDto(z.object({ keptId: z.string().uuid(), movedAppointments: z.number().int() })) {}
 

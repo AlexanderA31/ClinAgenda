@@ -43,6 +43,25 @@ function toData(input: PatientCreate) {
   };
 }
 
+/** Antecedentes de la ficha unida: completan los vacíos de la que se conserva y, si ambas dicen algo distinto, se agregan debajo. */
+async function mergeMedicalRecords(tx: Prisma.TransactionClient, keepId: string, mergeId: string) {
+  const [keep, merged] = await Promise.all([tx.medicalRecord.findUnique({ where: { patientId: keepId } }), tx.medicalRecord.findUnique({ where: { patientId: mergeId } })]);
+  if (!merged) return;
+  const { patientId: _p, createdAt: _c, updatedAt: _u, ...fields } = merged;
+  if (!keep) {
+    await tx.medicalRecord.create({ data: { ...fields, patientId: keepId } });
+    return;
+  }
+  const texts = ['allergies', 'chronicConditions', 'medications', 'surgicalHistory', 'familyHistory', 'habits', 'notes'] as const;
+  const data: Prisma.MedicalRecordUpdateInput = { bloodType: keep.bloodType ?? merged.bloodType };
+  for (const k of texts) {
+    const a = keep[k];
+    const b = merged[k];
+    data[k] = !a ? b : b && b !== a ? `${a}\n${b}` : a;
+  }
+  await tx.medicalRecord.update({ where: { patientId: keepId }, data });
+}
+
 @Injectable()
 export class PatientsService {
   constructor(
@@ -201,6 +220,8 @@ export class PatientsService {
     return this.prisma.$transaction(async (tx) => {
       const moved = await tx.appointment.updateMany({ where: { patientId: merge.id }, data: { patientId: keep.id } });
       await tx.waitlistEntry.updateMany({ where: { patientId: merge.id }, data: { patientId: keep.id } });
+      await tx.consultation.updateMany({ where: { patientId: merge.id }, data: { patientId: keep.id } });
+      await mergeMedicalRecords(tx, keep.id, merge.id);
       await tx.patient.update({ where: { id: merge.id }, data: { mergedIntoId: keep.id } });
       await this.audit.log(
         {
@@ -244,7 +265,8 @@ export class PatientsService {
     }
   }
 
-  private async assertCanSee(patientId: string, user: SessionUser) {
+  /** Un médico solo ve a pacientes que tienen o tuvieron cita con él. */
+  async assertCanSee(patientId: string, user: SessionUser) {
     if (user.role !== 'MEDICO') return;
     const has = await this.prisma.appointment.count({ where: { patientId, doctorId: user.doctorId ?? undefined } });
     if (!has) throw DomainError.forbidden('Solo puede ver pacientes que tienen cita con usted.');

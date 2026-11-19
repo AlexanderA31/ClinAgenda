@@ -258,6 +258,39 @@ async function main() {
     ],
   });
 
+  // Fichas médicas de ejemplo (datos inventados): antecedentes y la consulta de una cita atendida del Dr. Salazar.
+  const histories = [
+    { bloodType: 'O+', allergies: 'Penicilina (urticaria)', chronicConditions: 'Hipertensión arterial desde 2019', medications: 'Losartán 50 mg cada mañana', habits: 'No fuma. Camina 30 minutos al día.' },
+    { bloodType: 'A+', allergies: 'Ninguna conocida', chronicConditions: 'Diabetes tipo 2', medications: 'Metformina 850 mg con el almuerzo', familyHistory: 'Madre con diabetes tipo 2.' },
+    { bloodType: 'O-', allergies: 'Ibuprofeno (broncoespasmo)\nMariscos', surgicalHistory: 'Apendicectomía (2011)' },
+    { allergies: 'Ninguna conocida', habits: 'Fuma 5 cigarrillos al día.' },
+  ];
+  const salazarUser = await prisma.user.findUniqueOrThrow({ where: { username: 'salazar' } });
+  const attended = await prisma.appointment.findMany({ where: { doctorId: salazar.id, status: 'ATTENDED' }, orderBy: { startsAt: 'desc' }, distinct: ['patientId'], take: histories.length });
+  for (const [i, appt] of attended.entries()) {
+    await prisma.medicalRecord.create({ data: { patientId: appt.patientId, ...histories[i], updatedById: salazarUser.id } });
+    await prisma.consultation.create({
+      data: {
+        patientId: appt.patientId,
+        doctorId: salazar.id,
+        appointmentId: appt.id,
+        authorId: salazarUser.id,
+        reason: appt.reason ?? 'Control',
+        weightKg: 62 + i * 6.5,
+        heightCm: 158 + i * 4,
+        systolic: 118 + i * 6,
+        diastolic: 76 + i * 3,
+        heartRate: 70 + i * 4,
+        temperatureC: 36.6,
+        oxygenSat: 97,
+        findings: 'Paciente consciente, orientado, hidratado.\nRuidos cardiacos rítmicos, pulmones sin ruidos agregados.',
+        diagnosis: i === 1 ? 'Diabetes tipo 2 en control' : 'Control de salud sin hallazgos de alarma',
+        plan: 'Continuar indicaciones.\nControl en 3 meses.',
+        createdAt: appt.endsAt,
+      },
+    });
+  }
+
   console.log(`Seed listo: 3 clínicas, ${doctors.length} médicos, ${users.length} usuarios, ${patients.length} pacientes, ${created} citas.`);
 }
 

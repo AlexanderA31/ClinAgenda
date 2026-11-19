@@ -16,6 +16,7 @@ export const PERMISSIONS = [
   { key: 'lista_espera.gestionar', group: 'Citas', label: 'Manejar la lista de espera' },
   { key: 'pacientes.editar', group: 'Pacientes', label: 'Registrar y corregir pacientes' },
   { key: 'pacientes.fusionar', group: 'Pacientes', label: 'Unir pacientes duplicados' },
+  { key: 'fichas.editar', group: 'Pacientes', label: 'Escribir en la ficha médica: antecedentes y consultas (no aplica a recepción)' },
   { key: 'panel.ver', group: 'Información', label: 'Ver el panel de cifras' },
   { key: 'medicos.gestionar', group: 'Clínicas y médicos', label: 'Crear médicos y cambiar sus horarios' },
   { key: 'clinicas.gestionar', group: 'Clínicas y médicos', label: 'Cambiar horarios y cierres de las clínicas' },
@@ -40,13 +41,13 @@ export const SYSTEM_ROLE_IDS = {
 /**
  * El alcance decide QUÉ datos ve una persona; los permisos, QUÉ puede hacer con ellos.
  * - ADMIN: toda la información, incluidas las notas clínicas.
- * - RECEPCION: las agendas de las clínicas donde trabaja y todos los pacientes, sin notas clínicas.
- * - MEDICO: solo su propia agenda y sus pacientes; necesita estar vinculado a su ficha de médico.
+ * - RECEPCION: las agendas de las clínicas donde trabaja y todos los pacientes, sin notas clínicas ni ficha médica.
+ * - MEDICO: solo su propia agenda y sus pacientes (con su ficha médica); necesita estar vinculado a su ficha de médico.
  */
 export const SCOPE_LABELS: Record<Role, { label: string; hint: string }> = {
-  ADMIN: { label: 'Ve toda la información', hint: 'Ve todas las agendas, pacientes y notas clínicas.' },
-  RECEPCION: { label: 'Sus clínicas, sin notas clínicas', hint: 'Da y maneja citas en las clínicas donde trabaja y ve a todos los pacientes, pero no las notas clínicas.' },
-  MEDICO: { label: 'Ve solo su agenda', hint: 'Ve únicamente sus citas y sus pacientes. Se vincula a una ficha de médico.' },
+  ADMIN: { label: 'Ve toda la información', hint: 'Ve todas las agendas, pacientes, notas clínicas y fichas médicas.' },
+  RECEPCION: { label: 'Sus clínicas, sin notas clínicas', hint: 'Da y maneja citas en las clínicas donde trabaja y ve a todos los pacientes, pero no las notas clínicas ni la ficha médica.' },
+  MEDICO: { label: 'Ve solo su agenda', hint: 'Ve únicamente sus citas y sus pacientes, con su ficha médica. Se vincula a una ficha de médico.' },
 };
 
 const roleName = cleaned(cleanText, z.string().min(3, 'Escriba un nombre de al menos 3 letras.').max(60, 'Máximo 60 caracteres.'));

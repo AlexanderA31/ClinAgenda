@@ -90,6 +90,14 @@ La API no queda expuesta a internet: solo la web, que le reenvía las peticiones
 
 *Agenda del día* muestra solo su agenda. Al abrir una cita puede marcar si el paciente fue atendido y escribir la **nota clínica**, que solo ven usted y la dirección. En *Panel* ve sus propias cifras.
 
+**Ficha médica.** En *Pacientes*, abra al paciente y elija la pestaña **Ficha médica**. Solo la ven los médicos que atienden a ese paciente y la dirección; recepción no la ve.
+- **Alergias**: aparecen siempre arriba, en rojo. Si el paciente no tiene, escriba "Ninguna conocida" para que no quede como "sin registrar".
+- **Antecedentes**: grupo sanguíneo, enfermedades crónicas, medicación habitual, cirugías, antecedentes familiares y hábitos. Use *Editar*; cualquier médico del paciente los puede actualizar.
+- **Registrar consulta**: motivo, signos vitales (presión, pulso, temperatura, saturación, peso y talla; el IMC se calcula solo), examen, diagnóstico y plan. Solo el motivo es obligatorio.
+- Desde la agenda, al abrir una cita suya que ya llegó, el botón **Registrar consulta en la ficha** abre el formulario ligado a esa cita.
+- Una consulta la corrige solo quien la escribió, durante las primeras 24 horas. Después no se cambia: si falta algo, registre una consulta nueva.
+- Para escribir en la ficha su rol necesita el permiso *Escribir en la ficha médica* (los roles Médico y Dirección ya lo traen), y para registrar consultas su usuario debe estar vinculado a su ficha de médico.
+
 ## 6. Respaldos
 
 - Cada 24 horas se guarda un respaldo comprimido y verificado en `./backups` (se conservan 14) y una **copia fuera del servidor** en `BACKUP_COPY_PATH`: un disco externo montado o una carpeta sincronizada con Google Drive u OneDrive.

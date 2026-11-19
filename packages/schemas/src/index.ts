@@ -11,6 +11,7 @@ export * from './domain/user';
 export * from './domain/clinic';
 export * from './domain/doctor';
 export * from './domain/patient';
+export * from './domain/medical-record';
 export * from './domain/appointment';
 export * from './domain/waitlist';
 export * from './domain/report';

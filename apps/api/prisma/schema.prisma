@@ -74,30 +74,32 @@ model AccessRole {
 }
 
 model User {
-  id                 String     @id @default(uuid()) @db.Uuid
-  username           String     @unique
+  id                 String       @id @default(uuid()) @db.Uuid
+  username           String       @unique
   fullName           String
   /// Copia del alcance del rol (no cambia después de crear el rol); la usan los filtros de datos.
   role               Role
-  accessRoleId       String     @db.Uuid
-  accessRole         AccessRole @relation(fields: [accessRoleId], references: [id])
+  accessRoleId       String       @db.Uuid
+  accessRole         AccessRole   @relation(fields: [accessRoleId], references: [id])
   /// Sube cada vez que la dirección cierra las sesiones de esta persona: los tokens anteriores dejan de valer.
-  tokenVersion       Int        @default(0)
+  tokenVersion       Int          @default(0)
   passwordHash       String
-  active             Boolean   @default(true)
-  mustChangePassword Boolean   @default(false)
-  failedAttempts     Int       @default(0)
-  lockedUntil        DateTime? @db.Timestamptz(3)
-  lastLoginAt        DateTime? @db.Timestamptz(3)
-  doctorId           String?   @unique @db.Uuid
-  doctor             Doctor?   @relation(fields: [doctorId], references: [id])
+  active             Boolean      @default(true)
+  mustChangePassword Boolean      @default(false)
+  failedAttempts     Int          @default(0)
+  lockedUntil        DateTime?    @db.Timestamptz(3)
+  lastLoginAt        DateTime?    @db.Timestamptz(3)
+  doctorId           String?      @unique @db.Uuid
+  doctor             Doctor?      @relation(fields: [doctorId], references: [id])
   /// Clínicas donde trabaja (recepción, por ejemplo). Sin ninguna: trabaja en todas.
   clinics            UserClinic[]
-  createdAt          DateTime  @default(now()) @db.Timestamptz(3)
-  updatedAt          DateTime  @updatedAt @db.Timestamptz(3)
+  createdAt          DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime     @updatedAt @db.Timestamptz(3)
 
-  auditLogs     AuditLog[]
-  notifications Notification[]
+  auditLogs      AuditLog[]
+  notifications  Notification[]
+  medicalRecords MedicalRecord[] @relation("MedicalRecordUpdatedBy")
+  consultations  Consultation[]  @relation("ConsultationAuthor")
 }
 
 model Clinic {
@@ -151,10 +153,11 @@ model Doctor {
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
 
-  assignments  DoctorAssignment[]
-  appointments Appointment[]
-  waitlist     WaitlistEntry[]
-  user         User?
+  assignments   DoctorAssignment[]
+  appointments  Appointment[]
+  waitlist      WaitlistEntry[]
+  user          User?
+  consultations Consultation[]
 }
 
 /// En qué clínica atiende el médico cada día de la semana (p. ej. Dr. Salazar: Centro lunes, Norte martes).
@@ -202,10 +205,12 @@ model Patient {
   createdAt            DateTime     @default(now()) @db.Timestamptz(3)
   updatedAt            DateTime     @updatedAt @db.Timestamptz(3)
 
-  appointments Appointment[]
+  appointments  Appointment[]
   waitlist      WaitlistEntry[]
   account       PatientAccount?
   notifications Notification[]
+  medicalRecord MedicalRecord?
+  consultations Consultation[]
 
   @@index([nameNormalized])
   @@index([phone])
@@ -246,11 +251,59 @@ model Appointment {
 
   events        AppointmentEvent[]
   notifications Notification[]
+  consultation  Consultation?
 
   @@index([doctorId, startsAt])
   @@index([clinicId, startsAt])
   @@index([patientId, startsAt])
   @@index([status, startsAt])
+}
+
+/// Antecedentes de la ficha médica: uno por paciente, compartido por todos sus médicos.
+model MedicalRecord {
+  patientId         String   @id @db.Uuid
+  patient           Patient  @relation(fields: [patientId], references: [id])
+  bloodType         String?
+  allergies         String?
+  chronicConditions String?
+  medications       String?
+  surgicalHistory   String?
+  familyHistory     String?
+  habits            String?
+  notes             String?
+  updatedById       String?  @db.Uuid
+  updatedBy         User?    @relation("MedicalRecordUpdatedBy", fields: [updatedById], references: [id])
+  createdAt         DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime @updatedAt @db.Timestamptz(3)
+}
+
+/// Una consulta registrada en la ficha médica. No se borra; quien la escribió puede corregirla el primer día.
+model Consultation {
+  id            String       @id @default(uuid()) @db.Uuid
+  patientId     String       @db.Uuid
+  patient       Patient      @relation(fields: [patientId], references: [id])
+  doctorId      String       @db.Uuid
+  doctor        Doctor       @relation(fields: [doctorId], references: [id])
+  /// La cita en la que se atendió (una consulta por cita como máximo).
+  appointmentId String?      @unique @db.Uuid
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id])
+  authorId      String       @db.Uuid
+  author        User         @relation("ConsultationAuthor", fields: [authorId], references: [id])
+  reason        String
+  weightKg      Float?
+  heightCm      Float?
+  systolic      Int?
+  diastolic     Int?
+  heartRate     Int?
+  temperatureC  Float?
+  oxygenSat     Int?
+  findings      String?
+  diagnosis     String?
+  plan          String?
+  createdAt     DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime     @updatedAt @db.Timestamptz(3)
+
+  @@index([patientId, createdAt])
 }
 
 /// Cuenta del portal del paciente: ingresa con su cédula o pasaporte (el de su ficha) y una contraseña.

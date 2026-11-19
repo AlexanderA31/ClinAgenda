@@ -16,6 +16,20 @@ export function cleanText(value: string): string {
   return value.normalize('NFC').replace(CONTROL_CHARS, '').replace(EMOJI, '').replace(/\s+/g, ' ').trim();
 }
 
+/** Como cleanText, pero conserva los renglones (notas clínicas): quita espacios de más en cada uno y deja a lo sumo una línea en blanco. */
+export function cleanMultiline(value: string): string {
+  return value
+    .normalize('NFC')
+    .replace(/\r\n?/g, '\n')
+    .replace(CONTROL_CHARS, '')
+    .replace(EMOJI, '')
+    .split('\n')
+    .map((line) => line.replace(/[^\S\n]+/g, ' ').trim())
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 /** "  mARÍA   lÓPEZ " -> "María López". Respeta partículas comunes en minúscula ("de", "del", "la"). */
 export function toTitleCaseName(value: string): string {
   const particles = new Set(['de', 'del', 'la', 'las', 'los', 'y', 'da', 'van', 'von']);
