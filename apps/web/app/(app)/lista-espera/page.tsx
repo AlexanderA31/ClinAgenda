@@ -15,8 +15,17 @@ import { Field } from '@/components/ui/field';
 import { Input, Select } from '@/components/ui/input';
 import { EmptyState, Notice, PageHeader, Skeleton } from '@/components/ui/misc';
 import { BookingWizard, type BookingPreset } from '@/components/appointments/booking-wizard';
+import { RequirePermission } from '@/components/layout/require-role';
 
 export default function WaitlistPage() {
+  return (
+    <RequirePermission permission="lista_espera.gestionar">
+      <Waitlist />
+    </RequirePermission>
+  );
+}
+
+function Waitlist() {
   const clinics = useWorkClinics();
   const [clinicId, setClinicId] = useState('');
   const [adding, setAdding] = useState(false);
@@ -50,6 +59,10 @@ export default function WaitlistPage() {
       </Select>
       {list.isPending ? (
         <Skeleton className="h-40" />
+      ) : list.isError ? (
+        <Notice tone="danger" title="No se pudo cargar la lista de espera">
+          {errorMessage(list.error)}
+        </Notice>
       ) : list.data?.length ? (
         <ol className="flex flex-col gap-2">
           {list.data.map((e, i) => (

@@ -4,14 +4,14 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { CalendarClock, Pencil, Plus, Wand2 } from 'lucide-react';
 import { WEEKDAY_LABELS, type DoctorView } from '@clinagenda/schemas';
-import { api } from '@/lib/api';
+import { api, errorMessage } from '@/lib/api';
 import { useClinics, useDoctors } from '@/lib/queries';
 import { dateTime, phone } from '@/lib/format';
 import { useCan } from '@/lib/session';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { EmptyState, PageHeader, Skeleton } from '@/components/ui/misc';
+import { EmptyState, Notice, PageHeader, Skeleton } from '@/components/ui/misc';
 import { DoctorForm } from '@/components/forms/doctor-form';
 import { AutoSchedule } from '@/components/doctors/auto-schedule';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -46,6 +46,10 @@ export default function DoctorsPage() {
       />
       {doctors.isPending ? (
         <Skeleton className="h-96" />
+      ) : doctors.isError ? (
+        <Notice tone="danger" title="No se pudo cargar la lista de médicos">
+          {errorMessage(doctors.error)}
+        </Notice>
       ) : (
         <div className="rounded-lg border border-rule bg-surface">
           <Table>
@@ -134,6 +138,12 @@ function Orphans({ doctorId }: { doctorId: string }) {
     queryFn: () => api<{ id: string; code: string; startsAt: string; patientName: string; patientPhone: string | null; clinicName: string }[]>(`/doctors/${doctorId}/orphans`),
   });
   if (list.isPending) return <Skeleton className="h-32" />;
+  if (list.isError)
+    return (
+      <Notice tone="danger" title="No se pudo revisar las citas de este médico">
+        {errorMessage(list.error)}
+      </Notice>
+    );
   if (!list.data?.length) return <EmptyState title="Nada pendiente">Todas las citas futuras encajan en su horario.</EmptyState>;
   return (
     <ul className="flex flex-col gap-2">

@@ -16,16 +16,20 @@ import { cn } from '@/lib/utils';
 import { BackupLine } from '@/components/layout/backup-status';
 import { Stat, StatGrid } from '@/components/ui/stat';
 import { CalendarCheck, CalendarDays, CalendarX, UserX } from 'lucide-react';
+import { RequirePermission } from '@/components/layout/require-role';
 
 const { Bar, BarChart, CartesianGrid, LabelList, Tooltip, XAxis, YAxis } = Recharts;
 
 // Orden fijo de la paleta validada (slot 1..4). El color sigue a la serie, nunca a su posición.
-const dailyConfig: ChartConfig = {
-  attended: { label: 'Atendidas', color: 'var(--series-1)' },
-  scheduled: { label: 'Por atender', color: 'var(--series-2)' },
-  noShow: { label: 'No asistieron', color: 'var(--series-3)' },
+// Verde para lo atendido y naranja para quien no vino (se leen "bien" y "mal" sin pensarlo). El orden de
+// apilado separa naranja y ámbar, que juntos no se distinguen (paleta validada en claro y oscuro).
+const dailyConfig = {
+  attended: { label: 'Atendidas', color: 'var(--series-3)' },
+  noShow: { label: 'No asistieron', color: 'var(--series-2)' },
+  scheduled: { label: 'Por atender', color: 'var(--series-1)' },
   cancelled: { label: 'Canceladas', color: 'var(--series-4)' },
-};
+} satisfies ChartConfig;
+const DAILY_KEYS = Object.keys(dailyConfig) as (keyof typeof dailyConfig)[];
 const singleConfig: ChartConfig = { count: { label: 'Citas', color: 'var(--series-1)' } };
 
 const RANGES = [
@@ -35,6 +39,14 @@ const RANGES = [
 ];
 
 export default function PanelPage() {
+  return (
+    <RequirePermission permission="panel.ver">
+      <Panel />
+    </RequirePermission>
+  );
+}
+
+function Panel() {
   const user = useSession();
   const clinics = useClinics();
   const [days, setDays] = useState(30);
@@ -112,7 +124,7 @@ export default function PanelPage() {
                   <XAxis dataKey="date" tickLine={false} axisLine={false} tickFormatter={(d: string) => d.slice(8, 10) + '/' + d.slice(5, 7)} minTickGap={24} />
                   <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={40} />
                   <Tooltip content={<ChartTooltipContent labelFormatter={(d) => dayLabel(String(d))} />} />
-                  {(['attended', 'scheduled', 'noShow', 'cancelled'] as const).map((k, i, arr) => (
+                  {DAILY_KEYS.map((k, i, arr) => (
                     <Bar
                       key={k}
                       isAnimationActive={false}
@@ -143,10 +155,11 @@ export default function PanelPage() {
                     {r.daily.map((d) => (
                       <TableRow key={d.date}>
                         <TableCell className="first-letter:uppercase">{dayLabel(d.date)}</TableCell>
-                        <TableCell className="tabular text-right">{d.attended}</TableCell>
-                        <TableCell className="tabular text-right">{d.scheduled}</TableCell>
-                        <TableCell className="tabular text-right">{d.noShow}</TableCell>
-                        <TableCell className="tabular text-right">{d.cancelled}</TableCell>
+                        {DAILY_KEYS.map((k) => (
+                          <TableCell key={k} className="tabular text-right">
+                            {d[k]}
+                          </TableCell>
+                        ))}
                       </TableRow>
                     ))}
                   </TableBody>
