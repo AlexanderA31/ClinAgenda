@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Notice } from '@/components/ui/misc';
+import { safeNext } from '@/lib/paths';
 
 export function LoginForm() {
   const router = useRouter();
@@ -29,12 +30,12 @@ export function LoginForm() {
       const result = await api<SignInResult>('/auth/sign-in', { method: 'POST', body: values });
       const next = params.get('next');
       if (result.kind === 'patient') {
-        router.replace(next && next.startsWith('/paciente') ? next : '/paciente');
+        router.replace(safeNext(next, 'patient') ?? '/paciente');
         return;
       }
       qc.setQueryData(['me'], result.user);
       // Si la contraseña es temporal, la agenda se abre con el aviso obligatorio para cambiarla.
-      router.replace(next && next.startsWith('/') && !next.startsWith('/paciente') ? next : '/agenda');
+      router.replace(safeNext(next, 'staff') ?? '/agenda');
     } catch (e) {
       setError(errorMessage(e));
     }

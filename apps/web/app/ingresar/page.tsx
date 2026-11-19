@@ -5,6 +5,7 @@ import { getServerSession } from '@/lib/server-session';
 import { quitoNow } from '@/components/landing/hours';
 import { AuthSplit } from '@/components/portal/auth-split';
 import { LoginForm } from './login-form';
+import { safeNext } from '@/lib/paths';
 
 export const metadata: Metadata = { title: 'Ingresar' };
 export const dynamic = 'force-dynamic';
@@ -21,8 +22,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   if (session) {
     const { next } = await searchParams;
     // Solo se respeta "next" si es una pantalla de su tipo de cuenta (evita ir y volver entre el ingreso y una página ajena).
-    const fits = next?.startsWith('/') && (session.kind === 'patient' ? next.startsWith('/paciente') : !next.startsWith('/paciente'));
-    redirect(fits ? next! : session.home);
+    redirect(safeNext(next, session.kind === 'patient' ? 'patient' : 'staff') ?? session.home);
   }
   return (
     <AuthSplit title={`${greeting()}.`} lede="Hola, bienvenido a Clínicas Paredes. Así están las clínicas en este momento:">
