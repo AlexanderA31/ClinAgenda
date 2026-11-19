@@ -196,7 +196,7 @@ export default async function Landing() {
           </p>
         </section>
 
-        {/* Quién atiende hoy, por clínica: lo primero que pregunta un paciente al llamar */}
+        {/* Quién atiende hoy, por clínica: lo primero que pregunta un paciente al llamar  */}
         {day && (
           <section id="hoy" className={cn(e.gutter, 'scroll-mt-20 py-28')}>
             <div className="mx-auto flex max-w-[90rem] flex-col gap-14">
