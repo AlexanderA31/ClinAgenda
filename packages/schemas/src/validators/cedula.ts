@@ -7,7 +7,7 @@
  * o una cédula con un dígito mal copiado.
  *
  * Limitación honesta: esto prueba que el número es *válido*, no que exista ni que sea de esa
- * persona. Para eso haría falta consultar al Registro Civil (fuera de alcance, ver DECISIONES).
+ * persona. Para eso haría falta consultar al Registro Civil (ver README, "Sobre la calidad de los datos").
  */
 
 export type CedulaError = 'LONGITUD' | 'NO_NUMERICA' | 'PROVINCIA' | 'TERCER_DIGITO' | 'VERIFICADOR';
