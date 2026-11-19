@@ -423,7 +423,7 @@ export default async function Landing() {
             </div>
           ))}
         </div>
-        <p className={cn(e.gutter, e.muted, 'mx-auto mt-10 max-w-[90rem] text-sm')}>Quito, Ecuador. Sus datos de salud solo los ve el personal que le atiende.</p>
+        <p className={cn(e.gutter, e.muted, 'mx-auto mt-10 max-w-[90rem] text-sm')}>Quito, Ecuador. Sus datos de salud solo los ve el personal encargado que le atiende.</p>
         <p className={cn(e.giant, 'mt-12 pl-[2vw]')} aria-hidden data-giant>
           Clínicas Paredes
         </p>
