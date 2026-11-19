@@ -290,3 +290,12 @@ html[data-read='tocar'] main :is(h1, h2, h3, h4, p, li, dt, dd, td, th, blockquo
   border-radius: 3px;
   background-color: rgb(255 212 0 / 0.16);
 }
+
+/* Con un diálogo abierto, Radix desactiva los clics fuera de él (pointer-events: none en body).
+   Los avisos ("Deshacer") y el botón de accesibilidad tienen que seguir respondiendo. */
+[data-sonner-toaster],
+#a11y-toggle,
+#a11y-panel,
+#a11y-reader {
+  pointer-events: auto;
+}

@@ -9,6 +9,25 @@ export const Dialog = DialogPrimitive.Root;
 export const DialogTrigger = DialogPrimitive.Trigger;
 export const DialogClose = DialogPrimitive.Close;
 
+/**
+ * Lo que vive fuera del diálogo pero debe seguir funcionando con él abierto: los avisos (con su "Deshacer")
+ * y el botón de accesibilidad. Tocarlos no cierra el diálogo (y globals.css les devuelve los clics).
+ */
+const OUTSIDE_ALLOWED = '[data-sonner-toaster], #a11y-toggle, #a11y-panel, #a11y-reader';
+
+/**
+ * Radix avisa del clic "afuera" después del click, cuando el elemento tocado puede haber cambiado
+ * (el botón de accesibilidad cambia su ícono al abrirse). Si ya no está en la página, se mira qué hay
+ * en el punto del clic.
+ */
+function touchesAllowed(e: Event): boolean {
+  const target = e.target as Element | null;
+  if (target?.isConnected) return !!target.closest(OUTSIDE_ALLOWED);
+  const original = (e as CustomEvent<{ originalEvent?: Event }>).detail?.originalEvent;
+  if (original instanceof MouseEvent) return !!document.elementFromPoint(original.clientX, original.clientY)?.closest(OUTSIDE_ALLOWED);
+  return false;
+}
+
 export function DialogContent({
   className,
   children,
@@ -16,6 +35,7 @@ export function DialogContent({
   description,
   side,
   closable = true,
+  onInteractOutside,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & { title: string; description?: string; side?: boolean; closable?: boolean }) {
   return (
@@ -29,6 +49,10 @@ export function DialogContent({
             : 'left-1/2 top-1/2 w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-lg border border-rule',
           className,
         )}
+        onInteractOutside={(e) => {
+          if (touchesAllowed(e)) e.preventDefault();
+          onInteractOutside?.(e);
+        }}
         {...props}
       >
         <div className="flex items-start justify-between gap-4 border-b border-rule px-5 py-4">
