@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import type { AppointmentView } from '@clinagenda/schemas';
 import { api, errorMessage } from '@/lib/api';
 import { addDays, dayLabel, phone, time, todayIso } from '@/lib/format';
-import { useAppointments, useClinics } from '@/lib/queries';
+import { useAppointments, useWorkClinics } from '@/lib/queries';
 import { useSession } from '@/lib/session';
 import { reminderText, waLink } from '@/lib/whatsapp';
 import { Badge } from '@/components/ui/badge';
@@ -33,9 +33,10 @@ export default function RemindersPage() {
 function Reminders() {
   const user = useSession();
   const qc = useQueryClient();
-  const clinics = useClinics();
+  const clinics = useWorkClinics();
   const [date, setDate] = useState(addDays(todayIso(), 1));
-  const [clinicId, setClinicId] = useState(user.clinicId ?? '');
+  // Quien trabaja en una sola clínica la ve elegida; si son varias, "todas" son las suyas.
+  const [clinicId, setClinicId] = useState(user.clinicIds.length === 1 ? user.clinicIds[0] : '');
   const list = useAppointments({ from: date, to: date, clinicId: clinicId || undefined, status: 'SCHEDULED', pageSize: 500, sortBy: 'startsAt' });
   const mark = useMutation({
     mutationFn: ({ id, value }: { id: string; value: boolean }) => api<AppointmentView>(`/appointments/${id}/reminded`, { method: 'PATCH', body: { reminded: value } }),

@@ -81,7 +81,8 @@ describe('Agendamiento', () => {
 
   it('no deja al Dr. Salazar en Norte mientras atiende en Centro', async () => {
     const [, slot] = await nextFreeSlots();
-    const res = await http.post('/api/appointments').set(as('rosa')).send({ patientId: patients[2].id, doctorId: salazar.id, clinicId: norte.id, startsAt: slot.startsAt });
+    // La dirección trabaja en todas las clínicas (Rosa solo en Centro: en Norte recibiría un 403).
+    const res = await http.post('/api/appointments').set(as('paredes')).send({ patientId: patients[2].id, doctorId: salazar.id, clinicId: norte.id, startsAt: slot.startsAt });
     expect(res.status).toBe(409);
     expect(res.body.message).toMatch(/Clínica Centro, no en Clínica Norte/);
   });

@@ -5,7 +5,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { CalendarCheck, CalendarClock, CalendarPlus, CheckCircle2, ChevronLeft, ChevronRight, CloudUpload, Hourglass, Move, Plus, Sparkles, Trash2, UserX } from 'lucide-react';
 import { APPOINTMENT_STATUS_LABELS, type AppointmentStatus, type AppointmentView, type AvailabilitySlot } from '@clinagenda/schemas';
 import { addDays, dayLabel, longDate, phone, time, todayIso } from '@/lib/format';
-import { useAppointments, useAvailability, useClinics } from '@/lib/queries';
+import { useAppointments, useAvailability, useWorkClinics } from '@/lib/queries';
 import { discard, listPending, onQueueChange, type PendingAppointment } from '@/lib/offline-queue';
 import { useCan, useSession } from '@/lib/session';
 import { cn } from '@/lib/utils';
@@ -70,10 +70,12 @@ function Agenda() {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
-  const clinics = useClinics();
+  // Solo las clínicas donde trabaja: las pestañas y las citas que puede dar.
+  const clinics = useWorkClinics();
 
   const date = params.get('fecha') ?? todayIso();
-  const clinicId = params.get('clinica') ?? user.clinicId ?? clinics.data?.[0]?.id;
+  const requested = params.get('clinica');
+  const clinicId = (requested && clinics.data?.some((c) => c.id === requested) ? requested : undefined) ?? clinics.data?.[0]?.id;
   const setParam = (k: string, v: string) => {
     const p = new URLSearchParams(params);
     p.set(k, v);

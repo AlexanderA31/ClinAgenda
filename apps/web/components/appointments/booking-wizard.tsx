@@ -9,7 +9,7 @@ import { ApiRequestError, OfflineError, api, errorMessage } from '@/lib/api';
 import { addDays, dayLabel, phone, time, todayIso } from '@/lib/format';
 import { enqueue, newKey } from '@/lib/offline-queue';
 import { confirmationText, waLink } from '@/lib/whatsapp';
-import { useAvailability, useClinics, useDebounced, usePatientSearch } from '@/lib/queries';
+import { useAvailability, useDebounced, usePatientSearch, useWorkClinics } from '@/lib/queries';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Field } from '@/components/ui/field';
@@ -44,7 +44,8 @@ export function BookingWizard({ open, onOpenChange, preset }: { open: boolean; o
 
 function WizardBody({ preset, onDone }: { preset?: BookingPreset; onDone: () => void }) {
   const qc = useQueryClient();
-  const clinics = useClinics();
+  // Solo se dan citas en las clínicas donde trabaja.
+  const clinics = useWorkClinics();
   const [step, setStep] = useState(preset?.patient ? (preset.slot ? 2 : 1) : 0);
   const [patient, setPatient] = useState<PatientView | null>(preset?.patient ?? null);
   const [clinicId, setClinicId] = useState(preset?.clinicId ?? '');

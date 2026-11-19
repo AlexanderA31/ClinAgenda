@@ -9,7 +9,7 @@ import { knownPermissions } from '../../common/guards/auth.guard';
 import type { RequestMeta } from '../../common/decorators/auth.decorators';
 import { isLockedRole } from '../roles/roles.service';
 
-type UserWithRole = User & { accessRole: AccessRole };
+type UserWithRole = User & { accessRole: AccessRole; clinics: { clinicId: string }[] };
 
 function toView(u: UserWithRole): UserView {
   return {
@@ -24,13 +24,13 @@ function toView(u: UserWithRole): UserView {
     lockedUntil: u.lockedUntil && u.lockedUntil > new Date() ? u.lockedUntil.toISOString() : null,
     mustChangePassword: u.mustChangePassword,
     doctorId: u.doctorId,
-    clinicId: u.clinicId,
+    clinicIds: u.clinics.map((c) => c.clinicId).sort(),
     lastLoginAt: u.lastLoginAt?.toISOString() ?? null,
     createdAt: u.createdAt.toISOString(),
   };
 }
 
-const include = { accessRole: true } as const;
+const include = { accessRole: true, clinics: { select: { clinicId: true } } } as const;
 
 @Injectable()
 export class UsersService {
@@ -49,6 +49,7 @@ export class UsersService {
     if (exists) throw DomainError.validation('Ese nombre de usuario ya existe.', { username: 'Ya existe; elija otro.' });
     const role = await this.role(input.roleId);
     await this.assertDoctorLink(role, input.doctorId ?? null, null);
+    await this.assertClinics(input.clinicIds);
 
     return this.prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
@@ -59,7 +60,7 @@ export class UsersService {
           accessRoleId: role.id,
           passwordHash: await argon2.hash(input.password),
           doctorId: input.doctorId ?? null,
-          clinicId: input.clinicId ?? null,
+          clinics: { create: input.clinicIds.map((clinicId) => ({ clinicId })) },
           mustChangePassword: true,
         },
         include,
@@ -82,6 +83,7 @@ export class UsersService {
     const role = roleChanges ? await this.role(input.roleId!) : before.accessRole;
     const doctorId = input.doctorId !== undefined ? input.doctorId : before.doctorId;
     await this.assertDoctorLink(role, doctorId, id);
+    if (input.clinicIds) await this.assertClinics(input.clinicIds);
     if ((input.active === false || roleChanges) && isLockedRole(before.accessRole) && before.active) await this.assertAnotherAdmin(id);
 
     // Desactivar, cambiar de rol o cambiar la contraseña cierra las sesiones abiertas de esa persona.
@@ -89,7 +91,8 @@ export class UsersService {
     const data: Prisma.UserUpdateInput = {
       fullName: input.fullName,
       active: input.active,
-      clinic: input.clinicId === undefined ? undefined : input.clinicId ? { connect: { id: input.clinicId } } : { disconnect: true },
+      // Se reemplaza la lista completa: las que no vienen se quitan.
+      clinics: input.clinicIds === undefined ? undefined : { deleteMany: {}, create: input.clinicIds.map((clinicId) => ({ clinicId })) },
       doctor: input.doctorId === undefined ? undefined : input.doctorId ? { connect: { id: input.doctorId } } : { disconnect: true },
       ...(roleChanges ? { accessRole: { connect: { id: role.id } }, role: role.scope } : {}),
       ...(revoke ? { tokenVersion: { increment: 1 } } : {}),
@@ -115,6 +118,13 @@ export class UsersService {
       );
       return toView(user);
     });
+  }
+
+  /** Todas las clínicas elegidas deben existir y estar activas. */
+  private async assertClinics(ids: string[]) {
+    if (!ids.length) return;
+    const found = await this.prisma.clinic.count({ where: { id: { in: ids }, active: true } });
+    if (found !== ids.length) throw DomainError.validation('Alguna de las clínicas elegidas no existe o está desactivada.', { clinicIds: 'Revise las clínicas marcadas.' });
   }
 
   /** Quita el bloqueo por intentos fallidos sin cambiar la contraseña. */

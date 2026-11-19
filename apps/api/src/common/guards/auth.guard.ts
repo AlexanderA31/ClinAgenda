@@ -40,7 +40,7 @@ export class AuthGuard implements CanActivate {
     // Una sesión del portal del paciente nunca vale para el sistema interno.
     if (payload.kind === 'patient') throw new UnauthorizedException();
 
-    const user = await this.prisma.user.findUnique({ where: { id: payload.sub }, include: { accessRole: true } });
+    const user = await this.prisma.user.findUnique({ where: { id: payload.sub }, include: SESSION_INCLUDE });
     if (!user || !user.active || (payload.v ?? 0) !== user.tokenVersion) throw new UnauthorizedException();
 
     req.user = toSessionUser(user);
@@ -54,10 +54,13 @@ export type UserWithRole = {
   fullName: string;
   role: SessionUser['role'];
   doctorId: string | null;
-  clinicId: string | null;
   mustChangePassword: boolean;
   accessRole: { name: string; permissions: string[] };
+  clinics: { clinicId: string }[];
 };
+
+/** Lo que hay que traer de la base para armar la sesión. */
+export const SESSION_INCLUDE = { accessRole: true, clinics: { select: { clinicId: true } } } as const;
 
 /** Solo permisos que el sistema conoce: un texto viejo o mal escrito en la base no da acceso a nada. */
 export function knownPermissions(list: string[]): Permission[] {
@@ -73,7 +76,7 @@ export function toSessionUser(user: UserWithRole): SessionUser {
     roleName: user.accessRole.name,
     permissions: knownPermissions(user.accessRole.permissions),
     doctorId: user.doctorId,
-    clinicId: user.clinicId,
+    clinicIds: user.clinics.map((c) => c.clinicId),
     mustChangePassword: user.mustChangePassword,
   };
 }

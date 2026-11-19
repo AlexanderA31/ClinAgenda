@@ -5,7 +5,7 @@ import type { ColumnDef } from '@tanstack/react-table';
 import { Search } from 'lucide-react';
 import { APPOINTMENT_STATUS_LABELS, type AppointmentView } from '@clinagenda/schemas';
 import { addDays, phone, shortDate, time, todayIso } from '@/lib/format';
-import { useAppointments, useClinics, useDebounced } from '@/lib/queries';
+import { useAppointments, useDebounced, useWorkClinics } from '@/lib/queries';
 import { DataTable } from '@/components/data-table/data-table';
 import { useServerTable } from '@/components/data-table/use-server-table';
 import { Field } from '@/components/ui/field';
@@ -15,7 +15,7 @@ import { StatusBadge } from '@/components/appointments/status-badge';
 import { AppointmentPanel } from '@/components/appointments/appointment-panel';
 
 export default function CitasPage() {
-  const clinics = useClinics();
+  const clinics = useWorkClinics();
   const [q, setQ] = useState('');
   const [clinicId, setClinicId] = useState('');
   const [status, setStatus] = useState('');

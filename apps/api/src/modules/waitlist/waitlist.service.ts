@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { Clinic, Doctor, Patient, WaitlistEntry } from '@prisma/client';
-import type { SessionUser, WaitlistCreateInput, WaitlistEntryView } from '@clinagenda/schemas';
+import { workClinics, worksAt, type SessionUser, type WaitlistCreateInput, type WaitlistEntryView } from '@clinagenda/schemas';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { DomainError } from '../../common/errors/domain-error';
@@ -30,9 +30,12 @@ export class WaitlistService {
     private readonly audit: AuditService,
   ) {}
 
-  async list(clinicId?: string, doctorId?: string): Promise<WaitlistEntryView[]> {
+  /** Cada quien ve la lista de espera de sus clínicas (ver workClinics). */
+  async list(user: SessionUser, clinicId?: string, doctorId?: string): Promise<WaitlistEntryView[]> {
+    const mine = workClinics(user);
+    if (mine && clinicId && !mine.includes(clinicId)) throw DomainError.forbidden('Usted no trabaja en esa clínica.');
     const entries = await this.prisma.waitlistEntry.findMany({
-      where: { status: 'WAITING', clinicId, ...(doctorId ? { OR: [{ doctorId: null }, { doctorId }] } : {}) },
+      where: { status: 'WAITING', clinicId: clinicId ?? (mine ? { in: mine } : undefined), ...(doctorId ? { OR: [{ doctorId: null }, { doctorId }] } : {}) },
       include,
       orderBy: { createdAt: 'asc' },
     });
@@ -40,6 +43,7 @@ export class WaitlistService {
   }
 
   async create(input: WaitlistCreateInput, user: SessionUser, meta: RequestMeta) {
+    if (!worksAt(user, input.clinicId)) throw DomainError.forbidden('Usted no trabaja en esa clínica.');
     const existing = await this.prisma.waitlistEntry.findFirst({
       where: { patientId: input.patientId, clinicId: input.clinicId, status: 'WAITING', doctorId: input.doctorId ?? null },
       include,
@@ -59,6 +63,7 @@ export class WaitlistService {
   async remove(id: string, user: SessionUser, meta: RequestMeta) {
     const e = await this.prisma.waitlistEntry.findUnique({ where: { id }, include });
     if (!e) throw DomainError.notFound('la entrada de lista de espera');
+    if (!worksAt(user, e.clinicId)) throw DomainError.forbidden('Usted no trabaja en esa clínica.');
     if (e.status !== 'WAITING') return toView(e);
     return this.prisma.$transaction(async (tx) => {
       const updated = await tx.waitlistEntry.update({ where: { id }, data: { status: 'REMOVED', resolvedAt: new Date() }, include });

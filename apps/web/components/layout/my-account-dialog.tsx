@@ -70,8 +70,8 @@ function MyAccount() {
             <dd className="font-mono">{p.username}</dd>
             <dt className="text-ink-2">Rol</dt>
             <dd className="font-bold">{p.roleName}</dd>
-            <dt className="text-ink-2">Clínica principal</dt>
-            <dd>{p.clinicName ?? 'Ninguna'}</dd>
+            <dt className="text-ink-2">Clínicas</dt>
+            <dd>{p.clinicNames.length && user.role !== 'ADMIN' ? p.clinicNames.join(', ') : 'Todas'}</dd>
             {p.doctorName && (
               <>
                 <dt className="text-ink-2">Agenda de</dt>
@@ -97,7 +97,7 @@ function MyAccount() {
             <Save /> Guardar nombre
           </Button>
         </form>
-        <p className="text-sm text-ink-3">El usuario, el rol y la clínica los cambia la dirección.</p>
+        <p className="text-sm text-ink-3">El usuario, el rol y las clínicas los cambia la dirección.</p>
       </section>
 
       <section className="flex flex-col gap-3">

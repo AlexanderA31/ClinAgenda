@@ -15,6 +15,8 @@ import {
   type ClinicalNoteInput,
   type Paginated,
   type SessionUser,
+  workClinics,
+  worksAt,
 } from '@clinagenda/schemas';
 import { Db, PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
@@ -45,8 +47,11 @@ export class AppointmentsService {
   ) {}
 
   async list(q: AppointmentListQuery, user: SessionUser): Promise<Paginated<AppointmentView>> {
+    // Cada quien ve las citas de sus clínicas; la historia de un paciente se ve completa (su ficha es de todas).
+    const mine = q.patientId ? null : workClinics(user);
+    if (mine && q.clinicId && !mine.includes(q.clinicId)) throw DomainError.forbidden('Usted no trabaja en esa clínica.');
     const where: Prisma.AppointmentWhereInput = {
-      clinicId: q.clinicId,
+      clinicId: q.clinicId ?? (mine ? { in: mine } : undefined),
       doctorId: user.role === 'MEDICO' ? (user.doctorId ?? '00000000-0000-0000-0000-000000000000') : q.doctorId,
       patientId: q.patientId,
       status: q.status,
@@ -128,6 +133,7 @@ export class AppointmentsService {
 
   async create(input: AppointmentCreate, user: SessionUser, meta: RequestMeta): Promise<AppointmentView> {
     if (user.role === 'MEDICO' && input.doctorId !== user.doctorId) throw DomainError.forbidden('Un médico solo puede agendar en su propia agenda.');
+    this.assertWorksAt(user, input.clinicId);
 
     const [patient, doctor, clinic] = await Promise.all([
       this.prisma.patient.findUnique({ where: { id: input.patientId } }),
@@ -177,12 +183,13 @@ export class AppointmentsService {
   }
 
   async reschedule(id: string, input: AppointmentRescheduleInput, user: SessionUser, meta: RequestMeta): Promise<AppointmentView> {
-    const before = await this.load(id, user);
+    const before = await this.loadToChange(id, user);
     if (before.status !== 'SCHEDULED' && before.status !== 'REQUESTED') {
       throw DomainError.validation(`Esta cita está "${APPOINTMENT_STATUS_LABELS[before.status].toLowerCase()}" y ya no se puede cambiar de hora. Agende una nueva.`);
     }
     const doctorId = input.doctorId ?? before.doctorId;
     if (user.role === 'MEDICO' && doctorId !== user.doctorId) throw DomainError.forbidden();
+    if (input.clinicId) this.assertWorksAt(user, input.clinicId);
     const [doctor, clinic] = await Promise.all([
       this.prisma.doctor.findUniqueOrThrow({ where: { id: doctorId } }),
       this.prisma.clinic.findUniqueOrThrow({ where: { id: input.clinicId ?? before.clinicId }, include: { schedules: true } }),
@@ -226,7 +233,7 @@ export class AppointmentsService {
    * Cancelar dos veces no es un error: la segunda vez simplemente informa que ya estaba cancelada.
    */
   async cancel(id: string, input: AppointmentCancelInput, user: SessionUser, meta: RequestMeta) {
-    const before = await this.load(id, user);
+    const before = await this.loadToChange(id, user);
     if (before.status === 'CANCELLED') {
       return { appointment: this.view(before, user, await this.userNames([before])), alreadyCancelled: true, waitlistMatches: 0 };
     }
@@ -278,7 +285,7 @@ export class AppointmentsService {
    * solo una lo registra (la otra ve la cita ya agendada).
    */
   async accept(id: string, user: SessionUser, meta: RequestMeta): Promise<AppointmentView> {
-    const before = await this.load(id, user);
+    const before = await this.loadToChange(id, user);
     if (before.status === 'SCHEDULED') return this.view(before, user, await this.userNames([before]));
     if (before.status !== 'REQUESTED') throw DomainError.validation(`Esta cita está "${APPOINTMENT_STATUS_LABELS[before.status].toLowerCase()}"; ya no se puede aceptar.`);
     const appt = await this.prisma.$transaction(async (tx) => {
@@ -304,7 +311,7 @@ export class AppointmentsService {
 
   /** Rechazar una solicitud en línea: queda cancelada con el motivo y la nota, y el horario se libera. */
   async reject(id: string, input: AppointmentRejectInput, user: SessionUser, meta: RequestMeta): Promise<AppointmentView> {
-    const before = await this.load(id, user);
+    const before = await this.loadToChange(id, user);
     if (before.status !== 'REQUESTED') throw DomainError.validation('Solo se pueden rechazar las citas que el paciente pidió en línea y aún no se aceptan.');
     const appt = await this.prisma.$transaction(async (tx) => {
       const { count } = await tx.appointment.updateMany({
@@ -338,7 +345,7 @@ export class AppointmentsService {
   }
 
   async restore(id: string, user: SessionUser, meta: RequestMeta): Promise<AppointmentView> {
-    const before = await this.load(id, user);
+    const before = await this.loadToChange(id, user);
     if (before.status !== 'CANCELLED') return this.view(before, user, await this.userNames([before]));
     if (before.startsAt.getTime() < Date.now()) {
       throw DomainError.conflict(ErrorCodes.UNDO_NOT_POSSIBLE, 'Esta cita ya pasó; no se puede reactivar. Agende una nueva.');
@@ -378,7 +385,7 @@ export class AppointmentsService {
   }
 
   async setStatus(id: string, input: AppointmentStatusUpdateInput, user: SessionUser, meta: RequestMeta): Promise<AppointmentView> {
-    const before = await this.load(id, user);
+    const before = await this.loadToChange(id, user);
     if (before.status === 'CANCELLED') throw DomainError.validation('La cita está cancelada. Si fue un error, primero reactívela.');
     if (before.status === 'REQUESTED') throw DomainError.validation('Esta cita la pidió el paciente en línea y aún no se acepta. Acéptela primero.');
     if (before.startsAt.getTime() > Date.now() + 15 * 60000) {
@@ -397,7 +404,7 @@ export class AppointmentsService {
   }
 
   async setClinicalNote(id: string, input: ClinicalNoteInput, user: SessionUser, meta: RequestMeta): Promise<AppointmentView> {
-    const before = await this.load(id, user);
+    const before = await this.loadToChange(id, user);
     if (!canSeeClinicalNote(user, before)) throw DomainError.forbidden('Solo el médico de la cita puede escribir la nota clínica.');
     const appt = await this.prisma.$transaction(async (tx) => {
       const a = await tx.appointment.update({ where: { id }, data: { clinicalNote: input.clinicalNote }, include });
@@ -411,7 +418,7 @@ export class AppointmentsService {
 
   /** Marca (o desmarca) que ya se le recordó la cita al paciente, para que dos recepcionistas no llamen dos veces. */
   async setReminded(id: string, reminded: boolean, user: SessionUser, meta: RequestMeta): Promise<AppointmentView> {
-    const before = await this.load(id, user);
+    const before = await this.loadToChange(id, user);
     const appt = await this.prisma.$transaction(async (tx) => {
       const a = await tx.appointment.update({
         where: { id },
@@ -425,6 +432,18 @@ export class AppointmentsService {
       return a;
     });
     return this.view(appt, user, await this.userNames([appt]));
+  }
+
+  /** Solo se dan y se cambian citas en las clínicas donde se trabaja. */
+  private assertWorksAt(user: SessionUser, clinicId: string) {
+    if (!worksAt(user, clinicId)) throw DomainError.forbidden('Usted no trabaja en esa clínica. Pida a la dirección que se la asigne en Usuarios.');
+  }
+
+  /** La cita, para cambiarla: además de poder verla, hay que trabajar en su clínica. */
+  private async loadToChange(id: string, user: SessionUser) {
+    const appt = await this.load(id, user);
+    this.assertWorksAt(user, appt.clinicId);
+    return appt;
   }
 
   private async load(id: string, user: SessionUser) {

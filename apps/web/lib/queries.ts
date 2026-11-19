@@ -12,10 +12,20 @@ import type {
   PatientView,
   RoleView,
 } from '@clinagenda/schemas';
+import { workClinics } from '@clinagenda/schemas';
 import { api } from './api';
+import { useSession } from './session';
 
 export function useClinics() {
   return useQuery({ queryKey: ['clinics'], queryFn: () => api<ClinicView[]>('/clinics'), staleTime: 10 * 60_000 });
+}
+
+/** Las clínicas donde trabaja quien tiene la sesión (todas para la dirección o si no tiene asignadas). */
+export function useWorkClinics() {
+  const user = useSession();
+  const clinics = useClinics();
+  const mine = workClinics(user);
+  return { ...clinics, data: mine ? clinics.data?.filter((c) => mine.includes(c.id)) : clinics.data };
 }
 
 export function useDoctors(clinicId?: string) {

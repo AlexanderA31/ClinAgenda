@@ -134,11 +134,11 @@ async function main() {
   // --- Usuarios ---
   const users = [
     { username: 'paredes', fullName: 'Verónica Paredes', role: 'ADMIN' as const, doctorId: doctors[1].id },
-    { username: 'rosa', fullName: 'Rosa Elvira Chávez', role: 'RECEPCION' as const, clinicId: centro.id },
-    { username: 'lucia', fullName: 'Lucía Andrade', role: 'RECEPCION' as const, clinicId: centro.id },
-    { username: 'andrea', fullName: 'Andrea Vera', role: 'RECEPCION' as const, clinicId: norte.id },
-    { username: 'carmen', fullName: 'Carmen Salinas', role: 'RECEPCION' as const, clinicId: sur.id },
-    { username: 'pilar', fullName: 'Pilar Toapanta', role: 'RECEPCION' as const, clinicId: sur.id },
+    { username: 'rosa', fullName: 'Rosa Elvira Chávez', role: 'RECEPCION' as const, clinicIds: [centro.id] },
+    { username: 'lucia', fullName: 'Lucía Andrade', role: 'RECEPCION' as const, clinicIds: [centro.id] },
+    { username: 'andrea', fullName: 'Andrea Vera', role: 'RECEPCION' as const, clinicIds: [norte.id, centro.id] },
+    { username: 'carmen', fullName: 'Carmen Salinas', role: 'RECEPCION' as const, clinicIds: [sur.id] },
+    { username: 'pilar', fullName: 'Pilar Toapanta', role: 'RECEPCION' as const, clinicIds: [sur.id] },
     { username: 'salazar', fullName: 'Ernesto Salazar', role: 'MEDICO' as const, doctorId: salazar.id },
   ];
   // Un rol creado por la dirección, para mostrar que los permisos se arman a medida.
@@ -150,9 +150,12 @@ async function main() {
       permissions: ['citas.agendar', 'citas.estado', 'recordatorios.gestionar', 'lista_espera.gestionar', 'pacientes.editar', 'pacientes.fusionar', 'panel.ver'],
     },
   });
-  const roleId = (u: (typeof users)[number]) => (u.username === 'lucia' ? coordinacion.id : SYSTEM_ROLE_IDS[u.role]);
-  const admin = await prisma.user.create({ data: { ...users[0], accessRoleId: roleId(users[0]), passwordHash: password } });
-  for (const u of users.slice(1)) await prisma.user.create({ data: { ...u, accessRoleId: roleId(u), passwordHash: password } });
+  const roleId = (u: { username: string; role: keyof typeof SYSTEM_ROLE_IDS }) => (u.username === 'lucia' ? coordinacion.id : SYSTEM_ROLE_IDS[u.role]);
+  // Cada recepcionista trabaja en una o más clínicas (Andrea cubre Norte y Centro); la dirección, en todas.
+  const createUser = ({ clinicIds = [], ...u }: (typeof users)[number] & { clinicIds?: string[] }) =>
+    prisma.user.create({ data: { ...u, accessRoleId: roleId(u), passwordHash: password, clinics: { create: clinicIds.map((clinicId) => ({ clinicId })) } } });
+  const admin = await createUser(users[0]);
+  for (const u of users.slice(1)) await createUser(u);
 
   // --- Pacientes (casos variados a propósito) ---
   const today = DateTime.now().setZone(TZ);

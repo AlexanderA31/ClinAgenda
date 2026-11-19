@@ -5,7 +5,7 @@ import { ErrorCodes, type ChangePasswordInput, type LoginInput, type MyProfile, 
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { DomainError } from '../../common/errors/domain-error';
-import { toSessionUser } from '../../common/guards/auth.guard';
+import { SESSION_INCLUDE, toSessionUser } from '../../common/guards/auth.guard';
 import type { RequestMeta } from '../../common/decorators/auth.decorators';
 
 const MAX_FAILED_ATTEMPTS = 5;
@@ -20,7 +20,7 @@ export class AuthService {
   ) {}
 
   async login(input: LoginInput, meta: RequestMeta): Promise<{ token: string; user: SessionUser }> {
-    const user = await this.prisma.user.findUnique({ where: { username: input.username }, include: { accessRole: true } });
+    const user = await this.prisma.user.findUnique({ where: { username: input.username }, include: SESSION_INCLUDE });
     // Mismo mensaje si el usuario no existe o la clave es incorrecta: no revelamos qué usuarios existen.
     const invalid = DomainError.validation('Usuario o contraseña incorrectos. Revise que no tenga activadas las mayúsculas.');
 
@@ -74,13 +74,13 @@ export class AuthService {
   }
 
   async profile(user: SessionUser): Promise<MyProfile> {
-    const u = await this.prisma.user.findUniqueOrThrow({ where: { id: user.id }, include: { accessRole: true, clinic: true, doctor: true } });
+    const u = await this.prisma.user.findUniqueOrThrow({ where: { id: user.id }, include: { accessRole: true, clinics: { include: { clinic: true } }, doctor: true } });
     return {
       id: u.id,
       username: u.username,
       fullName: u.fullName,
       roleName: u.accessRole.name,
-      clinicName: u.clinic?.name ?? null,
+      clinicNames: u.clinics.map((c) => c.clinic.name).sort(),
       doctorName: u.doctor?.fullName ?? null,
       lastLoginAt: u.lastLoginAt?.toISOString() ?? null,
       createdAt: u.createdAt.toISOString(),

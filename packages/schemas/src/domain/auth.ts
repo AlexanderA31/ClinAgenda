@@ -35,7 +35,8 @@ export const SessionUserSchema = z.object({
   roleName: z.string(),
   permissions: z.array(PermissionSchema),
   doctorId: z.string().uuid().nullable(),
-  clinicId: z.string().uuid().nullable(),
+  /** Clínicas donde trabaja; vacío: todas. Ver workClinics(). */
+  clinicIds: z.array(z.string().uuid()),
   mustChangePassword: z.boolean(),
 });
 export type SessionUser = z.infer<typeof SessionUserSchema>;
@@ -57,3 +58,17 @@ export type SignInInput = z.infer<typeof SignInSchema>;
 /** Ingreso único: dice qué sesión se abrió. El personal recibe sus datos; el paciente se carga con /portal/me. */
 export const SignInResultSchema = z.discriminatedUnion('kind', [z.object({ kind: z.literal('staff'), user: SessionUserSchema }), z.object({ kind: z.literal('patient') })]);
 export type SignInResult = z.infer<typeof SignInResultSchema>;
+
+/**
+ * Clínicas en las que una persona puede dar y manejar citas: las suyas, o `null` si son todas
+ * (la dirección siempre trabaja en todas; quien no tiene ninguna asignada, también).
+ */
+export function workClinics(user: Pick<SessionUser, 'role' | 'clinicIds'>): string[] | null {
+  return user.role === 'ADMIN' || !user.clinicIds.length ? null : user.clinicIds;
+}
+
+/** ¿Puede esta persona dar o cambiar citas en esa clínica? */
+export function worksAt(user: Pick<SessionUser, 'role' | 'clinicIds'>, clinicId: string): boolean {
+  const mine = workClinics(user);
+  return !mine || mine.includes(clinicId);
+}

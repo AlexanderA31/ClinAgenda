@@ -5,6 +5,12 @@ import { IsoDateTimeSchema, cleaned } from './common';
 import { PermissionSchema } from './permissions';
 import { PERSON_NAME_PATTERN, toTitleCaseName } from '../validators/text';
 
+/** Clínicas donde trabaja una persona (por ejemplo, dónde hace recepción). Ninguna: todas. Sin repetidas. */
+const ClinicIdsSchema = z
+  .array(z.string().uuid('Clínica no válida.'))
+  .max(100)
+  .transform((ids) => [...new Set(ids)]);
+
 const fullName = cleaned(toTitleCaseName, z.string().min(3, 'Escriba el nombre completo.').max(120).regex(PERSON_NAME_PATTERN, 'El nombre solo puede tener letras y espacios.'));
 
 export const UserCreateSchema = z.object({
@@ -17,7 +23,7 @@ export const UserCreateSchema = z.object({
   roleId: z.string({ required_error: 'Elija un rol.' }).uuid('Elija un rol.'),
   password: PasswordSchema,
   doctorId: z.string().uuid().nullable().optional(),
-  clinicId: z.string().uuid().nullable().optional(),
+  clinicIds: ClinicIdsSchema.default([]),
 });
 export type UserCreateInput = z.infer<typeof UserCreateSchema>;
 
@@ -25,7 +31,7 @@ export const UserUpdateSchema = z.object({
   fullName: fullName.optional(),
   roleId: z.string().uuid().optional(),
   active: z.boolean().optional(),
-  clinicId: z.string().uuid().nullable().optional(),
+  clinicIds: ClinicIdsSchema.optional(),
   doctorId: z.string().uuid().nullable().optional(),
   resetPassword: PasswordSchema.optional(),
 });
@@ -45,7 +51,8 @@ export const UserViewSchema = z.object({
   lockedUntil: IsoDateTimeSchema.nullable(),
   mustChangePassword: z.boolean(),
   doctorId: z.string().uuid().nullable(),
-  clinicId: z.string().uuid().nullable(),
+  /** Clínicas donde trabaja; vacío: todas. */
+  clinicIds: z.array(z.string().uuid()),
   lastLoginAt: IsoDateTimeSchema.nullable(),
   createdAt: IsoDateTimeSchema,
 });
@@ -61,7 +68,8 @@ export const MyProfileSchema = z.object({
   username: z.string(),
   fullName: z.string(),
   roleName: z.string(),
-  clinicName: z.string().nullable(),
+  /** Nombres de sus clínicas de trabajo; vacío: todas. */
+  clinicNames: z.array(z.string()),
   doctorName: z.string().nullable(),
   lastLoginAt: IsoDateTimeSchema.nullable(),
   createdAt: IsoDateTimeSchema,

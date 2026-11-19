@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import type { PatientView, WaitlistEntryView } from '@clinagenda/schemas';
 import { api, errorMessage } from '@/lib/api';
 import { dateTime, phone } from '@/lib/format';
-import { useClinics, useDebounced, useDoctors, usePatientSearch } from '@/lib/queries';
+import { useDebounced, useDoctors, usePatientSearch, useWorkClinics } from '@/lib/queries';
 import { Button } from '@/components/ui/button';
 import { ConfirmButton } from '@/components/ui/confirm-button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
@@ -17,7 +17,7 @@ import { EmptyState, Notice, PageHeader, Skeleton } from '@/components/ui/misc';
 import { BookingWizard, type BookingPreset } from '@/components/appointments/booking-wizard';
 
 export default function WaitlistPage() {
-  const clinics = useClinics();
+  const clinics = useWorkClinics();
   const [clinicId, setClinicId] = useState('');
   const [adding, setAdding] = useState(false);
   const [booking, setBooking] = useState<BookingPreset | null>(null);
@@ -91,7 +91,7 @@ export default function WaitlistPage() {
 
 function AddForm({ onDone }: { onDone: () => void }) {
   const qc = useQueryClient();
-  const clinics = useClinics();
+  const clinics = useWorkClinics();
   const [q, setQ] = useState('');
   const [patient, setPatient] = useState<PatientView | null>(null);
   const [clinicId, setClinicId] = useState('');

@@ -19,10 +19,11 @@ export class WaitlistController {
   @ApiQuery({ name: 'doctorId', required: false })
   @Get()
   list(
-    @Query('clinicId', new ParseUUIDPipe({ optional: true })) clinicId?: string,
-    @Query('doctorId', new ParseUUIDPipe({ optional: true })) doctorId?: string,
+    @Query('clinicId', new ParseUUIDPipe({ optional: true })) clinicId: string | undefined,
+    @Query('doctorId', new ParseUUIDPipe({ optional: true })) doctorId: string | undefined,
+    @CurrentUser() user: SessionUser,
   ) {
-    return this.waitlist.list(clinicId, doctorId);
+    return this.waitlist.list(user, clinicId, doctorId);
   }
 
   @ApiCreatedResponse({ type: WaitlistEntryViewDto })

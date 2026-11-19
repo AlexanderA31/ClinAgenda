@@ -5,11 +5,12 @@ import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { KeyRound, Lock, LogOut, Search, ShieldAlert, UserCheck, UserPlus, UserX, Users as UsersIcon, Unlock } from 'lucide-react';
 import { toast } from 'sonner';
-import { PERMISSIONS, SCOPE_LABELS, type RoleView, type UserView } from '@clinagenda/schemas';
+import { PERMISSIONS, SCOPE_LABELS, type ClinicView, type RoleView, type UserView } from '@clinagenda/schemas';
 import { ApiRequestError, api, errorMessage } from '@/lib/api';
 import { dateTime, time } from '@/lib/format';
 import { useClinics, useDoctors, useRoles } from '@/lib/queries';
 import { useCan, useSession } from '@/lib/session';
+import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
@@ -19,6 +20,8 @@ import { Notice, PageHeader, Skeleton } from '@/components/ui/misc';
 import { Stat, StatGrid } from '@/components/ui/stat';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { RequirePermission } from '@/components/layout/require-role';
+import landing from '@/components/landing/landing.module.css';
+import { toneClass } from '@/components/landing/tone';
 
 export default function UsersPage() {
   return (
@@ -72,7 +75,9 @@ function Users() {
           (state === 'inactive' && !u.active)),
     );
   }, [all, q, roleId, state]);
-  const clinicName = (id: string | null) => clinics.data?.find((c) => c.id === id)?.name.replace('Clínica ', '') ?? null;
+  /** "Norte, Centro" o "Todas": dónde trabaja cada persona. */
+  const clinicNames = (u: UserView) =>
+    u.role === 'ADMIN' || !u.clinicIds.length ? 'Todas' : u.clinicIds.map((id) => clinics.data?.find((c) => c.id === id)?.name.replace('Clínica ', '') ?? '…').join(', ');
 
   return (
     <>
@@ -156,7 +161,7 @@ function Users() {
                   <TableCell>
                     <Badge tone={u.role === 'ADMIN' ? 'info' : 'neutral'}>{u.roleName}</Badge>
                   </TableCell>
-                  <TableCell className="text-ink-2">{clinicName(u.clinicId) ?? '—'}</TableCell>
+                  <TableCell className="text-ink-2">{clinicNames(u)}</TableCell>
                   <TableCell>
                     <UserState user={u} />
                   </TableCell>
@@ -214,14 +219,15 @@ function UserForm({ roles, user, onDone }: { roles: RoleView[]; user?: UserView;
     username: user?.username ?? '',
     roleId: user?.roleId ?? roles.find((r) => r.scope === 'RECEPCION' && r.system)?.id ?? roles[0]?.id ?? '',
     password: '',
-    clinicId: user?.clinicId ?? '',
+    clinicIds: user?.clinicIds ?? ([] as string[]),
     doctorId: user?.doctorId ?? '',
   });
   const [fields, setFields] = useState<Record<string, string>>({});
   const role = roles.find((r) => r.id === form.roleId);
   const save = useMutation({
     mutationFn: () => {
-      const body = { fullName: form.fullName, roleId: form.roleId, clinicId: form.clinicId || null, doctorId: form.doctorId || null };
+      // La dirección trabaja en todas: no se le guardan clínicas.
+      const body = { fullName: form.fullName, roleId: form.roleId, clinicIds: role?.scope === 'ADMIN' ? [] : form.clinicIds, doctorId: form.doctorId || null };
       return user ? api(`/users/${user.id}`, { method: 'PATCH', body }) : api('/users', { method: 'POST', body: { ...body, username: form.username, password: form.password } });
     },
     onSuccess: () => {
@@ -233,7 +239,7 @@ function UserForm({ roles, user, onDone }: { roles: RoleView[]; user?: UserView;
     },
     onError: (e) => setFields(e instanceof ApiRequestError ? e.fields : {}),
   });
-  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm({ ...form, [k]: e.target.value });
+  const set = (k: 'fullName' | 'username' | 'roleId' | 'password' | 'doctorId') => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm({ ...form, [k]: e.target.value });
 
   return (
     <form className="flex flex-col gap-4" onSubmit={(e) => (e.preventDefault(), save.mutate())}>
@@ -265,16 +271,11 @@ function UserForm({ roles, user, onDone }: { roles: RoleView[]; user?: UserView;
           ))}
         </Select>
       </Field>
-      <Field id="u-clinic" label="Clínica principal" optional>
-        <Select value={form.clinicId} onChange={set('clinicId')}>
-          <option value="">Ninguna</option>
-          {clinics.data?.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </Select>
-      </Field>
+      {role?.scope === 'ADMIN' ? (
+        <p className="rounded-md bg-surface-2 px-4 py-3 text-ink-2">La dirección trabaja en todas las clínicas.</p>
+      ) : (
+        <ClinicPicker clinics={clinics.data ?? []} value={form.clinicIds} onChange={(clinicIds) => setForm({ ...form, clinicIds })} error={fields.clinicIds} />
+      )}
       {!user && (
         <Field id="u-pass" label="Contraseña inicial" hint="Al menos 8 caracteres, con letras y números" error={fields.password}>
           <Input value={form.password} onChange={set('password')} autoComplete="new-password" />
@@ -290,6 +291,42 @@ function UserForm({ roles, user, onDone }: { roles: RoleView[]; user?: UserView;
         )}
       </Button>
     </form>
+  );
+}
+
+/**
+ * Clínicas donde trabaja la persona (por ejemplo, dónde hace recepción): una o varias de las que haya.
+ * Solo da y maneja citas en esas; sin ninguna marcada, trabaja en todas.
+ */
+function ClinicPicker({ clinics, value, onChange, error }: { clinics: ClinicView[]; value: string[]; onChange: (ids: string[]) => void; error?: string }) {
+  const toggle = (id: string) => onChange(value.includes(id) ? value.filter((x) => x !== id) : [...value, id]);
+  const active = clinics.filter((c) => c.active);
+  return (
+    <fieldset className="flex flex-col gap-2">
+      <legend className="mb-1 font-bold">Clínicas donde trabaja</legend>
+      <p className="text-sm text-ink-3">Solo podrá dar y manejar citas en las clínicas marcadas. Si no marca ninguna, trabaja en todas.</p>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {active.map((c) => {
+          const on = value.includes(c.id);
+          return (
+            <label
+              key={c.id}
+              className={cn('flex min-h-12 cursor-pointer items-center gap-3 rounded-md border-2 px-3', on ? 'border-ballpoint bg-ballpoint-soft' : 'border-rule hover:border-rule-strong')}
+            >
+              <input type="checkbox" className="size-5 shrink-0 accent-[var(--ballpoint)]" checked={on} onChange={() => toggle(c.id)} />
+              <span className="flex min-w-0 items-center gap-2 font-bold">
+                <span className={cn(landing.dot, toneClass(c.name))} aria-hidden />
+                <span className="truncate">{c.name}</span>
+              </span>
+            </label>
+          );
+        })}
+      </div>
+      <p className="text-sm font-bold text-ink-2" aria-live="polite">
+        {value.length ? `Trabaja en ${value.length} de ${active.length} clínicas.` : 'Trabaja en todas las clínicas.'}
+      </p>
+      {error && <p className="text-sm font-bold text-redpen">{error}</p>}
+    </fieldset>
   );
 }
 
