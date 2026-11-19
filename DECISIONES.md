@@ -195,5 +195,6 @@ Cancelar es fácil pero nunca destructivo:
 | Aplicación instalable que funciona sin conexión | Por la Clínica Sur. |
 | Todo empaquetado con Docker | Se instala o se mueve a otro servidor con un comando; se reinicia solo. |
 | Documentación de la API (Swagger) | Si mañana se conecta otro sistema (facturación, WhatsApp Business), los programadores tienen el contrato: qué se envía y qué se recibe en cada ruta, y la forma única de los errores. Las respuestas salen de los mismos esquemas con que la web arma sus tipos, así que la documentación no se desactualiza. |
+| Página pública animada con GSAP (ScrollTrigger) y Lenis | Las animaciones van atadas a la posición del scroll: avanzan y retroceden con la persona, no con un reloj. Con "reducir movimiento" o en celulares lentos la página se lee completa y quieta; los textos siempre están en el HTML (buscadores y lectores de pantalla). |
 | Datos de demostración inventados | No se usan datos de personas reales para probar. |
 | Avisos internos dentro del sistema (campana), no por correo ni SMS | No dependen de servicios externos ni de que el paciente dé su correo. Se guardan en la misma transacción que el cambio de la cita: no hay aviso de algo que no pasó. El paciente solo los recibe si tiene cuenta en el portal; WhatsApp sigue siendo el canal para quien no la tiene. |

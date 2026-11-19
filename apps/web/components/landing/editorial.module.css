@@ -1,0 +1,307 @@
+/*
+  Clínicas Paredes — página pública, edición "la avenida".
+  Quito es una ciudad larga, de norte a sur: la página se recorre como esa avenida. El fondo es la
+  noche del Pichincha (verde casi negro, con grano), la tinta es niebla clara y el maíz queda solo
+  para lo vivo: "abierta ahora" y la acción principal. Todo lo que se mueve va atado al scroll
+  (GSAP ScrollTrigger + Lenis, ver scroll-scene.tsx); sin JavaScript o con "reducir movimiento",
+  la página se lee completa y quieta.
+*/
+
+.page {
+  --bg: #0b1914;
+  --bg-2: #10231c;
+  --ink: #e6ede8;
+  --ink-2: #a7b9ae;
+  --ink-3: #75897e;
+  --line: #22382f;
+  --line-strong: #345247;
+  --maiz: #e9b53b;
+  --maiz-ink: #241a00;
+  /* Los componentes compartidos (directorio de médicos, estado abierto) usan los tokens del sistema. */
+  --paper: var(--bg);
+  --surface: var(--bg-2);
+  --surface-2: #0e1f19;
+  --rule: var(--line);
+  --rule-strong: var(--line-strong);
+  --good: #8fdcab;
+  --focus: var(--maiz);
+  --display: 'Bodoni Moda Variable', 'Bodoni Moda', 'Didot', Georgia, serif;
+  position: relative;
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--ink);
+  color-scheme: dark;
+  overflow-x: clip;
+}
+.page :focus-visible {
+  outline: 3px solid var(--maiz);
+  outline-offset: 3px;
+}
+
+/* Grano de papel fotográfico sobre todo, fijo: le quita lo "plano" al fondo oscuro. */
+.grain {
+  position: fixed;
+  inset: -50%;
+  z-index: 50;
+  pointer-events: none;
+  opacity: 0.07;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.gutter {
+  padding-left: max(20px, env(safe-area-inset-left, 0px));
+  padding-right: max(20px, env(safe-area-inset-right, 0px));
+}
+@media (min-width: 768px) {
+  .gutter {
+    padding-left: max(48px, env(safe-area-inset-left, 0px));
+    padding-right: max(48px, env(safe-area-inset-right, 0px));
+  }
+}
+
+/* ---------- Cabecera ---------- */
+
+.nav {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 40;
+  padding-top: max(14px, env(safe-area-inset-top, 0px));
+  padding-bottom: 14px;
+  background: rgb(11 25 20 / 0.86);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+}
+.navLink {
+  color: var(--ink-2);
+  font-weight: 700;
+}
+.navLink:hover {
+  color: var(--ink);
+}
+.brand {
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 1.35rem;
+  letter-spacing: -0.01em;
+}
+.enter {
+  border: 1px solid var(--line-strong);
+  color: var(--ink);
+}
+.enter:hover {
+  border-color: var(--ink);
+}
+.cta {
+  background: var(--maiz);
+  color: var(--maiz-ink);
+}
+.cta:hover {
+  filter: brightness(1.08);
+}
+
+/* ---------- Tipografía ---------- */
+
+.display {
+  font-family: var(--display);
+  font-weight: 500;
+  letter-spacing: -0.035em;
+  line-height: 0.92;
+}
+.hero {
+  font-size: clamp(3.4rem, 10.5vw, 10.5rem);
+}
+.h2 {
+  font-size: clamp(2.6rem, 6.5vw, 6rem);
+}
+.lede {
+  color: var(--ink-2);
+  font-size: clamp(1.15rem, 1.6vw, 1.4rem);
+  line-height: 1.55;
+}
+/* Cada renglón del titular sube desde abajo de su propia máscara. */
+.line {
+  display: block;
+  overflow: hidden;
+  padding-bottom: 0.06em;
+}
+.lineInner {
+  display: block;
+}
+.muted {
+  color: var(--ink-3);
+}
+.ink2 {
+  color: var(--ink-2);
+}
+.rule {
+  border-color: var(--line);
+}
+
+/* ---------- Cuadros con el Pichincha en curvas de nivel ---------- */
+
+.frame {
+  position: relative;
+  overflow: hidden;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+}
+.frameInner {
+  position: absolute;
+  inset: -12% 0;
+}
+.contour {
+  fill: none;
+  stroke: var(--tone, var(--ink-3));
+  stroke-width: 1.1;
+  vector-effect: non-scaling-stroke;
+  opacity: 0.75;
+}
+.sun {
+  fill: var(--maiz);
+}
+.ridge {
+  fill: var(--bg);
+}
+.frameLabel {
+  position: absolute;
+  left: 1rem;
+  bottom: 0.9rem;
+  color: var(--ink-2);
+  font-size: 0.95rem;
+}
+
+/* ---------- La frase que crece ---------- */
+
+.zoomWrap {
+  height: 100svh;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+.zoom {
+  font-family: var(--display);
+  font-weight: 500;
+  font-size: clamp(2.8rem, 9vw, 9rem);
+  line-height: 0.95;
+  letter-spacing: -0.04em;
+  text-align: center;
+  will-change: transform;
+}
+
+/* ---------- La avenida ---------- */
+
+.avenue {
+  stroke: var(--line-strong);
+  stroke-width: 2;
+  fill: none;
+}
+.avenueDrawn {
+  stroke: var(--maiz);
+  stroke-width: 2;
+  fill: none;
+}
+.stop {
+  fill: var(--bg);
+  stroke: var(--line-strong);
+  stroke-width: 2;
+  transition: fill 0.3s, stroke 0.3s;
+}
+.stop[data-on] {
+  fill: var(--maiz);
+  stroke: var(--maiz);
+}
+.stopLabel {
+  fill: var(--ink-3);
+  font-family: var(--display);
+  font-size: 15px;
+  transition: fill 0.3s;
+}
+.stopLabel[data-on] {
+  fill: var(--ink);
+}
+.chapterNo {
+  font-family: var(--display);
+  color: var(--ink-3);
+  font-size: 1.1rem;
+}
+.clinicName {
+  font-family: var(--display);
+  font-weight: 500;
+  font-size: clamp(3.5rem, 9vw, 8.5rem);
+  line-height: 0.9;
+  letter-spacing: -0.045em;
+}
+.tick {
+  display: inline-block;
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 50%;
+  background: var(--tone);
+}
+.call {
+  border: 1px solid var(--line-strong);
+}
+.call:hover {
+  border-color: var(--ink);
+}
+
+/* ---------- Su cita: se recorre de lado ---------- */
+
+.hTrack {
+  display: flex;
+  gap: clamp(1.5rem, 4vw, 4rem);
+  width: max-content;
+}
+.hPanel {
+  width: min(78vw, 34rem);
+  flex-shrink: 0;
+}
+.stepNo {
+  font-family: var(--display);
+  font-size: clamp(5rem, 12vw, 10rem);
+  line-height: 0.8;
+  color: transparent;
+  -webkit-text-stroke: 1px var(--ink-3);
+}
+.phone {
+  width: min(100%, 21rem);
+  border: 9px solid #030a07;
+  border-radius: 2.5rem;
+  background: #0f201a;
+  overflow: hidden;
+}
+.phoneBar {
+  background: #1c4a3c;
+  color: #eef6f1;
+}
+.bubble {
+  background: #1d3029;
+  color: #e8f1ec;
+  border-radius: 0 1rem 1rem 1rem;
+}
+
+/* ---------- Pie ---------- */
+
+.giant {
+  font-family: var(--display);
+  font-weight: 500;
+  font-size: 13.6vw;
+  line-height: 0.85;
+  letter-spacing: -0.05em;
+  white-space: nowrap;
+}
+
+/* Sin JavaScript, sin animación o con "reducir movimiento": todo quieto y a la vista. */
+@media (prefers-reduced-motion: reduce) {
+  .frameInner {
+    inset: 0;
+  }
+  /* La avenida se ve completa: todas las paradas encendidas. */
+  .stop {
+    fill: var(--maiz);
+    stroke: var(--maiz);
+  }
+  .stopLabel {
+    fill: var(--ink);
+  }
+}

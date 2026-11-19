@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@clinagenda/schemas": "0.1.0",
+    "@fontsource-variable/bodoni-moda": "5.3.0",
     "@fontsource-variable/bricolage-grotesque": "5.3.0",
     "@fontsource/atkinson-hyperlegible": "5.3.0",
     "@fontsource/caveat": "5.3.0",
@@ -22,7 +23,9 @@
     "@tanstack/react-table": "8.21.3",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
+    "gsap": "3.15.1",
     "idb-keyval": "6.3.0",
+    "lenis": "1.3.27",
     "lucide-react": "0.577.0",
     "next": "15.5.29",
     "qrcode": "1.5.4",
