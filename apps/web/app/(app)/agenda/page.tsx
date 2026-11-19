@@ -11,7 +11,6 @@ import { useCan, useSession } from '@/lib/session';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { DocumentTitle } from '@/components/ui/document-title';
-import { QueryAction } from '@/components/layout/query-action';
 import { Input, Select } from '@/components/ui/input';
 import { EmptyState, Notice, Skeleton } from '@/components/ui/misc';
 import { Stat, StatGrid } from '@/components/ui/stat';
@@ -232,7 +231,6 @@ function Agenda() {
 
   return (
     <>
-      {canBook && <QueryAction name="nueva" onMatch={() => setWizard({ clinicId, date: isPastDay ? todayIso() : date })} />}
       {/* Encabezado: día, navegación, clínica y la acción principal */}
       <div className="flex flex-col gap-4">
         <DocumentTitle title="Agenda" />

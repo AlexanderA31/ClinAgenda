@@ -26,7 +26,7 @@ export interface NavGroup {
 
 /**
  * Navegación por permisos: cada persona ve solo lo que su rol le deja usar.
- * Los submenús con `?nueva=1`, `?nuevo=1`, etc. abren esa acción en la pantalla (ver QueryAction).
+ * Solo pantallas: las acciones (nueva cita, registrar, agregar) están dentro de cada pantalla.
  */
 export const NAV: NavGroup[] = [
   {
@@ -39,21 +39,11 @@ export const NAV: NavGroup[] = [
         hint: 'Agenda, búsqueda y solicitudes',
         children: [
           { href: '/agenda', label: 'Agenda del día' },
-          { href: '/agenda?nueva=1', label: 'Dar una cita', permission: 'citas.agendar' },
           { href: '/citas', label: 'Buscar citas' },
           { href: '/lista-espera', label: 'Lista de espera', permission: 'lista_espera.gestionar' },
         ],
       },
-      {
-        href: '/pacientes',
-        label: 'Pacientes',
-        icon: Users,
-        hint: 'Buscar o registrar',
-        children: [
-          { href: '/pacientes', label: 'Buscar pacientes' },
-          { href: '/pacientes?nuevo=1', label: 'Registrar paciente', permission: 'pacientes.editar' },
-        ],
-      },
+      { href: '/pacientes', label: 'Pacientes', icon: Users, hint: 'Buscar o registrar' },
       { href: '/recordatorios', label: 'Recordatorios', icon: BellRing, permission: 'recordatorios.gestionar', hint: 'Avisar las citas de mañana' },
     ],
   },
@@ -61,27 +51,8 @@ export const NAV: NavGroup[] = [
     label: 'Clínicas',
     items: [
       { href: '/panel', label: 'Panel', icon: LayoutDashboard, permission: 'panel.ver', hint: 'Cifras del mes' },
-      {
-        href: '/clinicas',
-        label: 'Clínicas',
-        icon: Building2,
-        hint: 'Horarios, cierres y nuevas sedes',
-        children: [
-          { href: '/clinicas', label: 'Horarios y cierres' },
-          { href: '/clinicas?nueva=1', label: 'Agregar clínica', permission: 'clinicas.gestionar' },
-        ],
-      },
-      {
-        href: '/medicos',
-        label: 'Médicos',
-        icon: Stethoscope,
-        hint: 'Horarios por clínica',
-        children: [
-          { href: '/medicos', label: 'Horarios semanales' },
-          { href: '/medicos?nuevo=1', label: 'Registrar médico', permission: 'medicos.gestionar' },
-          { href: '/medicos?autodistribuir=1', label: 'Autodistribuir horario', permission: 'medicos.gestionar' },
-        ],
-      },
+      { href: '/clinicas', label: 'Clínicas', icon: Building2, hint: 'Horarios, cierres y nuevas sedes' },
+      { href: '/medicos', label: 'Médicos', icon: Stethoscope, hint: 'Horarios por clínica' },
     ],
   },
   {

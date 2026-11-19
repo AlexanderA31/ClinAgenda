@@ -66,7 +66,7 @@ La API no queda expuesta a internet: solo la web, que le reenvía las peticiones
 | **Mis datos y contraseña** | Toque su nombre arriba a la izquierda: se abre *Mi usuario* con sus datos, lo que puede hacer, el botón *Cambiar contraseña* (abre el formulario aparte) y el botón para cerrar su sesión en otros equipos. |
 | **Avisos (campana)** | Arriba a la derecha. Quien agenda recibe un aviso cuando un paciente **pide una cita en línea** o **cancela** la suya, de su clínica o de todas si no tiene una fija; al tocarlo se abre la agenda de ese día. Se revisa sola cada 30 segundos y lo nuevo aparece también como mensaje emergente. |
 | **Quitar sin querer** | *Quitar* de la lista de espera y *Quitar* un cierre de clínica piden confirmar con un segundo toque. |
-| **Menú lateral** | Cada sección (Citas, Pacientes, Clínicas, Médicos, Accesos, Sistema) se abre en un submenú con sus pantallas y atajos, por ejemplo *Clínicas → Agregar clínica* o *Médicos → Autodistribuir horario*. El botón junto a *ClinAgenda* contrae el menú a solo íconos (se recuerda en ese equipo); al tocar un ícono con submenú, el menú se vuelve a abrir. |
+| **Menú lateral** | Las secciones con varias pantallas (Citas, Accesos, Sistema) se abren en un submenú; las demás son un enlace directo. Las acciones como *Nueva cita*, *Registrar paciente*, *Nueva clínica* o *Autodistribuir horario* están dentro de cada pantalla. El botón junto a *ClinAgenda* contrae el menú a solo íconos (se recuerda en ese equipo); al tocar un ícono con submenú, el menú se vuelve a abrir. |
 | **Cita agendada por el paciente en línea** | Aparece en la agenda como cualquier otra; en su historial dice “El paciente agendó en línea”. |
 
 ## 4. Guía para la dirección

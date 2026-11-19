@@ -3,14 +3,14 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ChevronDown, ExternalLink, Menu, PanelLeftClose, PanelLeftOpen, Plus } from 'lucide-react';
+import { ChevronDown, ExternalLink, Menu, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import type { NavGroup, NavItem } from './nav';
 
-/** ¿Este enlace es la pantalla actual? Los que llevan `?accion=1` abren algo, no son una pantalla. */
-const isHere = (pathname: string, href: string, exact = false) => !href.includes('?') && (pathname === href || (!exact && pathname.startsWith(href + '/')));
+/** ¿Este enlace es la pantalla actual? */
+const isHere = (pathname: string, href: string, exact = false) => pathname === href || (!exact && pathname.startsWith(href + '/'));
 
 function NavList({ groups, collapsed = false, onNavigate, onExpand }: { groups: NavGroup[]; collapsed?: boolean; onNavigate?: () => void; onExpand?: () => void }) {
   const pathname = usePathname();
@@ -104,7 +104,6 @@ function NavList({ groups, collapsed = false, onNavigate, onExpand }: { groups: 
                               </a>
                             ) : (
                               <Link href={c.href} onClick={onNavigate} aria-current={here ? 'page' : undefined} className={cls}>
-                                {c.href.includes('?') && <Plus className="size-4 shrink-0" aria-hidden />}
                                 {c.label}
                               </Link>
                             )}
