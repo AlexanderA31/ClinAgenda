@@ -22,7 +22,7 @@ const PATIENT_NAV: NavGroup[] = [
   {
     label: 'Mis citas',
     items: [
-      { href: '/paciente', exact: true, label: 'Inicio', icon: Home, hint: 'Mi próxima cita' },
+      { href: '/paciente', exact: true, label: 'Inicio', icon: Home, hint: 'Mis próximas citas' },
       { href: '/paciente/agendar', label: 'Agendar una cita', icon: CalendarPlus, hint: 'Clínica, médico y hora' },
       { href: '/paciente/historial', label: 'Historial', icon: History, hint: 'Citas y comprobantes' },
     ],

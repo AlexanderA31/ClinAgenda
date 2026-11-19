@@ -11,7 +11,7 @@ import { Notice, PageHeader, Skeleton } from '@/components/ui/misc';
 import { Stat, StatGrid } from '@/components/ui/stat';
 import { StatusBadge } from '@/components/appointments/status-badge';
 import { usePortalMe } from '@/components/portal/patient-shell';
-import { AppointmentActions, splitAppointments, usePortalAppointments } from '@/components/portal/appointments';
+import { AppointmentActions, UpcomingCard, splitAppointments, usePortalAppointments } from '@/components/portal/appointments';
 import landing from '@/components/landing/landing.module.css';
 import { toneClass } from '@/components/landing/tone';
 
@@ -23,12 +23,12 @@ function whenLabel(iso: string) {
   return `En ${days} días`;
 }
 
-/** Inicio del paciente: su próxima cita destacada, accesos rápidos y sus cifras. La lista completa está en Historial. */
+/** Inicio del paciente: su próxima cita destacada, las demás por venir, accesos rápidos y sus cifras. El historial completo está en Historial. */
 export default function PatientHomePage() {
   const me = usePortalMe();
   const list = usePortalAppointments();
   const { all, upcoming } = splitAppointments(list.data);
-  const next = upcoming[0];
+  const [next, ...others] = upcoming;
   const atLimit = upcoming.length >= PORTAL_LIMITS.maxUpcoming;
   const count = (s: PortalAppointment['status']) => all.filter((a) => a.status === s).length;
 
@@ -37,7 +37,9 @@ export default function PatientHomePage() {
       <div className="flex flex-col gap-8">
         <PageHeader
           title={`Hola${me.data ? `, ${me.data.firstNames.split(' ')[0]}` : ''}`}
-          description={next ? 'Esta es su próxima cita.' : 'No tiene citas por venir. Puede agendar una cuando quiera.'}
+          description={
+            next ? (others.length ? `Tiene ${upcoming.length} citas por venir. Esta es la más próxima.` : 'Esta es su próxima cita.') : 'No tiene citas por venir. Puede agendar una cuando quiera.'
+          }
         />
 
         {list.isPending ? (
@@ -49,6 +51,19 @@ export default function PatientHomePage() {
             {next ? <NextAppointment appt={next} /> : <NoAppointment />}
             <QuickActions next={next} atLimit={atLimit} />
           </div>
+        )}
+
+        {others.length > 0 && (
+          <section aria-labelledby="otras-citas" className="flex flex-col gap-4">
+            <h2 id="otras-citas" className="font-display text-2xl font-extrabold">
+              {others.length === 1 ? 'Su otra cita por venir' : `Sus otras ${others.length} citas por venir`}
+            </h2>
+            <ul className="grid auto-rows-fr gap-4 md:grid-cols-2">
+              {others.map((a) => (
+                <UpcomingCard key={a.id} appt={a} />
+              ))}
+            </ul>
+          </section>
         )}
 
         <StatGrid>
