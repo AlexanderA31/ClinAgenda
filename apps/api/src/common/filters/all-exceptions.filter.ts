@@ -44,6 +44,16 @@ export class AllExceptionsFilter implements ExceptionFilter {
       };
     }
 
+    // Errores de la lectura del cuerpo (body-parser): no son de Nest, pero traen su código (413 si es enorme).
+    const bodyStatus = (exception as { status?: unknown; type?: unknown } | null)?.status;
+    if (typeof bodyStatus === 'number' && bodyStatus >= 400 && bodyStatus < 500 && typeof (exception as { type?: unknown }).type === 'string') {
+      return {
+        statusCode: bodyStatus,
+        code: bodyStatus === 413 ? 'PAYLOAD_TOO_LARGE' : ErrorCodes.VALIDATION,
+        message: bodyStatus === 413 ? 'Lo que se envió es demasiado grande. Revise si se pegó un texto muy largo por error.' : friendlyHttpMessage(bodyStatus),
+      };
+    }
+
     const constraint = constraintViolation(exception);
     if (constraint) return constraint;
 
