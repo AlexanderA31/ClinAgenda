@@ -410,8 +410,8 @@ Las tres clínicas entran al mismo sistema por internet, así que va en un servi
 
 ## 7. Respaldos y problemas
 
-- **Respaldo automático:** cada 24 horas, comprimido y verificado, en `./backups` (se conservan 14), con copia en `BACKUP_COPY_PATH`.
-- **Respaldo inmediato:** `docker compose restart backup`.
+- **Respaldo automático:** cada 24 horas, comprimido y verificado, en `./backups` (se conservan 14), con copia en `BACKUP_COPY_PATH`. El servicio revisa cada 5 minutos la hora del último respaldo. Si el servidor estuvo apagado o suspendido, o si un respaldo falló, se pone al día solo en pocos minutos.
+- **Respaldo inmediato:** `docker compose exec backup sh /backup.sh --ahora`.
 
 **Restaurar** (primero en una base aparte, para comparar):
 
