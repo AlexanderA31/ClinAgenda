@@ -34,10 +34,18 @@ export class NotificationsService {
     await db.notification.create({ data: { ...input, patientId } });
   }
 
-  /** A quienes agendan en esa clínica: personal activo con el permiso "citas.agendar" que trabaja ahí (o en todas, ver workClinics). */
-  async toSchedulers(db: Db, clinicId: string, input: NotificationInput) {
+  /**
+   * A quienes agendan esa cita: personal activo con el permiso "citas.agendar" que puede verla.
+   * Dirección siempre; recepción si trabaja en esa clínica (o en todas, ver workClinics); un médico solo
+   * si la cita es suya, porque no ve a los pacientes de otros médicos.
+   */
+  async toSchedulers(db: Db, appt: { clinicId: string; doctorId: string }, input: NotificationInput) {
     const users = await db.user.findMany({
-      where: { active: true, accessRole: { permissions: { has: 'citas.agendar' } }, OR: [{ role: 'ADMIN' }, { clinics: { none: {} } }, { clinics: { some: { clinicId } } }] },
+      where: {
+        active: true,
+        accessRole: { permissions: { has: 'citas.agendar' } },
+        OR: [{ role: 'ADMIN' }, { role: 'RECEPCION', OR: [{ clinics: { none: {} } }, { clinics: { some: { clinicId: appt.clinicId } } }] }, { role: 'MEDICO', doctorId: appt.doctorId }],
+      },
       select: { id: true },
     });
     if (users.length) await db.notification.createMany({ data: users.map((u) => ({ ...input, userId: u.id })) });

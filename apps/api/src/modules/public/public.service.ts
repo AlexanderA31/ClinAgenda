@@ -87,7 +87,7 @@ export class PublicService {
           { userId: null, action: 'CANCEL_BY_PATIENT', entity: 'Appointment', entityId: appt.id, summary: `El paciente canceló ${appointmentCode(appt.code)} desde su enlace`, meta },
           tx,
         );
-        await this.notifications.toSchedulers(tx, appt.clinicId, {
+        await this.notifications.toSchedulers(tx, appt, {
           kind: 'CANCELADA_POR_PACIENTE',
           title: 'Un paciente canceló su cita',
           body: `${appt.patient.firstNames} ${appt.patient.lastNames} canceló ${formatLocal(appt.startsAt, appt.clinic.timezone)} con ${appt.doctor.fullName}, ${appt.clinic.name}. El horario quedó libre.`,

@@ -185,6 +185,11 @@ describe('Avisos internos', () => {
     const request = staff.items.find((n) => n.appointmentId === created.id)!;
     expect(request.link).toContain(`clinica=${centro.id}`);
 
+    // Un médico solo recibe avisos de sus propias citas: no ve a los pacientes de otros médicos.
+    const salazar = (await http.post('/api/auth/login').send({ username: 'salazar', password: STAFF_PASSWORD }).expect(200)).body;
+    const doctorNotices: NotificationList = (await http.get('/api/notifications').set(bearer(salazar.accessToken)).expect(200)).body;
+    expect(doctorNotices.items.some((n) => n.appointmentId === created.id)).toBe(a.doctorId === salazar.user.doctorId);
+
     await http.post(`/api/appointments/${created.id}/accept`).set(bearer(admin)).expect(200);
     await http.patch(`/api/appointments/${created.id}/reschedule`).set(bearer(admin)).send({ startsAt: b.startsAt, doctorId: b.doctorId, clinicId: centro.id }).expect(200);
     const mine: NotificationList = (await http.get('/api/portal/notifications').set(bearer(patient)).expect(200)).body;

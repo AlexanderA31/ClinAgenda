@@ -257,7 +257,7 @@ export class PortalService {
         },
         tx,
       );
-      await this.notifications.toSchedulers(tx, clinic.id, {
+      await this.notifications.toSchedulers(tx, { clinicId: clinic.id, doctorId: doctor.id }, {
         kind: 'SOLICITUD_NUEVA',
         title: 'Nueva solicitud en línea',
         body: `${patient.firstNames} ${patient.lastNames} pidió ${formatLocal(startsAt, clinic.timezone)} con ${doctor.fullName}, ${clinic.name}. Acéptela o recházela en la agenda.`,
