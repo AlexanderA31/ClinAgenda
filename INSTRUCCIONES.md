@@ -103,6 +103,10 @@ Si quien lo usa tiene baja visión, actívelo una vez en su equipo y queda guard
 - **Antecedentes**: grupo sanguíneo, enfermedades crónicas, medicación habitual, cirugías, antecedentes familiares y hábitos. Use *Editar*; cualquier médico del paciente los puede actualizar.
 - **Registrar consulta**: motivo, signos vitales (presión, pulso, temperatura, saturación, peso y talla; el IMC se calcula solo), examen, diagnóstico y plan. Solo el motivo es obligatorio.
 - Desde la agenda, al abrir una cita suya que ya llegó, el botón **Registrar consulta en la ficha** abre el formulario ligado a esa cita.
+- **Código CIE-10**: escriba el código (J06.9) o palabras del diagnóstico ("faringitis") y elija de la lista.
+- **Receta**: en la consulta, use "Agregar medicamento". Después, el botón **Imprimir receta** abre el PDF para imprimir, firmar y sellar.
+- **Archivos**: en la tarjeta *Archivos*, use **Adjuntar** para subir un PDF o una foto, hasta 10 MB. Marque "Compartir con el paciente" si quiere que lo vea en su portal.
+- El paciente ve en su portal, en **Mi ficha**, sus diagnósticos, indicaciones, recetas y los archivos compartidos. No ve sus notas de examen.
 - Una consulta la corrige solo quien la escribió, durante las primeras 24 horas. Después no se cambia: si falta algo, registre una consulta nueva.
 - Para escribir en la ficha su rol necesita el permiso *Escribir en la ficha médica* (los roles Médico y Dirección ya lo traen), y para registrar consultas su usuario debe estar vinculado a su ficha de médico.
 

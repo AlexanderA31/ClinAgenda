@@ -91,7 +91,14 @@ Son datos de salud, que la Ley Orgánica de Protección de Datos Personales del 
 - **Los signos vitales tienen rangos** que atrapan errores de tipeo, como un peso de 700 kg o una temperatura de 3,65 °C, sin rechazar casos clínicos raros.
 - **La bitácora anota quién cambió qué campo, pero no copia el contenido clínico**: así quien puede leer la bitácora no lee también las fichas.
 - **Al unir pacientes duplicados**, las consultas pasan al paciente que se conserva y los antecedentes se completan. Si los dos dicen cosas distintas, se conservan ambos textos.
-- **No se incluyen todavía** recetas impresas, códigos CIE-10, adjuntos (exámenes o imágenes) ni que el paciente vea su ficha en el portal. Quedan para cuando la doctora lo pida.
+- **Diagnóstico con código CIE-10.** Se busca por código o por palabras, sin importar las tildes. La lista incluida tiene unos 150 diagnósticos frecuentes en medicina familiar, no los más de 12 000 del catálogo completo. Se acepta cualquier código bien escrito y, si no está en la lista, se avisa para revisarlo.
+- **Receta impresa.** Cada consulta puede llevar hasta 15 medicamentos con dosis, frecuencia, duración e indicación. Se imprime en PDF tamaño A5, con las alergias del paciente en rojo, el diagnóstico y espacio para firma y sello. Cada impresión queda en la bitácora.
+- **Archivos adjuntos**: resultados, radiografías, informes (PDF, JPG, PNG o WEBP, hasta 10 MB).
+  - Se guardan **dentro de la base de datos**, así que entran solos en el respaldo diario y se restauran con todo lo demás.
+  - El tipo se comprueba por el contenido real, no por la extensión: un programa renombrado a `.pdf` se rechaza.
+  - Se muestran aislados, sin poder ejecutar nada, y cada apertura queda en la bitácora.
+  - Los quita solo quien los subió, durante 24 horas. Sirve para un archivo de otro paciente subido por error.
+- **El paciente ve su ficha en el portal** ("Mi ficha"). Ve sus alergias, enfermedades, medicación, y de cada consulta el diagnóstico, las indicaciones, la receta para imprimir y los archivos que el médico decidió compartir. **No ve** las notas de examen ni lo que el médico no compartió: son notas de trabajo, y la copia completa la puede pedir en la clínica, como establece la ley de protección de datos.
 
 **Si alguien cambia o borra una cita, ¿cómo se sabe quién y cuándo?**
 Las citas **no se pueden borrar**, solo cancelar. Cada cambio queda en la **bitácora** con usuario, fecha, equipo y lo que había antes y después; la bitácora no la puede editar nadie, ni la dirección. Cada cita muestra además su propio historial.

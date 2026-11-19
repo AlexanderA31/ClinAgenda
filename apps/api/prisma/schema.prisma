@@ -98,8 +98,9 @@ model User {
 
   auditLogs      AuditLog[]
   notifications  Notification[]
-  medicalRecords MedicalRecord[] @relation("MedicalRecordUpdatedBy")
-  consultations  Consultation[]  @relation("ConsultationAuthor")
+  medicalRecords MedicalRecord[]     @relation("MedicalRecordUpdatedBy")
+  consultations  Consultation[]      @relation("ConsultationAuthor")
+  attachments    MedicalAttachment[] @relation("AttachmentUploader")
 }
 
 model Clinic {
@@ -211,6 +212,7 @@ model Patient {
   notifications Notification[]
   medicalRecord MedicalRecord?
   consultations Consultation[]
+  attachments   MedicalAttachment[]
 
   @@index([nameNormalized])
   @@index([phone])
@@ -299,9 +301,36 @@ model Consultation {
   oxygenSat     Int?
   findings      String?
   diagnosis     String?
+  /// Código CIE-10 (OMS), p. ej. "J06.9".
+  diagnosisCode String?
   plan          String?
+  /// Receta: [{ medication, dose, frequency, duration, instructions }].
+  prescription  Json         @default("[]")
   createdAt     DateTime     @default(now()) @db.Timestamptz(3)
   updatedAt     DateTime     @updatedAt @db.Timestamptz(3)
+
+  attachments MedicalAttachment[]
+
+  @@index([patientId, createdAt])
+}
+
+/// Archivo de la ficha médica (resultado, imagen, informe). Se guarda en la base para que entre en el respaldo diario.
+model MedicalAttachment {
+  id                String        @id @default(uuid()) @db.Uuid
+  patientId         String        @db.Uuid
+  patient           Patient       @relation(fields: [patientId], references: [id])
+  consultationId    String?       @db.Uuid
+  consultation      Consultation? @relation(fields: [consultationId], references: [id])
+  filename          String
+  mime              String
+  bytes             Int
+  data              Bytes
+  description       String?
+  /// El paciente lo ve en su portal.
+  sharedWithPatient Boolean       @default(false)
+  uploadedById      String        @db.Uuid
+  uploadedBy        User          @relation("AttachmentUploader", fields: [uploadedById], references: [id])
+  createdAt         DateTime      @default(now()) @db.Timestamptz(3)
 
   @@index([patientId, createdAt])
 }

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { CalendarPlus, Globe, History, Home, LogOut, UserRound } from 'lucide-react';
+import { CalendarPlus, ClipboardList, Globe, History, Home, LogOut, UserRound } from 'lucide-react';
 import type { PortalMe } from '@clinagenda/schemas';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -27,6 +27,7 @@ const PATIENT_NAV: NavGroup[] = [
       { href: '/paciente/historial', label: 'Historial', icon: History, hint: 'Citas y comprobantes' },
     ],
   },
+  { label: 'Mi salud', items: [{ href: '/paciente/ficha', label: 'Mi ficha', icon: ClipboardList, hint: 'Diagnósticos, recetas y resultados' }] },
   { label: 'Mi cuenta', items: [{ href: '/paciente/perfil', label: 'Mi perfil', icon: UserRound, hint: 'Datos, contraseña y sesiones' }] },
   { label: 'Clínicas', items: [{ href: '/', label: 'Horarios y médicos', icon: Globe, hint: 'Página de las clínicas' }] },
 ];

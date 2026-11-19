@@ -221,6 +221,7 @@ export class PatientsService {
       const moved = await tx.appointment.updateMany({ where: { patientId: merge.id }, data: { patientId: keep.id } });
       await tx.waitlistEntry.updateMany({ where: { patientId: merge.id }, data: { patientId: keep.id } });
       await tx.consultation.updateMany({ where: { patientId: merge.id }, data: { patientId: keep.id } });
+      await tx.medicalAttachment.updateMany({ where: { patientId: merge.id }, data: { patientId: keep.id } });
       await mergeMedicalRecords(tx, keep.id, merge.id);
       await tx.patient.update({ where: { id: merge.id }, data: { mergedIntoId: keep.id } });
       await this.audit.log(

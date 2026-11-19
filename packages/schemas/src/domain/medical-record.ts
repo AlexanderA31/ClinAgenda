@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { IsoDateTimeSchema, cleaned } from './common';
 import { cleanMultiline, cleanText } from '../validators/text';
+import { CIE10_PATTERN, normalizeCie10 } from './cie10';
 
 /**
  * Ficha médica: una por paciente y compartida por todos los médicos que lo atienden.
@@ -76,11 +77,32 @@ function refineVitals(v: Partial<Vitals>, ctx: z.RefinementCtx) {
   }
 }
 
+/** Texto corto de una línea: vacío -> null. */
+const shortText = (max: number, label: string) =>
+  z.preprocess((v) => (v == null ? null : typeof v === 'string' ? cleanText(v) || null : v), z.string().max(max, `${label} no puede pasar de ${max} caracteres.`).nullable());
+
+/** Un medicamento de la receta. Solo el nombre es obligatorio; lo demás se imprime si está. */
+export const PrescriptionItemSchema = z.object({
+  medication: cleaned(cleanText, z.string({ required_error: 'Escriba el medicamento.' }).min(2, 'Escriba el medicamento.').max(120, 'El medicamento no puede pasar de 120 caracteres.')),
+  dose: shortText(60, 'La dosis'),
+  frequency: shortText(80, 'La frecuencia'),
+  duration: shortText(60, 'La duración'),
+  instructions: shortText(200, 'La indicación'),
+});
+export type PrescriptionItem = z.output<typeof PrescriptionItemSchema>;
+export const MAX_PRESCRIPTION_ITEMS = 15;
+
 const ConsultationBaseSchema = VitalsSchema.extend({
   reason: cleaned(cleanText, z.string({ required_error: 'Escriba el motivo de consulta.' }).min(3, 'Escriba el motivo de consulta.').max(300, 'El motivo no puede pasar de 300 caracteres.')),
   findings: clinicalText(4000, 'El examen y la evolución'),
   diagnosis: clinicalText(1000, 'El diagnóstico'),
+  /** Código CIE-10 (OMS). Se acepta cualquiera bien escrito; la lista frecuente está en cie10.ts. */
+  diagnosisCode: z.preprocess(
+    (v) => (typeof v === 'string' ? (v.trim() ? normalizeCie10(v) : null) : (v ?? null)),
+    z.string().regex(CIE10_PATTERN, 'El código CIE-10 se escribe como una letra y dos números, con decimal opcional: J06.9, I10.').nullable(),
+  ),
   plan: clinicalText(4000, 'El plan'),
+  prescription: z.array(PrescriptionItemSchema).max(MAX_PRESCRIPTION_ITEMS, `Una receta lleva como máximo ${MAX_PRESCRIPTION_ITEMS} medicamentos.`).default([]),
 });
 
 export const ConsultationCreateSchema = ConsultationBaseSchema.extend({
@@ -129,7 +151,11 @@ export const ConsultationViewSchema = z.object({
   oxygenSat: z.number().int().nullable(),
   findings: z.string().nullable(),
   diagnosis: z.string().nullable(),
+  diagnosisCode: z.string().nullable(),
+  /** Nombre del código en la lista frecuente, o null si no está en ella. */
+  diagnosisCodeLabel: z.string().nullable(),
   plan: z.string().nullable(),
+  prescription: z.array(PrescriptionItemSchema),
   createdAt: IsoDateTimeSchema,
   updatedAt: IsoDateTimeSchema,
   /** Quien la escribió puede corregirla durante las primeras horas. */
@@ -137,14 +163,78 @@ export const ConsultationViewSchema = z.object({
 });
 export type ConsultationView = z.infer<typeof ConsultationViewSchema>;
 
+/** Archivos de la ficha: resultados de laboratorio, imágenes, informes de otros médicos. */
+export const ATTACHMENT_TYPES = { 'application/pdf': 'PDF', 'image/jpeg': 'JPG', 'image/png': 'PNG', 'image/webp': 'WEBP' } as const;
+export const ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024;
+
+export const AttachmentUploadSchema = z.object({
+  description: shortText(200, 'La descripción'),
+  /** El paciente lo ve en su portal (un resultado, por ejemplo). Por defecto no. */
+  sharedWithPatient: z.preprocess((v) => v === true || v === 'true', z.boolean()),
+  consultationId: z.preprocess((v) => (v === '' ? null : v), z.string().uuid().nullable().default(null)),
+});
+export type AttachmentUpload = z.output<typeof AttachmentUploadSchema>;
+
+export const AttachmentUpdateSchema = z.object({ sharedWithPatient: z.boolean() });
+
+export const MedicalAttachmentViewSchema = z.object({
+  id: z.string().uuid(),
+  filename: z.string(),
+  mime: z.string(),
+  bytes: z.number().int(),
+  description: z.string().nullable(),
+  sharedWithPatient: z.boolean(),
+  consultationId: z.string().uuid().nullable(),
+  uploadedBy: z.string(),
+  createdAt: IsoDateTimeSchema,
+  /** Quien lo subió puede borrarlo durante las primeras horas (archivo equivocado). */
+  deletable: z.boolean(),
+});
+export type MedicalAttachmentView = z.infer<typeof MedicalAttachmentViewSchema>;
+
 export const MedicalRecordViewSchema = z.object({
   patientId: z.string().uuid(),
   history: MedicalHistoryViewSchema,
   /** La más reciente primero. */
   consultations: z.array(ConsultationViewSchema),
+  attachments: z.array(MedicalAttachmentViewSchema),
   /** Puede corregir los antecedentes. */
   canEditHistory: z.boolean(),
   /** Puede registrar consultas: además del permiso, necesita estar vinculado a una ficha de médico. */
   canWriteConsultation: z.boolean(),
 });
 export type MedicalRecordView = z.infer<typeof MedicalRecordViewSchema>;
+
+/**
+ * Lo que el paciente ve de su ficha en el portal: alergias, enfermedades, medicación, y de cada consulta
+ * el diagnóstico, las indicaciones y la receta. No ve las notas de examen del médico (puede pedir la copia
+ * completa en la clínica) ni los archivos que el médico no compartió.
+ */
+export const PortalConsultationSchema = ConsultationViewSchema.pick({
+  id: true,
+  appointment: true,
+  doctor: true,
+  reason: true,
+  weightKg: true,
+  heightCm: true,
+  bmi: true,
+  systolic: true,
+  diastolic: true,
+  heartRate: true,
+  temperatureC: true,
+  oxygenSat: true,
+  diagnosis: true,
+  diagnosisCode: true,
+  diagnosisCodeLabel: true,
+  plan: true,
+  prescription: true,
+  createdAt: true,
+});
+export type PortalConsultation = z.infer<typeof PortalConsultationSchema>;
+
+export const PortalMedicalRecordSchema = z.object({
+  history: MedicalHistoryViewSchema.pick({ bloodType: true, allergies: true, chronicConditions: true, medications: true }),
+  consultations: z.array(PortalConsultationSchema),
+  attachments: z.array(MedicalAttachmentViewSchema.pick({ id: true, filename: true, mime: true, bytes: true, description: true, createdAt: true })),
+});
+export type PortalMedicalRecord = z.infer<typeof PortalMedicalRecordSchema>;

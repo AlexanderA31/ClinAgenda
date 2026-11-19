@@ -8,7 +8,9 @@ import { Public, ReqMeta, type RequestMeta } from '../../common/decorators/auth.
 import { CurrentPatient, PATIENT_COOKIE, PatientAuthGuard, setPatientCookie, type PatientSession } from './patient-auth.guard';
 import { PortalService } from './portal.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { NotificationListDto, OkDto, PortalAppointmentDto, PortalAvailabilityDto, PortalMeDto, PortalSessionDto } from '../../common/dto/responses';
+import { MedicalRecordService } from '../patients/medical-record.service';
+import { sendClinicalFile } from '../patients/medical-record.controller';
+import { NotificationListDto, OkDto, PortalAppointmentDto, PortalAvailabilityDto, PortalMeDto, PortalMedicalRecordDto, PortalSessionDto } from '../../common/dto/responses';
 
 class PatientRegisterDto extends createZodDto(PatientRegisterSchema) {}
 class PatientLoginDto extends createZodDto(PatientLoginSchema) {}
@@ -26,7 +28,33 @@ export class PortalController {
   constructor(
     private readonly portal: PortalService,
     private readonly notices: NotificationsService,
+    private readonly records: MedicalRecordService,
   ) {}
+
+  /** Mi ficha: alergias, enfermedades, medicación, diagnósticos, indicaciones, recetas y archivos compartidos. */
+  @ApiOkResponse({ type: PortalMedicalRecordDto })
+  @UseGuards(PatientAuthGuard)
+  @Get('medical-record')
+  medicalRecord(@CurrentPatient() session: PatientSession) {
+    return this.records.forPatient(session.patientId);
+  }
+
+  @ApiProduces('application/pdf')
+  @ApiOkResponse({ description: 'Receta en PDF', schema: { type: 'string', format: 'binary' } })
+  @UseGuards(PatientAuthGuard)
+  @Get('consultations/:id/receta.pdf')
+  async prescription(@CurrentPatient() session: PatientSession, @Param('id', ParseUUIDPipe) id: string) {
+    const { filename, pdf } = await this.records.prescriptionForPatient(session.patientId, id);
+    return new StreamableFile(pdf, { type: 'application/pdf', disposition: `inline; filename="${filename}"` });
+  }
+
+  @ApiProduces('application/pdf', 'image/jpeg', 'image/png', 'image/webp')
+  @ApiOkResponse({ description: 'Archivo compartido por su médico', schema: { type: 'string', format: 'binary' } })
+  @UseGuards(PatientAuthGuard)
+  @Get('attachments/:id')
+  async attachment(@CurrentPatient() session: PatientSession, @Param('id', ParseUUIDPipe) id: string, @Res({ passthrough: true }) res: Response) {
+    return sendClinicalFile(res, await this.records.attachmentForPatient(session.patientId, id));
+  }
 
   @ApiCreatedResponse({ type: PortalSessionDto })
   @Throttle({ default: { limit: 5, ttl: 60_000 } })

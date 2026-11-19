@@ -14,7 +14,9 @@ import {
   ImportReportSchema,
   IsoDateTimeSchema,
   IsoDaySchema,
+  MedicalAttachmentViewSchema,
   MedicalRecordViewSchema,
+  PortalMedicalRecordSchema,
   MyProfileSchema,
   NotificationListSchema,
   OkSchema,
@@ -65,6 +67,8 @@ export class PatientDetailDto extends createZodDto(PatientViewSchema.extend({ me
 export class PatientPageDto extends createZodDto(paginatedSchema(PatientViewSchema)) {}
 export class MedicalRecordViewDto extends createZodDto(MedicalRecordViewSchema) {}
 export class ConsultationViewDto extends createZodDto(ConsultationViewSchema) {}
+export class MedicalAttachmentViewDto extends createZodDto(MedicalAttachmentViewSchema) {}
+export class PortalMedicalRecordDto extends createZodDto(PortalMedicalRecordSchema) {}
 export class DuplicateCandidateDto extends createZodDto(DuplicateCandidateSchema) {}
 export class MergeResultDto extends createZodDto(z.object({ keptId: z.string().uuid(), movedAppointments: z.number().int() })) {}
 

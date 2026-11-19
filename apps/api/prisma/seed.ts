@@ -285,6 +285,8 @@ async function main() {
         oxygenSat: 97,
         findings: 'Paciente consciente, orientado, hidratado.\nRuidos cardiacos rítmicos, pulmones sin ruidos agregados.',
         diagnosis: i === 1 ? 'Diabetes tipo 2 en control' : 'Control de salud sin hallazgos de alarma',
+        diagnosisCode: i === 1 ? 'E11.9' : 'Z00.0',
+        prescription: i === 1 ? [{ medication: 'Metformina tabletas', dose: '850 mg', frequency: 'con el almuerzo', duration: '30 días', instructions: null }] : [],
         plan: 'Continuar indicaciones.\nControl en 3 meses.',
         createdAt: appt.endsAt,
       },

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ConsultationCreateSchema, MedicalHistorySchema, bodyMassIndex } from './medical-record';
+import { cie10Label, searchCie10 } from './cie10';
 
 describe('Ficha médica', () => {
   it('conserva los renglones de los antecedentes y deja vacío como null', () => {
@@ -36,5 +37,20 @@ describe('Ficha médica', () => {
   it('calcula el IMC', () => {
     expect(bodyMassIndex(70, 165)).toBe(25.7);
     expect(bodyMassIndex(70, null)).toBeNull();
+  });
+
+  it('normaliza el código CIE-10 y arma la receta', () => {
+    const r = ConsultationCreateSchema.parse({ reason: 'Dolor de garganta', diagnosisCode: ' j069 ', prescription: [{ medication: ' Paracetamol ', dose: '500 mg', frequency: 'cada 8 horas', duration: '' }] });
+    expect(r.diagnosisCode).toBe('J06.9');
+    expect(cie10Label(r.diagnosisCode)).toMatch(/vías respiratorias superiores/);
+    expect(r.prescription[0]).toEqual({ medication: 'Paracetamol', dose: '500 mg', frequency: 'cada 8 horas', duration: null, instructions: null });
+    expect(ConsultationCreateSchema.safeParse({ reason: 'Control', diagnosisCode: 'faringitis' }).success).toBe(false);
+  });
+
+  it('busca diagnósticos por código o por nombre sin tildes', () => {
+    expect(searchCie10('i10')[0].code).toBe('I10');
+    expect(searchCie10('hipertension').map((d) => d.code)).toContain('I10');
+    expect(searchCie10('Faringitis aguda')[0].code).toBe('J02.9');
+    expect(searchCie10('dolor lumbar').length + searchCie10('lumbago').length).toBeGreaterThan(0);
   });
 });
