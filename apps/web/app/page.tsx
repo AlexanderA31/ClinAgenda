@@ -188,11 +188,11 @@ export default async function Landing() {
         </section>
 
         {/* La frase que crece: la sección queda fija mientras el texto atraviesa la pantalla */}
-        <section className={e.zoomWrap} aria-label="Tres clínicas, una sola agenda">
+        <section className={e.zoomWrap} aria-label="La mejor clinica del Pais">
           <p className={cn(e.zoom, e.gutter)} data-zoom>
-            Tres clínicas,
+            La mejor clinica
             <br />
-            una sola agenda.
+            del pais.
           </p>
         </section>
 
