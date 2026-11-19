@@ -246,3 +246,47 @@ html[data-contrast='alto'][data-theme='dark'] {
   --good: #a3f0bd;
   --warn: #ffd98a;
 }
+
+/* ---------- Más opciones del botón de accesibilidad ---------- */
+
+/* Letra más legible: Atkinson Hyperlegible en todo (también en los titulares de la página pública). */
+html[data-font='legible'] body,
+html[data-font='legible'] body :not(.font-mono):not(code):not(kbd):not(svg *) {
+  font-family: 'Atkinson Hyperlegible', system-ui, sans-serif !important;
+}
+
+/* Cursor grande: flecha negra con borde blanco (se ve sobre cualquier fondo); azul sobre lo que se puede tocar. */
+html[data-cursor='grande'],
+html[data-cursor='grande'] * {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='44' height='44' viewBox='0 0 44 44'%3E%3Cpath d='M5 3v33l9-8.5 6.5 14 6-2.8-6.4-13.6H33z' fill='%23000' stroke='%23fff' stroke-width='2.5' stroke-linejoin='round'/%3E%3C/svg%3E") 5 3, auto !important;
+}
+html[data-cursor='grande'] :is(a[href], button, [role='button'], [role='tab'], [role='switch'], [role='radio'], summary, select, label[for]),
+html[data-cursor='grande'] :is(a[href], button, [role='button'], [role='tab'], [role='switch'], [role='radio'], summary, select, label[for]) * {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='44' height='44' viewBox='0 0 44 44'%3E%3Cpath d='M5 3v33l9-8.5 6.5 14 6-2.8-6.4-13.6H33z' fill='%231d45b5' stroke='%23fff' stroke-width='2.5' stroke-linejoin='round'/%3E%3C/svg%3E") 5 3, pointer !important;
+}
+html[data-cursor='grande'] :is(input:not([type='checkbox']):not([type='radio']):not([type='button']):not([type='submit']), textarea) {
+  cursor: text !important;
+}
+
+/* Foco muy visible: anillo negro y amarillo, que contrasta sobre fondo claro y oscuro. */
+html[data-focus='fuerte'] :focus-visible {
+  outline: 4px solid #000 !important;
+  outline-offset: 3px !important;
+  box-shadow: 0 0 0 7px #ffd400 !important;
+  border-radius: 4px;
+}
+
+/* Leer al tocar: se marca lo que se puede leer al pasar el ratón. */
+html[data-read='tocar'] main :is(h1, h2, h3, h4, p, li, dt, dd, td, th, blockquote, label):hover {
+  outline: 2px dashed var(--focus, #1d45b5);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+/* Lo que se está leyendo en voz alta. */
+[data-a11y-reading] {
+  outline: 3px solid #ffd400 !important;
+  outline-offset: 4px;
+  border-radius: 3px;
+  background-color: rgb(255 212 0 / 0.16);
+}

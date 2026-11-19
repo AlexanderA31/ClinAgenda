@@ -106,7 +106,12 @@ Las citas **no se pueden borrar**, solo cancelar. Cada cambio queda en la **bit�
 
 **¿Podría doña Rosa usarlo sin ayuda?**
 Lo diseñamos para eso:
-- Letra base grande (18 px) y un **botón de accesibilidad** flotante, abajo a la derecha en todas las pantallas (también la página pública y el portal): letra grande o muy grande, modo claro/oscuro, alto contraste, menos movimiento, enlaces subrayados y más espacio entre líneas. Se guarda en cada equipo. Tipografía creada para personas con baja visión.
+- Letra base grande (18 px) y un **botón de accesibilidad** flotante, abajo a la derecha en todas las pantallas (también la página pública y el portal), que se abre también con **Alt + A**. Se guarda en cada equipo. Ofrece:
+  - **Lectura en voz alta**: lee la página desde lo que está en pantalla, o el texto seleccionado, resaltando lo que va leyendo, con pausa y tres velocidades. "Leer al tocar" lee el texto o el botón que se toca, y lo que recibe el foco con el teclado. Usa la voz en español del propio navegador, así que **el texto no sale del equipo**: importa porque en el sistema hay datos de pacientes.
+  - Texto: letra grande o muy grande, letra más legible (Atkinson Hyperlegible, creada para baja visión) y más espacio entre líneas.
+  - Colores: claro, oscuro o automático, y alto contraste.
+  - Ver y moverse: guía de lectura (una franja que sigue al dedo o al ratón), cursor grande, foco muy visible, enlaces subrayados y menos movimiento.
+- La página pública es de noche por diseño. **Todas las opciones también funcionan ahí**: elegir "Claro" la muestra de día, y "Menos movimiento" apaga al momento el desplazamiento suave y las animaciones atadas al scroll, sin recargar la página.
 - La agenda del día es una cuadrícula de horas por médico, con el resumen del día arriba y la hora actual marcada, para ver de un vistazo qué está libre.
 - Botones del tamaño de un dedo; agendar en 3 pasos, uno por pantalla: paciente, día y hora (solo se muestran horas libres), confirmar.
 - Al confirmar aparece una frase para leerle al paciente por teléfono: “María López, con el Dr. Salazar, en Clínica Centro, el viernes 20 de noviembre a las 09:00”.

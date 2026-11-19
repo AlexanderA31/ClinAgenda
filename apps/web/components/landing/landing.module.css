@@ -424,3 +424,25 @@
   border-color: var(--rule);
   border-radius: 0;
 }
+
+/* De día (elegido en el botón de accesibilidad): los colores de cada clínica vuelven a sus tonos oscuros, legibles sobre papel. */
+:global(html[data-theme='light']) .night {
+  --euc: #23574a;
+  --euc-ink: #f2f7f4;
+}
+:global(html[data-theme='light']) .night .toneNorte {
+  --tone: #23574a;
+  --tone-ink: #f2f7f4;
+}
+:global(html[data-theme='light']) .night .toneCentro {
+  --tone: #1d45b5;
+  --tone-ink: #ffffff;
+}
+:global(html[data-theme='light']) .night .toneSur {
+  --tone: #8a5a00;
+  --tone-ink: #ffffff;
+}
+:global(html[data-theme='light']) .night .toneOtra {
+  --tone: #6a3d8f;
+  --tone-ink: #ffffff;
+}

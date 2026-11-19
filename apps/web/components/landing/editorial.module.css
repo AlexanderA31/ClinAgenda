@@ -67,7 +67,7 @@
   z-index: 40;
   padding-top: max(14px, env(safe-area-inset-top, 0px));
   padding-bottom: 14px;
-  background: rgb(11 25 20 / 0.86);
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--line);
 }
@@ -289,6 +289,78 @@
   line-height: 0.85;
   letter-spacing: -0.05em;
   white-space: nowrap;
+}
+
+/* ---------- Opciones del botón de accesibilidad ----------
+  La página es de noche por diseño; quien elige "Claro" a propósito la recibe de día.
+  "Automático" conserva la noche. */
+
+:global(html[data-theme='light']) .page {
+  --bg: #f4f0e6;
+  --bg-2: #ebe5d7;
+  --ink: #10231c;
+  --ink-2: #33473e;
+  --ink-3: #56685f;
+  --line: #d3cab7;
+  --line-strong: #8f866f;
+  --maiz: #a87406;
+  --maiz-ink: #ffffff;
+  --surface-2: #e4ddcd;
+  --good: #11713a;
+  color-scheme: light;
+}
+
+/* Alto contraste: blanco puro sobre negro (o al revés de día), bordes visibles y sin grano. */
+:global(html[data-contrast='alto']) .page {
+  --bg: #000000;
+  --bg-2: #0b0b0b;
+  --surface-2: #141414;
+  --ink: #ffffff;
+  --ink-2: #f2f2f2;
+  --ink-3: #d9d9d9;
+  --line: #9aa59f;
+  --line-strong: #ffffff;
+  --maiz: #ffc93d;
+  --maiz-ink: #000000;
+  --good: #a3f0bd;
+}
+:global(html[data-contrast='alto'][data-theme='light']) .page {
+  --bg: #ffffff;
+  --bg-2: #ffffff;
+  --surface-2: #eef0ee;
+  --ink: #000000;
+  --ink-2: #111111;
+  --ink-3: #2b2b2b;
+  --line: #5c6670;
+  --line-strong: #000000;
+  --maiz: #6b4a00;
+  --maiz-ink: #ffffff;
+  --good: #0a5527;
+}
+:global(html[data-contrast='alto']) .grain {
+  display: none;
+}
+:global(html[data-contrast='alto']) .contour {
+  opacity: 1;
+}
+
+/* Más espacio: los textos corridos de la página (los titulares grandes conservan su forma). */
+:global(html[data-spacing='amplio']) .page :is(p, li, dd, dt, address) {
+  line-height: 1.9;
+  letter-spacing: 0.02em;
+  word-spacing: 0.08em;
+}
+
+/* "Menos movimiento" elegido en el botón: lo mismo que la preferencia del sistema. */
+:global(html[data-motion='reducido']) .frameInner {
+  inset: 0;
+}
+:global(html[data-motion='reducido']) .stop {
+  fill: var(--maiz);
+  stroke: var(--maiz);
+}
+:global(html[data-motion='reducido']) .stopLabel {
+  fill: var(--ink);
 }
 
 /* Sin JavaScript, sin animación o con "reducir movimiento": todo quieto y a la vista. */

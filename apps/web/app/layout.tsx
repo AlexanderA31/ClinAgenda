@@ -9,6 +9,7 @@ import '@fontsource/ibm-plex-mono/latin-400.css';
 import '@fontsource/ibm-plex-mono/latin-500.css';
 import { Providers } from './providers';
 import { AccessibilityButton } from '@/components/layout/accessibility-button';
+import { A11Y_FLAGS } from '@/components/layout/a11y-flags';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -29,7 +30,8 @@ export const viewport: Viewport = {
 };
 
 // Aplica las opciones de accesibilidad guardadas antes de pintar, para que no "parpadee".
-const prefsScript = `try{var d=document.documentElement.dataset,g=function(k){return localStorage.getItem(k)};var t=g('ca-theme');if(t==='dark'||t==='light')d.theme=t;var x=g('ca-text');if(x==='grande'||x==='muy-grande')d.text=x;if(g('ca-contrast')==='alto')d.contrast='alto';if(g('ca-motion')==='reducido')d.motion='reducido';if(g('ca-links')==='subrayados')d.links='subrayados';if(g('ca-spacing')==='amplio')d.spacing='amplio'}catch(e){}`;
+const flags = Object.values(A11Y_FLAGS).map((f) => [f.key, f.attr, f.on]);
+const prefsScript = `try{var d=document.documentElement.dataset,g=function(k){return localStorage.getItem(k)};var t=g('ca-theme');if(t==='dark'||t==='light')d.theme=t;var x=g('ca-text');if(x==='grande'||x==='muy-grande')d.text=x;${JSON.stringify(flags)}.forEach(function(f){if(g(f[0])===f[2])d[f[1]]=f[2]})}catch(e){}`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

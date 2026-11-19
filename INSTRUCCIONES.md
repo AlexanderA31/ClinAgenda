@@ -48,6 +48,14 @@ Las tres clínicas deben entrar al mismo sistema por internet, así que va en un
 
 La API no queda expuesta a internet: solo la web, que le reenvía las peticiones.
 
+**Accesibilidad.** En todas las pantallas hay un botón redondo abajo a la derecha; también se abre con **Alt + A**. Desde ahí se puede:
+- **Escuchar la página** con "Leer esta página", o seleccionar un texto y pulsar "Leer lo seleccionado". Escape detiene la lectura.
+- Activar **"Leer al tocar"** para escuchar cualquier texto o botón que se toque.
+- Agrandar la letra, cambiar a una letra más legible o a colores de alto contraste.
+- Activar una guía de lectura, un cursor grande o quitar las animaciones.
+
+Si quien lo usa tiene baja visión, actívelo una vez en su equipo y queda guardado.
+
 ## 3. Guía rápida para recepción
 
 | Para… | Haga esto |
