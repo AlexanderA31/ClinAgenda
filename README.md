@@ -1,6 +1,6 @@
 # ClinAgenda
 
-Sistema de citas para las tres clínicas de la Dra. Paredes (Centro, Norte y Sur): 12 médicos, 5 recepcionistas y unos 400 pacientes al mes. Reemplaza el cuaderno y el WhatsApp con una agenda que **no deja cruzar citas**, **no pierde ninguna** y que una recepcionista sin experiencia en computadoras puede usar sola. Incluye la ficha médica de cada paciente, un portal donde los pacientes agendan y ven sus recetas, y una página pública de las clínicas.
+Sistema de citas para las tres clínicas de la Dra. Paredes (Centro, Norte y Sur): 12 médicos, 5 recepcionistas y unos 400 pacientes al mes. Reemplaza el cuaderno y el WhatsApp con una agenda que **no deja cruzar citas**, **no pierde ninguna** y que una recepcionista sin experiencia en computadoras puede usar sola. Incluye la ficha médica de cada paciente, un portal donde los pacientes agendan y ven sus recetas, una página pública de las clínicas y una **app de Android** que se instala en el celular.
 
 Este documento reúne todo:
 
@@ -10,8 +10,9 @@ Este documento reúne todo:
 4. [Supuestos](#4-supuestos-confirmar-con-la-doctora)
 5. [Cómo se usa](#5-cómo-se-usa)
 6. [Instalarlo para las clínicas](#6-instalarlo-para-las-clínicas)
-7. [Respaldos y problemas](#7-respaldos-y-problemas)
-8. [Para programadores](#8-para-programadores)
+7. [App para el celular (Android)](#7-app-para-el-celular-android)
+8. [Respaldos y problemas](#8-respaldos-y-problemas)
+9. [Para programadores](#9-para-programadores)
 
 ---
 
@@ -46,8 +47,11 @@ Para probar como paciente, use *Crear mi cuenta* en la pantalla de ingreso con u
                     │  validadores y contratos compartidos por web y API     │
                     ▼                                                        ▼
 Navegador ──► web (Next.js 15, :3000) ──/api/*──► api (NestJS 11, :4000) ──► PostgreSQL 17
- PWA, sin      página pública, portal del          módulos, guardias,         EXCLUDE, triggers,
- conexión      paciente y sistema interno          Swagger, Prisma            bitácora de solo agregar
+ PWA, sin  ▲    página pública, portal del          módulos, guardias,         EXCLUDE, triggers,
+ conexión  │    paciente y sistema interno          Swagger, Prisma            bitácora de solo agregar
+           │
+App Android (Capacitor): abre la misma web dentro de la app
+ + descargas, impresión y voz del teléfono
                                                                                     ▲
                                                                backup (pg_dump diario, verificado
                                                                y copiado fuera del servidor)
@@ -59,6 +63,7 @@ Navegador ──► web (Next.js 15, :3000) ──/api/*──► api (NestJS 11
 | **`apps/api`** | NestJS modular: `auth`, `users`, `roles`, `clinics`, `doctors`, `patients` (incluye la ficha médica), `appointments`, `waitlist`, `notifications`, `portal` (pacientes), `public` (enlace de la cita y página pública), `reports`, `imports`, `audit`, `system`, `health`. Guardias globales de sesión y de permisos (`@Can`), un filtro único de errores con mensajes en español, e idempotencia para reintentos. |
 | **`apps/web`** | Next.js App Router, Tailwind 4 y componentes al estilo shadcn/ui. Tablas con TanStack Table (paginación en servidor), gráficos con Recharts, datos con TanStack Query. La web reenvía `/api/*` a la API, así sesión y caché son del mismo origen y la API no queda expuesta a internet. |
 | **Base de datos** | PostgreSQL 17 con Prisma. Las reglas críticas viven en SQL (`apps/api/prisma/migrations`) y no dependen de que el programa no tenga errores: una restricción `EXCLUDE` impide citas solapadas por médico y por paciente; un trigger prohíbe borrar citas; otro impide editar la bitácora; y un índice de trigramas busca nombres aproximados. |
+| **`apps/mobile`** | App de Android con Capacitor 8. Abre la misma web del servidor dentro de la app, así que cada mejora llega al celular sin publicar otra versión. Agrega en Java lo que un WebView no trae solo (descargas, impresión, voz del teléfono, botón Atrás y la pantalla "sin conexión"). Ver [sección 7](#7-app-para-el-celular-android). |
 | **Docker Compose** | `db`, `api` (migra al arrancar), `web`, `backup` y `https` (Caddy con certificado automático, perfil `produccion`). Cada servicio se reinicia solo y reporta su salud. |
 
 **Tres sesiones separadas, un solo ingreso.** El personal entra con su usuario y el paciente con su cédula o pasaporte, por la misma pantalla. Cada sesión es una cookie distinta: la del paciente no abre el sistema interno y la del personal no abre el portal.
@@ -69,13 +74,14 @@ Navegador ──► web (Next.js 15, :3000) ──/api/*──► api (NestJS 11
 .
 ├── apps/
 │   ├── api/            NestJS + Prisma (src/modules/*, prisma/schema.prisma, prisma/migrations, test/*.e2e.ts)
-│   └── web/            Next.js (app/page.tsx página pública, app/(app)/* sistema, app/paciente/* portal, components/*)
+│   ├── web/            Next.js (app/page.tsx página pública, app/(app)/* sistema, app/paciente/* portal, components/*)
+│   └── mobile/         App de Android con Capacitor (www/ pantalla de inicio, android/ proyecto nativo, build-apk.sh)
 ├── packages/schemas/   Zod + validadores + catálogo CIE-10 (con pruebas)
 ├── docker/             Dockerfiles, arranque de la API, script de respaldo, Caddyfile
 └── docker-compose.yml
 ```
 
-**Stack:** Node 22 · TypeScript · NestJS 11 · Prisma 6 · PostgreSQL 17 · Zod · Swagger · Next.js 15 · React 19 · Tailwind CSS 4 · TanStack Query y Table · Recharts · GSAP y Lenis (página pública) · pdfkit (comprobantes y recetas) · Docker Compose.
+**Stack:** Node 22 · TypeScript · NestJS 11 · Prisma 6 · PostgreSQL 17 · Zod · Swagger · Next.js 15 · React 19 · Tailwind CSS 4 · TanStack Query y Table · Recharts · GSAP y Lenis (página pública) · pdfkit (comprobantes y recetas) · Capacitor 8 (app de Android) · Docker Compose.
 
 ---
 
@@ -181,7 +187,7 @@ Las citas **no se pueden borrar**, solo cancelar; lo impide la base de datos. Ca
 - Cada respaldo se **copia fuera del servidor**: a un disco externo o a una carpeta sincronizada con Google Drive u OneDrive (`BACKUP_COPY_PATH`).
 - Los archivos de la ficha médica se guardan dentro de la base, así que entran en el mismo respaldo.
 - Si un respaldo falla, se atrasa o no se copia afuera, **la doctora ve un aviso rojo** en el sistema.
-- El procedimiento para restaurar está en la [sección 7](#7-respaldos-y-problemas).
+- El procedimiento para restaurar está en la [sección 8](#8-respaldos-y-problemas).
 
 ### Sobre el uso real
 
@@ -223,7 +229,7 @@ Sí. Funciona en celular: las tablas se convierten en tarjetas y la agenda muest
 - Recomendación adicional: un plan de datos móviles como respaldo en la Clínica Sur.
 
 **¿Qué pasa si el sistema se cae un lunes a las 8 de la mañana?**
-Cada parte se reinicia sola si falla, y el sistema reporta su estado en `/api/health`, donde se puede conectar un monitor externo gratuito que avise por correo. Si aun así no hay sistema, la pantalla indica anotar en papel la hora y el teléfono, y registrar al volver. El sistema avisará si alguna de esas horas se ocupó mientras tanto. La guía de problemas está en la [sección 7](#7-respaldos-y-problemas).
+Cada parte se reinicia sola si falla, y el sistema reporta su estado en `/api/health`, donde se puede conectar un monitor externo gratuito que avise por correo. Si aun así no hay sistema, la pantalla indica anotar en papel la hora y el teléfono, y registrar al volver. El sistema avisará si alguna de esas horas se ocupó mientras tanto. La guía de problemas está en la [sección 8](#8-respaldos-y-problemas).
 
 **¿Qué pasa si las clínicas tienen horarios distintos, o si cambia la hora por un cambio de horario?**
 Cada clínica tiene su horario por día, con varios rangos (mañana y tarde), su duración de turno (30 min en Centro y Norte, 20 en Sur) y sus días cerrados (feriados). Si un cambio de horario o un cierre deja citas afuera, no se cancelan en silencio: aparece la lista para llamar a esos pacientes. Las horas se guardan en formato universal y se convierten con la zona horaria de cada clínica, así que un cambio de hora oficial no desfasa las citas.
@@ -357,8 +363,8 @@ El error aparece debajo del campo exacto, en palabras simples, y **no se borra l
 
 ### Pacientes (portal)
 
-Desde la página pública, *Agendar en línea* → *Crear mi cuenta* con cédula o pasaporte. En el portal:
-- **Inicio**: su próxima cita.
+Desde la página pública o desde la app del celular, *Agendar en línea* → *Crear mi cuenta* con cédula o pasaporte. En el portal:
+- **Inicio**: su próxima cita y las demás que tenga por venir.
 - **Agendar una cita**: clínica, médico, día y hora.
 - **Historial**: todas sus citas, cancelarlas y descargar el comprobante en PDF.
 - **Mi ficha**: diagnósticos, indicaciones, recetas para imprimir y resultados compartidos.
@@ -408,7 +414,52 @@ Las tres clínicas entran al mismo sistema por internet, así que va en un servi
 
 ---
 
-## 7. Respaldos y problemas
+## 7. App para el celular (Android)
+
+La app se instala en el celular y abre el sistema sin pasar por el navegador. Sirve para todos: el paciente ve su portal, y el personal ve la agenda y la ficha médica según su rol. Por dentro es **la misma web del servidor**: lo que se corrige en el servidor se ve en la app al instante, sin publicar otra versión.
+
+**Instalarla (primera entrega, sin tienda):**
+1. Pase el archivo `apps/mobile/dist/clinicas-paredes-1.0.0.apk` al celular (cable, Drive o WhatsApp).
+2. Ábralo. Android pregunta si permite instalar apps de ese origen: *Configuración → Permitir*.
+3. Abra **Clínicas Paredes**. La primera vez entra a la dirección con la que se compiló el APK. Si no hay ninguna, la pide.
+
+**Demostración en la red de la clínica:** el sistema corre en un computador (`docker compose up -d`) y el celular está en el **mismo Wi-Fi**. El APK se compila con la IP de ese computador: `build-apk.sh` la detecta sola (ej. `http://192.168.100.149:3000`). Si la IP cambia, no hace falta recompilar: en la pantalla "No pudimos conectar con la clínica" toque *Cambiar dirección*.
+
+**Lo que agrega la app** (en `MainActivity.java` y `puente.js`):
+
+| En la app | Cómo |
+|---|---|
+| Descargar comprobantes, recetas y resultados | Van a *Descargas* con la sesión de la persona, y avisan en las notificaciones. |
+| Imprimir (comprobante de recepción) | Usa el servicio de impresión de Android, que también guarda como PDF. |
+| Leer en voz alta | Usa la voz del teléfono: el WebView de Android no trae voz propia. Pausar, seguir y detener funcionan igual que en la web. |
+| WhatsApp, teléfono y mapas | Se abren en su propia app. Solo el sistema de la clínica se abre dentro. |
+| Sin conexión | Una pantalla propia con *Intentar de nuevo* y *Cambiar dirección*. Lo que ya se abrió (como la agenda) sigue funcionando sin internet. |
+| Atrás | Vuelve a la pantalla anterior; en la primera, sale de la app. |
+| Privacidad | La sesión y los datos no se copian a la nube de Google (`allowBackup=false`). |
+
+**Compilar el APK** (no hace falta Android Studio: se compila dentro de un contenedor con el SDK de Android):
+
+```bash
+npm install
+sh apps/mobile/build-apk.sh                                               # con la IP de este equipo
+CLINAGENDA_URL=https://agenda.clinicasparedes.ec sh apps/mobile/build-apk.sh  # con el dominio de las clínicas
+```
+
+La primera vez crea la **llave de firma** en `apps/mobile/android/` (`clinicas-paredes.jks` y `keystore.properties`, con una clave aleatoria). Está en `.gitignore` y no se sube. **Guárdela junto a los respaldos:** sin ella no se pueden publicar actualizaciones de la app en Google Play.
+
+**Siguiente etapa: tiendas.**
+- **Google Play.**
+  - Compile con `PERMITIR_HTTP=false` y el dominio `https://`, para que la app solo use conexiones cifradas.
+  - Genere el paquete `.aab` con `./gradlew bundleRelease`.
+  - Complete la ficha de la tienda, la política de privacidad y la declaración de datos de salud.
+- **App Store.**
+  - Ejecute `npx cap add ios` en una Mac con Xcode y una cuenta de Apple Developer.
+  - Apple revisa que una app no sea "solo una página web" (regla 4.2). Lo que ya agrega la app (voz del teléfono, descargas, pantalla sin conexión) ayuda.
+  - Convendría sumar avisos push de las citas, que son el siguiente paso natural.
+
+---
+
+## 8. Respaldos y problemas
 
 - **Respaldo automático:** cada 24 horas, comprimido y verificado, en `./backups` (se conservan 14), con copia en `BACKUP_COPY_PATH`. El servicio revisa cada 5 minutos la hora del último respaldo. Si el servidor estuvo apagado o suspendido, o si un respaldo falló, se pone al día solo en pocos minutos.
 - **Respaldo inmediato:** `docker compose exec backup sh /backup.sh --ahora`.
@@ -432,10 +483,11 @@ Para reemplazar la base principal:
 | Un mensaje dice "avise con el código XXXX" | Busque ese código en `docker compose logs api`. |
 | Aviso rojo de respaldos | Que el disco o la carpeta externa estén conectados; `docker compose logs backup`. |
 | La Clínica Sur no ve la agenda sin internet | Debe haberla abierto al menos una vez con conexión ese día. |
+| La app dice "No pudimos conectar con la clínica" | Que el celular tenga internet (o esté en el Wi-Fi de la clínica) y que la dirección sea la correcta: *Cambiar dirección*. |
 
 ---
 
-## 8. Para programadores
+## 9. Para programadores
 
 ```bash
 npm install && npm run build:schemas
@@ -450,6 +502,9 @@ npx prisma migrate deploy && npm run seed && npm run test:e2e   # 60 pruebas: ci
 # Desarrollo con recarga
 npm run dev:api   # API en :4000, Swagger en /api/docs
 npm run dev:web   # Web en :3000
+
+# App de Android (APK en apps/mobile/dist/)
+sh apps/mobile/build-apk.sh
 ```
 
 | Decisión técnica | Por qué |
@@ -460,6 +515,7 @@ npm run dev:web   # Web en :3000
 | Aplicación instalable con caché sin conexión | Por la Clínica Sur. |
 | Archivos clínicos dentro de la base, no en disco | Entran en el respaldo diario y se restauran juntos. Para una clínica pequeña, con el límite de 10 MB por archivo, es lo más seguro. |
 | Avisos internos (campana), no correo ni SMS | No dependen de servicios externos. Se guardan en la misma transacción que el cambio: no hay aviso de algo que no pasó. |
+| App de Android con Capacitor que abre la web del servidor | Un solo código para web y celular, con el mismo acceso por roles, la misma accesibilidad y el mismo modo sin conexión. Las mejoras llegan sin pasar por la tienda. Lo que el WebView no trae (descargas con sesión, impresión, voz) se agrega en Java. |
 | Lectura en voz alta con la Web Speech API | Sin servicios externos ni costo, y el texto no sale del equipo. |
 | Página pública con GSAP y Lenis atados al scroll | Las animaciones avanzan y retroceden con la persona. Con "menos movimiento" la página se lee completa y quieta, y los textos siempre están en el HTML. |
 
