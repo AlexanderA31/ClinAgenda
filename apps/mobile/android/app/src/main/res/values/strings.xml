@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Clínicas Paredes</string>
+    <string name="title_activity_main">Clínicas Paredes</string>
+    <string name="package_name">ec.clinicasparedes.agenda</string>
+    <string name="custom_url_scheme">ec.clinicasparedes.agenda</string>
+</resources>

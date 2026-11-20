@@ -1,0 +1,16 @@
+{
+  "name": "@clinagenda/mobile",
+  "version": "0.1.0",
+  "private": true,
+  "description": "App de Android (y más adelante iOS) de Clínicas Paredes: abre el sistema instalado, sin navegador",
+  "scripts": {
+    "apk": "sh ./build-apk.sh"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.6.2",
+    "@capacitor/core": "8.6.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.6.2"
+  }
+}

@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="es-EC">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Clínicas Paredes</title>
+    <!--
+      Pantalla que viene dentro de la app (no del servidor). Hace tres cosas:
+        1. Abre el sistema de la clínica en la dirección guardada (o la que vino al compilar el APK).
+        2. Si no hay conexión con el servidor, lo dice en palabras simples y deja reintentar.
+        3. Permite cambiar la dirección del servidor, por ejemplo si la clínica cambia de red o de dominio.
+      La dirección la guarda la parte nativa (MainActivity), que también decide qué se abre dentro de la app.
+    -->
+    <style>
+      :root { --bg: #f4f7f8; --fg: #142029; --muted: #44535f; --rule: #cfd9df; --accent: #1d45b5; --accent-ink: #ffffff; --danger: #b42318; --field: #ffffff; color-scheme: light; }
+      @media (prefers-color-scheme: dark) {
+        :root { --bg: #0e1418; --fg: #e7edf1; --muted: #a8b6c0; --rule: #2b3842; --accent: #86a3ff; --accent-ink: #0b1430; --danger: #ff8a7a; --field: #151d23; color-scheme: dark; }
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; min-height: 100dvh; display: grid; place-items: center; background: var(--bg); color: var(--fg);
+        font: 18px/1.55 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        padding: max(24px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+      }
+      main { width: 100%; max-width: 30rem; display: flex; flex-direction: column; gap: 16px; }
+      .brand { display: flex; align-items: center; gap: 12px; font-weight: 800; font-size: 1.35rem; color: var(--accent); }
+      .brand svg { width: 44px; height: 44px; flex: none; }
+      h1 { font-size: 1.75rem; line-height: 1.2; margin: 8px 0 0; text-wrap: balance; }
+      p { margin: 0; color: var(--muted); }
+      code { font-size: 0.95em; word-break: break-all; color: var(--fg); }
+      .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 4px; }
+      button {
+        min-height: 52px; font: inherit; font-weight: 700; border-radius: 10px; padding: 0 22px; cursor: pointer;
+        border: 2px solid var(--accent); background: var(--accent); color: var(--accent-ink);
+      }
+      button.secondary { background: transparent; color: var(--accent); }
+      button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+      label { font-weight: 700; }
+      input {
+        width: 100%; min-height: 52px; font: inherit; padding: 0 14px; border-radius: 10px; border: 2px solid var(--rule);
+        background: var(--field); color: var(--fg);
+      }
+      .hint { font-size: 0.95rem; }
+      .error { color: var(--danger); font-weight: 600; }
+      .spinner { width: 28px; height: 28px; border-radius: 50%; border: 4px solid var(--rule); border-top-color: var(--accent); animation: spin 0.9s linear infinite; }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 3s; } }
+      section { display: flex; flex-direction: column; gap: 12px; }
+      .row { display: flex; align-items: center; gap: 14px; }
+      form { display: flex; flex-direction: column; gap: 10px; }
+      [hidden] { display: none !important; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="brand" aria-hidden="true">
+        <svg viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="#1d45b5" /><g stroke="#fff" stroke-width="3" stroke-linecap="round" fill="none"><path d="M16 22h32M16 32h32M16 42h20" /><path d="M40 40l5 5 9-11" stroke-width="4" /></g></svg>
+        Clínicas Paredes
+      </div>
+
+      <section id="abriendo" hidden>
+        <div class="row" role="status">
+          <div class="spinner" aria-hidden="true"></div>
+          <p>Abriendo el sistema de citas…</p>
+        </div>
+      </section>
+
+      <section id="sin-conexion" hidden aria-labelledby="t-sin-conexion">
+        <h1 id="t-sin-conexion">No pudimos conectar con la clínica</h1>
+        <p>Revise que el teléfono tenga internet o esté en la red de la clínica, y vuelva a intentar.</p>
+        <p class="hint">Dirección del sistema: <code id="direccion-actual"></code></p>
+        <div class="actions">
+          <button type="button" id="reintentar">Intentar de nuevo</button>
+          <button type="button" class="secondary" id="cambiar">Cambiar dirección</button>
+        </div>
+      </section>
+
+      <section id="configurar" hidden aria-labelledby="t-configurar">
+        <h1 id="t-configurar">¿Dónde está el sistema de la clínica?</h1>
+        <p>Escriba la dirección que le dio la clínica. Solo se pide una vez.</p>
+        <form id="form-servidor" novalidate>
+          <label for="servidor">Dirección del sistema</label>
+          <input id="servidor" name="servidor" type="url" inputmode="url" autocomplete="url" autocapitalize="none" spellcheck="false" placeholder="https://agenda.clinicasparedes.ec" required aria-describedby="servidor-ayuda servidor-error" />
+          <p class="hint" id="servidor-ayuda">Ejemplos: https://agenda.clinicasparedes.ec o, en la red de la clínica, http://192.168.1.20:3000</p>
+          <p class="error" id="servidor-error" role="alert" hidden></p>
+          <div class="actions">
+            <button type="submit">Guardar y abrir</button>
+            <button type="button" class="secondary" id="cancelar-cambio" hidden>Volver</button>
+          </div>
+        </form>
+      </section>
+    </main>
+
+    <script>
+      (function () {
+        var nativo = window.ClinAgendaNativo; // Lo agrega MainActivity; en un navegador común no existe.
+        var params = new URLSearchParams(location.search);
+        var $ = function (id) { return document.getElementById(id); };
+        var show = function (id) { ['abriendo', 'sin-conexion', 'configurar'].forEach(function (s) { $(s).hidden = s !== id; }); };
+
+        function guardado() {
+          try { return nativo ? nativo.servidor() : localStorage.getItem('servidor') || ''; } catch (e) { return ''; }
+        }
+
+        /** "192.168.1.20:3000" -> "http://192.168.1.20:3000"; "agenda.x.ec/" -> "https://agenda.x.ec". Devuelve null si no es válida. */
+        function normalizar(valor) {
+          var v = (valor || '').trim();
+          if (!v) return null;
+          if (!/^https?:\/\//i.test(v)) v = (/^(\d{1,3}\.){3}\d{1,3}(:\d+)?(\/|$)|^localhost(:\d+)?(\/|$)/i.test(v) ? 'http://' : 'https://') + v;
+          try {
+            var u = new URL(v);
+            if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+            // Un dominio con punto (agenda.x.ec), una IP o localhost; el navegador acepta casi cualquier texto como nombre.
+            if (!/^(localhost|[a-z0-9-]+(\.[a-z0-9-]+)+)$/i.test(u.hostname)) return null;
+            return u.origin;
+          } catch (e) { return null; }
+        }
+
+        function abrir(origen, destino) {
+          show('abriendo');
+          // replace: así el botón Atrás no vuelve a esta pantalla, sale de la app.
+          location.replace(destino && destino.indexOf(origen + '/') === 0 ? destino : origen + '/ingresar');
+        }
+
+        function configurar(puedeVolver) {
+          show('configurar');
+          $('servidor').value = guardado();
+          $('cancelar-cambio').hidden = !puedeVolver;
+          $('servidor').focus();
+        }
+
+        $('form-servidor').addEventListener('submit', function (e) {
+          e.preventDefault();
+          var origen = normalizar($('servidor').value);
+          var err = $('servidor-error');
+          if (!origen) {
+            err.textContent = 'Revise la dirección: debe verse como https://agenda.clinicasparedes.ec';
+            err.hidden = false;
+            return;
+          }
+          err.hidden = true;
+          try { nativo ? nativo.guardarServidor(origen) : localStorage.setItem('servidor', origen); } catch (e2) {}
+          abrir(origen);
+        });
+        $('cancelar-cambio').addEventListener('click', function () { show('sin-conexion'); });
+        $('cambiar').addEventListener('click', function () { configurar(true); });
+        $('reintentar').addEventListener('click', function () { abrir(guardado(), params.get('desde')); });
+
+        var origen = guardado();
+        if (!origen) configurar(false);
+        else if (params.has('sin-conexion')) {
+          $('direccion-actual').textContent = origen;
+          show('sin-conexion');
+        } else abrir(origen);
+      })();
+    </script>
+  </body>
+</html>
