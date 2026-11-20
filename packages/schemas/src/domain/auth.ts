@@ -56,7 +56,11 @@ export const SignInSchema = z.object({
 export type SignInInput = z.infer<typeof SignInSchema>;
 
 /** Ingreso único: dice qué sesión se abrió. El personal recibe sus datos; el paciente se carga con /portal/me. */
-export const SignInResultSchema = z.discriminatedUnion('kind', [z.object({ kind: z.literal('staff'), user: SessionUserSchema }), z.object({ kind: z.literal('patient') })]);
+/** `accessToken` es para las apps (Flutter): la web usa la cookie httpOnly que deja la misma respuesta. */
+export const SignInResultSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('staff'), user: SessionUserSchema, accessToken: z.string() }),
+  z.object({ kind: z.literal('patient'), accessToken: z.string() }),
+]);
 export type SignInResult = z.infer<typeof SignInResultSchema>;
 
 /**

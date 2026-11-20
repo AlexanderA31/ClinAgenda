@@ -51,7 +51,7 @@ export class AuthController {
       try {
         const { token, user } = await this.auth.login({ username, password: body.password }, meta);
         setSessionCookie(res, token);
-        return { kind: 'staff', user };
+        return { kind: 'staff', user, accessToken: token };
       } catch (e) {
         throw e instanceof DomainError && e.getStatus() === 400 ? invalid : e;
       }
@@ -59,7 +59,7 @@ export class AuthController {
     try {
       const { token } = await this.portal.login({ documentNumber: body.identifier.replace(/[\s-]/g, '').toUpperCase(), password: body.password }, meta);
       setPatientCookie(res, token);
-      return { kind: 'patient' };
+      return { kind: 'patient', accessToken: token };
     } catch (e) {
       throw e instanceof DomainError && e.getStatus() === 400 ? invalid : e;
     }

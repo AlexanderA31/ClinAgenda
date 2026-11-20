@@ -246,6 +246,16 @@ describe('Ingreso único', () => {
     expect(String(pat.headers['set-cookie'])).toContain('clinagenda_paciente=');
   });
 
+  it('la app del celular usa el token de la respuesta (Bearer) en lugar de la cookie', async () => {
+    const staff = await http.post('/api/auth/sign-in').send({ identifier: 'paredes', password: STAFF_PASSWORD }).expect(200);
+    await http.get('/api/auth/me').set('Authorization', `Bearer ${staff.body.accessToken}`).expect(200);
+
+    const pat = await http.post('/api/auth/sign-in').send({ identifier: CEDULA, password: PASSWORD }).expect(200);
+    await http.get('/api/portal/me').set('Authorization', `Bearer ${pat.body.accessToken}`).expect(200);
+    // Cada token abre solo su lado: el del paciente no sirve en el sistema interno.
+    await http.get('/api/auth/me').set('Authorization', `Bearer ${pat.body.accessToken}`).expect(401);
+  });
+
   it('el mensaje de error no revela si el usuario o el documento existen', async () => {
     const a = await http.post('/api/auth/sign-in').send({ identifier: 'paredes', password: 'incorrecta1' }).expect(400);
     const b = await http.post('/api/auth/sign-in').send({ identifier: CEDULA, password: 'incorrecta1' }).expect(400);

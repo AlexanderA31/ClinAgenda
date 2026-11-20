@@ -44,7 +44,7 @@ export class OkDto extends createZodDto(OkSchema) {}
 
 export class SessionUserDto extends createZodDto(SessionUserSchema) {}
 /** Lo que devuelve el ingreso único (SignInResult), plano: una clase de Swagger no puede ser una unión. `user` solo viene con kind "staff". */
-export class SignInResultDto extends createZodDto(z.object({ kind: z.enum(['staff', 'patient']), user: SessionUserSchema.optional() })) {}
+export class SignInResultDto extends createZodDto(z.object({ kind: z.enum(['staff', 'patient']), user: SessionUserSchema.optional(), accessToken: z.string() })) {}
 export class LoginResultDto extends createZodDto(z.object({ user: SessionUserSchema, accessToken: z.string() })) {}
 export class MyProfileDto extends createZodDto(MyProfileSchema) {}
 
