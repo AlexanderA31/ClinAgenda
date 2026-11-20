@@ -425,7 +425,7 @@ Una app **nativa**, hecha con Flutter, que se instala en el celular y funciona s
 2. Ábralo. Android pregunta si permite instalar apps de ese origen: *Configuración → Permitir*.
 3. Abra **Clínicas Paredes** e ingrese con su usuario (personal) o su cédula o pasaporte (paciente). Si ya tenía la versión anterior, se instala encima como actualización.
 
-**Demostración en la red de la clínica:** el sistema corre en un computador (`docker compose up -d`) y el celular está en el **mismo Wi-Fi**. El APK se compila con la IP de ese computador: `build-apk.sh` la detecta sola (ej. `http://192.168.100.149:3000`). Si la IP cambia, no hace falta recompilar: en el ingreso toque *Cambiar* junto a la dirección del servidor.
+**Demostración en la red de la clínica:** el sistema corre en un computador (`docker compose up -d`) y el celular está en el **mismo Wi-Fi**. El APK se compila con la IP de ese computador: `build-apk.sh` la detecta sola (ej. `http://192.168.100.149:3000`). Si la IP cambia, no hace falta recompilar: en el ingreso, **mantenga presionado el logo** de Clínicas Paredes y escriba la nueva dirección. La dirección del servidor no se muestra a pacientes ni al personal; con sesión, solo la ve la dirección en *Mi usuario*.
 
 **Qué tiene:**
 

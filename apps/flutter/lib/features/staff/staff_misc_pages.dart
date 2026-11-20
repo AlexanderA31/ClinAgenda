@@ -275,20 +275,23 @@ class NotificationsPage extends ConsumerWidget {
     final n = ref.watch(notificationsProvider(portal));
     final api = ref.read(apiProvider);
     final base = portal ? '/portal/notifications' : '/notifications';
+    final unread = n.valueOrNull?['unread'] as int? ?? 0;
+
+    Future<void> open(Json x) async {
+      if (x['read'] != true) {
+        await api.post<Json>('$base/${x['id']}/read').catchError((_) => <String, dynamic>{});
+        ref.invalidate(notificationsProvider(portal));
+      }
+      if (!context.mounted) return;
+      if (portal) {
+        context.go('/p/historial');
+      } else if (x['appointmentId'] != null) {
+        context.push('/cita/${x['appointmentId']}');
+      }
+    }
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Avisos'),
-        actions: [
-          TextButton(
-            onPressed: () async {
-              await run(context, () => api.post<Json>('$base/read-all'));
-              ref.invalidate(notificationsProvider(portal));
-            },
-            child: const Text('Marcar todo leído'),
-          ),
-          const A11yAction(),
-        ],
-      ),
+      appBar: AppBar(title: const Text('Avisos'), actions: const [A11yAction()]),
       body: SafeArea(
         top: false,
         child: AsyncBody(
@@ -296,38 +299,90 @@ class NotificationsPage extends ConsumerWidget {
           onRetry: () => ref.invalidate(notificationsProvider(portal)),
           data: (d) {
             final items = (d['items'] as List).cast<Json>();
-            if (items.isEmpty) return const EmptyState(icon: Icons.notifications_none, title: 'No tiene avisos');
-            return RefreshIndicator(
-              onRefresh: () async => ref.invalidate(notificationsProvider(portal)),
-              child: ListView.separated(
-                padding: const EdgeInsets.only(bottom: 80),
-                itemCount: items.length,
-                separatorBuilder: (_, _) => const Divider(),
-                itemBuilder: (context, i) {
-                  final x = items[i];
-                  final unread = x['read'] != true;
-                  return ListTile(
-                    leading: Icon(unread ? Icons.circle : Icons.circle_outlined, size: 12, color: unread ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.outline),
-                    title: Text(x['title'], style: TextStyle(fontWeight: unread ? FontWeight.w700 : FontWeight.w500)),
-                    subtitle: Text('${x['body']}\n${dateTime(x['createdAt'])}'),
-                    isThreeLine: true,
-                    onTap: () async {
-                      if (unread) {
-                        await api.post<Json>('$base/${x['id']}/read').catchError((_) => <String, dynamic>{});
-                        ref.invalidate(notificationsProvider(portal));
-                      }
-                      if (!context.mounted) return;
-                      if (portal) {
-                        context.go('/p/historial');
-                      } else if (x['appointmentId'] != null) {
-                        context.push('/cita/${x['appointmentId']}');
-                      }
+            if (items.isEmpty) return const EmptyState(icon: Icons.notifications_none, title: 'No tiene avisos', body: 'Aquí verá cuando una cita se confirme, cambie o se cancele.');
+            final fresh = items.where((x) => x['read'] != true).toList();
+            final old = items.where((x) => x['read'] == true).toList();
+            return PageList(onRefresh: () async => ref.invalidate(notificationsProvider(portal)), children: [
+              Row(children: [
+                Expanded(child: Text(unread == 0 ? 'Todo leído' : '$unread sin leer', style: Theme.of(context).textTheme.titleMedium)),
+                if (unread > 0)
+                  TextButton.icon(
+                    onPressed: () async {
+                      await run(context, () => api.post<Json>('$base/read-all'));
+                      ref.invalidate(notificationsProvider(portal));
                     },
-                  );
-                },
-              ),
-            );
+                    icon: const Icon(Icons.done_all),
+                    label: const Text('Marcar todo leído'),
+                  ),
+              ]),
+              for (final x in fresh) _NoticeCard(item: x, onTap: () => open(x)),
+              if (old.isNotEmpty && fresh.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 8), child: Text('Anteriores', style: Theme.of(context).textTheme.titleSmall)),
+              for (final x in old) _NoticeCard(item: x, onTap: () => open(x)),
+            ]);
           },
+        ),
+      ),
+    );
+  }
+}
+
+/// Un aviso: ícono y color según lo que pasó, resaltado si no se ha leído.
+class _NoticeCard extends StatelessWidget {
+  const _NoticeCard({required this.item, required this.onTap});
+  final Json item;
+  final VoidCallback onTap;
+
+  static (IconData, Tone) _style(String? kind) => switch (kind) {
+        'CITA_AGENDADA' || 'CITA_ACEPTADA' => (Icons.event_available, Tone.good),
+        'CITA_REACTIVADA' => (Icons.undo, Tone.good),
+        'CITA_MOVIDA' => (Icons.edit_calendar, Tone.info),
+        'SOLICITUD_NUEVA' => (Icons.hourglass_top, Tone.warn),
+        'CITA_RECHAZADA' || 'CITA_CANCELADA' || 'CANCELADA_POR_PACIENTE' => (Icons.event_busy, Tone.danger),
+        _ => (Icons.notifications_outlined, Tone.neutral),
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final unread = item['read'] != true;
+    final (icon, tone) = _style(item['kind'] as String?);
+    final c = toneColor(context, tone);
+    return Semantics(
+      button: true,
+      label: unread ? 'Sin leer' : null,
+      child: Card(
+        color: unread ? scheme.primaryContainer.withValues(alpha: 0.35) : null,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: BorderSide(color: unread ? scheme.primary.withValues(alpha: 0.5) : scheme.outlineVariant, width: unread ? 1.5 : 1),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(color: c.withValues(alpha: 0.14), shape: BoxShape.circle),
+                child: Icon(icon, color: c, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Expanded(child: Text(item['title'], style: TextStyle(fontWeight: unread ? FontWeight.w800 : FontWeight.w600, fontSize: 16))),
+                    const SizedBox(width: 8),
+                    Text(ago(item['createdAt']), style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12)),
+                  ]),
+                  const SizedBox(height: 4),
+                  Text(item['body'], style: TextStyle(color: unread ? null : scheme.onSurfaceVariant)),
+                ]),
+              ),
+              if (unread) Padding(padding: const EdgeInsets.only(left: 8, top: 4), child: Container(width: 10, height: 10, decoration: BoxDecoration(color: scheme.primary, shape: BoxShape.circle))),
+            ]),
+          ),
         ),
       ),
     );
@@ -403,7 +458,8 @@ class _MyAccountPageState extends ConsumerState<MyAccountPage> {
                 onPressed: () async => run(context, () => ref.read(apiProvider).post<Json>('/auth/me/revoke-other-sessions'), success: 'Listo: se cerraron las demás sesiones.'),
               ),
             ]),
-            OutlinedButton.icon(onPressed: () => context.push('/servidor'), icon: const Icon(Icons.dns_outlined), label: Text('Servidor: ${ref.watch(serverProvider) ?? ''}', overflow: TextOverflow.ellipsis)),
+            // La dirección del servidor solo la ve y la cambia la dirección.
+            if (user.role == 'ADMIN') OutlinedButton.icon(onPressed: () => context.push('/servidor'), icon: const Icon(Icons.dns_outlined), label: Text('Servidor: ${ref.watch(serverProvider) ?? ''}', overflow: TextOverflow.ellipsis)),
           ]);
         },
       ),

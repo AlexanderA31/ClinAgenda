@@ -18,10 +18,19 @@ class SplashPage extends StatelessWidget {
 }
 
 /// Marca de la clínica arriba de las pantallas de ingreso.
+/// Mantener presionado el logo abre la dirección del servidor: es para la dirección o el técnico,
+/// por eso no está a la vista de pacientes ni del personal.
 class _Brand extends StatelessWidget {
   const _Brand();
   @override
   Widget build(BuildContext context) {
+    return GestureDetector(
+      onLongPress: () => context.push('/servidor'),
+      child: _logo(context),
+    );
+  }
+
+  Widget _logo(BuildContext context) {
     return Row(children: [
       Container(
         width: 44,
@@ -186,13 +195,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         TextButton(onPressed: () => context.push('/registro'), child: const Text('Crear mi cuenta')),
       ]),
       Text('¿Olvidó su contraseña? Pacientes: llamen a su clínica. Personal: pídala a la dirección.', style: TextStyle(color: muted, fontSize: 13)),
-      const SizedBox(height: 24),
-      Row(children: [
-        Icon(Icons.dns_outlined, size: 16, color: muted),
-        const SizedBox(width: 6),
-        Expanded(child: Text(ref.watch(serverProvider) ?? '', style: TextStyle(color: muted, fontSize: 13), overflow: TextOverflow.ellipsis)),
-        TextButton(onPressed: () => context.push('/servidor'), child: const Text('Cambiar')),
-      ]),
     ]);
   }
 }

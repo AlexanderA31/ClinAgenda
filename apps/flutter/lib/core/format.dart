@@ -75,3 +75,15 @@ String bytes(int n) {
 
 /// Número con separadores en español ("1.234").
 String number(num n) => NumberFormat.decimalPattern('es').format(n);
+
+/// "Hace 5 min", "Hace 2 h", "Ayer, 13:39", "18 nov, 13:39".
+String ago(String iso) {
+  final at = parseIso(iso);
+  final diff = DateTime.now().difference(at);
+  if (diff.inMinutes < 1) return 'Ahora';
+  if (diff.inMinutes < 60) return 'Hace ${diff.inMinutes} min';
+  final day = localDate(iso);
+  if (day == todayIso()) return 'Hace ${diff.inHours} h';
+  if (day == addDays(todayIso(), -1)) return 'Ayer, ${time(iso)}';
+  return dateTime(iso);
+}

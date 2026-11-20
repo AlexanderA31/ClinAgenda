@@ -774,7 +774,6 @@ class _PortalProfilePageState extends ConsumerState<PortalProfilePage> {
                 onPressed: () async => run(context, () => ref.read(apiProvider).post<Json>('/portal/me/revoke-other-sessions'), success: 'Listo: se cerraron las demás sesiones.'),
               ),
             ]),
-            OutlinedButton.icon(onPressed: () => context.push('/servidor'), icon: const Icon(Icons.dns_outlined), label: Text('Servidor: ${ref.watch(serverProvider) ?? ''}', overflow: TextOverflow.ellipsis)),
             FilledButton.icon(
               style: FilledButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error, foregroundColor: Theme.of(context).colorScheme.onError),
               onPressed: () async {
