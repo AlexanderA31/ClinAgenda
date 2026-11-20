@@ -229,10 +229,9 @@ export function AccessibilityButton() {
         aria-keyshortcuts="Alt+A"
         aria-label="Opciones de accesibilidad"
         title="Opciones de accesibilidad (Alt + A)"
-        className="fixed z-[60] grid size-14 place-items-center rounded-full bg-ballpoint text-ballpoint-ink shadow-lg ring-4 ring-paper hover:brightness-110"
-        style={{ right: 'calc(1rem + env(safe-area-inset-right, 0px))', bottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
+        className="fixed bottom-[calc(0.75rem+env(safe-area-inset-bottom,0px))] right-[calc(0.75rem+env(safe-area-inset-right,0px))] z-[60] grid size-12 place-items-center rounded-full bg-ballpoint text-ballpoint-ink shadow-lg ring-4 ring-paper hover:brightness-110 sm:bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] sm:right-[calc(1rem+env(safe-area-inset-right,0px))] sm:size-14"
       >
-        {open ? <X className="size-7" aria-hidden /> : <Accessibility className="size-7" aria-hidden />}
+        {open ? <X className="size-6 sm:size-7" aria-hidden /> : <Accessibility className="size-6 sm:size-7" aria-hidden />}
       </button>
 
       {open && (

@@ -140,6 +140,19 @@
   html[data-text='muy-grande'] {
     font-size: 140%;
   }
+  /* En el celular la pantalla está más cerca de los ojos: 16 px se lee igual de bien y caben botones y títulos.
+     "Grande" y "Muy grande" crecen desde ahí. (40em = 640 px; las media queries no usan el tamaño de html.) */
+  @media (max-width: 40em) {
+    html {
+      font-size: 100%;
+    }
+    html[data-text='grande'] {
+      font-size: 112.5%;
+    }
+    html[data-text='muy-grande'] {
+      font-size: 125%;
+    }
+  }
   html[data-links='subrayados'] a {
     text-decoration: underline;
     text-underline-offset: 3px;

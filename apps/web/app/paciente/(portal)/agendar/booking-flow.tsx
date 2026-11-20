@@ -144,13 +144,13 @@ export function BookingFlow({ directory }: { directory: PublicDirectory }) {
             {clinic ? `${clinic.name}${clinic.address ? `, ${clinic.address}` : ''}` : 'Las tres clínicas: elija médico y día, y le mostramos dónde atiende.'}
           </p>
         </div>
-        <div role="radiogroup" aria-label="Clínica" className="flex flex-wrap gap-1 rounded-lg border border-rule bg-surface p-1.5">
+        <div role="radiogroup" aria-label="Clínica" className="grid grid-cols-4 gap-1 rounded-lg border border-rule bg-surface p-1.5 sm:flex sm:flex-wrap">
           <button
             type="button"
             role="radio"
             aria-checked={clinicId === ALL}
             onClick={() => pickClinic(ALL)}
-            className={cn('flex min-h-11 items-center gap-2 rounded-md px-4 font-bold', clinicId === ALL ? 'bg-ballpoint text-ballpoint-ink' : 'text-ink-2 hover:bg-surface-2 hover:text-ink')}
+            className={cn('flex min-h-11 items-center justify-center gap-2 rounded-md px-2 font-bold sm:px-4', clinicId === ALL ? 'bg-ballpoint text-ballpoint-ink' : 'text-ink-2 hover:bg-surface-2 hover:text-ink')}
           >
             Todas
           </button>
@@ -161,7 +161,7 @@ export function BookingFlow({ directory }: { directory: PublicDirectory }) {
               role="radio"
               aria-checked={c.id === clinicId}
               onClick={() => pickClinic(c.id)}
-              className={cn('flex min-h-11 items-center gap-2 rounded-md px-4 font-bold', c.id === clinicId ? 'bg-ballpoint text-ballpoint-ink' : 'text-ink-2 hover:bg-surface-2 hover:text-ink')}
+              className={cn('flex min-h-11 items-center justify-center gap-1.5 rounded-md px-2 font-bold sm:gap-2 sm:px-4', c.id === clinicId ? 'bg-ballpoint text-ballpoint-ink' : 'text-ink-2 hover:bg-surface-2 hover:text-ink')}
             >
               <span className={cn(landing.dot, toneClass(c.name), c.id === clinicId && 'ring-2 ring-ballpoint-ink')} aria-hidden />
               {c.name.replace('Clínica ', '')}
