@@ -180,7 +180,8 @@ class PortalScaffold extends StatelessWidget {
             child: const Icon(Icons.event_available, color: Colors.white, size: 18),
           ),
           const SizedBox(width: 10),
-          Expanded(child: Text(title, overflow: TextOverflow.ellipsis)),
+          // El nombre de la sección ya está grande en la pantalla: arriba va la marca, como en la web.
+          Expanded(child: Semantics(label: title, excludeSemantics: true, child: const Text('Clínicas Paredes', overflow: TextOverflow.ellipsis))),
         ]),
         actions: const [_Bell(portal: true), A11yAction()],
       ),

@@ -119,7 +119,19 @@ class ReaderNotifier extends Notifier<ReaderStatus> {
       if (id != _run || state.state == ReaderState.paused) return;
       if (_queue.isNotEmpty) _queue.removeAt(0);
     }
-    if (id == _run) state = const ReaderStatus(ReaderState.idle);
+    if (id == _run) _finish();
+  }
+
+  /// Terminó o se detuvo: se apaga el árbol de semántica que se encendió solo para leer.
+  void _finish() {
+    state = const ReaderStatus(ReaderState.idle);
+    _handle?.dispose();
+    _handle = null;
+  }
+
+  /// Al cambiar de pantalla deja de leer la anterior.
+  void stopIfReading() {
+    if (state.state != ReaderState.idle) stop();
   }
 
   /// La voz de Android no se pausa: se detiene y al seguir se repite la frase en curso.
@@ -137,9 +149,7 @@ class ReaderNotifier extends Notifier<ReaderStatus> {
     _run++;
     _queue = [];
     await _tts.stop();
-    state = const ReaderStatus(ReaderState.idle);
-    _handle?.dispose();
-    _handle = null;
+    _finish();
   }
 }
 

@@ -59,20 +59,20 @@ class _A11yPanel extends ConsumerWidget {
           const SizedBox(height: 10),
           Text('Velocidad', style: t.titleSmall),
           const SizedBox(height: 6),
-          SegmentedButton<double>(
-            showSelectedIcon: false,
-            segments: const [ButtonSegment(value: 0.38, label: Text('Lenta')), ButtonSegment(value: 0.5, label: Text('Normal')), ButtonSegment(value: 0.62, label: Text('Rápida'))],
-            selected: {p.speechRate},
-            onSelectionChanged: (s) => n.update(p.copyWith(speechRate: s.first)),
+          Choices<double>(
+            value: p.speechRate,
+            onChanged: (v) => n.update(p.copyWith(speechRate: v)),
+            options: const [(0.38, 'Lenta', Icons.slow_motion_video), (0.5, 'Normal', Icons.play_arrow), (0.62, 'Rápida', Icons.fast_forward)],
           ),
           label('Texto'),
           Text('Tamaño de la letra', style: t.titleSmall),
           const SizedBox(height: 6),
-          SegmentedButton<double>(
-            showSelectedIcon: false,
-            segments: const [ButtonSegment(value: 1.0, label: Text('Normal')), ButtonSegment(value: 1.15, label: Text('Grande')), ButtonSegment(value: 1.3, label: Text('Muy grande'))],
-            selected: {p.textScale},
-            onSelectionChanged: (s) => n.update(p.copyWith(textScale: s.first)),
+          Choices<double>(
+            value: p.textScale,
+            onChanged: (v) => n.update(p.copyWith(textScale: v)),
+            options: const [(1.0, 'Normal', null), (1.15, 'Grande', null), (1.3, 'Muy grande', null)],
+            // Una "A" de muestra del tamaño de cada opción.
+            preview: (v) => Text('A', textScaler: TextScaler.noScaling, style: TextStyle(fontSize: 16 + (v - 1) * 35, fontWeight: FontWeight.w800, height: 1)),
           ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
@@ -84,15 +84,10 @@ class _A11yPanel extends ConsumerWidget {
           label('Pantalla'),
           Text('Tema', style: t.titleSmall),
           const SizedBox(height: 6),
-          SegmentedButton<ThemeMode>(
-            showSelectedIcon: false,
-            segments: const [
-              ButtonSegment(value: ThemeMode.system, label: Text('Automático')),
-              ButtonSegment(value: ThemeMode.light, label: Text('Claro')),
-              ButtonSegment(value: ThemeMode.dark, label: Text('Oscuro')),
-            ],
-            selected: {p.theme},
-            onSelectionChanged: (s) => n.update(p.copyWith(theme: s.first)),
+          Choices<ThemeMode>(
+            value: p.theme,
+            onChanged: (v) => n.update(p.copyWith(theme: v)),
+            options: const [(ThemeMode.system, 'Automático', Icons.brightness_auto), (ThemeMode.light, 'Claro', Icons.light_mode_outlined), (ThemeMode.dark, 'Oscuro', Icons.dark_mode_outlined)],
           ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
@@ -118,7 +113,65 @@ class _A11yPanel extends ConsumerWidget {
   }
 }
 
-/// Barra "Leyendo…" sobre todas las pantallas mientras la voz lee.
+/// Opciones de una sola elección en fila, iguales de ancho. El texto se achica en vez de partirse
+/// cuando la letra está en "Muy grande".
+class Choices<T> extends StatelessWidget {
+  const Choices({super.key, required this.value, required this.options, required this.onChanged, this.preview});
+  final T value;
+  final List<(T, String, IconData?)> options;
+  final ValueChanged<T> onChanged;
+  final Widget Function(T value)? preview;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Row(children: [
+      for (final (i, (v, label, icon)) in options.indexed) ...[
+        if (i > 0) const SizedBox(width: 8),
+        Expanded(
+          child: Semantics(
+            inMutuallyExclusiveGroup: true,
+            selected: v == value,
+            button: true,
+            label: label,
+            excludeSemantics: true,
+            child: Material(
+              color: v == value ? scheme.primaryContainer : scheme.surface,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(color: v == value ? scheme.primary : scheme.outline, width: v == value ? 2 : 1),
+              ),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () => onChanged(v),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 56),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+                    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                      if (preview != null)
+                        SizedBox(height: 26, child: Center(child: DefaultTextStyle.merge(style: TextStyle(color: v == value ? scheme.onPrimaryContainer : scheme.onSurface), child: preview!(v))))
+                      else if (icon != null)
+                        Icon(icon, size: 22, color: v == value ? scheme.onPrimaryContainer : scheme.onSurfaceVariant),
+                      const SizedBox(height: 4),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(label, maxLines: 1, style: TextStyle(fontWeight: FontWeight.w700, color: v == value ? scheme.onPrimaryContainer : scheme.onSurface)),
+                      ),
+                    ]),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    ]);
+  }
+}
+
+/// Barra "Leyendo…" al pie de todas las pantallas mientras la voz lee.
+/// Está fuera del Navigator (no tiene Overlay), por eso sus botones no usan tooltip sino Semantics.
 class ReaderBar extends ConsumerWidget {
   const ReaderBar({super.key});
 
@@ -128,30 +181,43 @@ class ReaderBar extends ConsumerWidget {
     if (r.state == ReaderState.idle) return const SizedBox.shrink();
     final n = ref.read(readerProvider.notifier);
     final paused = r.state == ReaderState.paused;
-    return SafeArea(
-      child: Align(
-        alignment: Alignment.bottomCenter,
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Material(
-            elevation: 6,
-            borderRadius: BorderRadius.circular(14),
-            color: Theme.of(context).colorScheme.surface,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 10, 8, 10),
-              child: Row(children: [
-                Icon(Icons.record_voice_over, color: Theme.of(context).colorScheme.primary),
-                const SizedBox(width: 10),
-                Expanded(
+    final scheme = Theme.of(context).colorScheme;
+    Widget action(String label, IconData icon, VoidCallback onTap, {bool primary = false}) => Semantics(
+          button: true,
+          label: label,
+          excludeSemantics: true,
+          child: Padding(
+            padding: const EdgeInsets.only(left: 6),
+            child: primary
+                ? IconButton.filled(onPressed: onTap, icon: Icon(icon), iconSize: 26, constraints: const BoxConstraints(minWidth: 52, minHeight: 52))
+                : IconButton.outlined(onPressed: onTap, icon: Icon(icon), iconSize: 24, constraints: const BoxConstraints(minWidth: 52, minHeight: 52)),
+          ),
+        );
+    return Material(
+      color: scheme.surface,
+      elevation: 8,
+      shadowColor: Colors.black54,
+      child: DecoratedBox(
+        decoration: BoxDecoration(border: Border(top: BorderSide(color: scheme.primary, width: 3))),
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 12, 10),
+            child: Row(children: [
+              Icon(paused ? Icons.pause_circle_outline : Icons.record_voice_over, color: scheme.primary, size: 28),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Semantics(
+                  liveRegion: true,
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-                    Text(paused ? 'En pausa' : 'Leyendo…', style: const TextStyle(fontWeight: FontWeight.w700)),
-                    Text(r.current, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    Text(paused ? 'En pausa' : 'Leyendo la pantalla…', style: TextStyle(fontWeight: FontWeight.w800, color: scheme.primary)),
+                    if (r.current.isNotEmpty) Text(r.current, maxLines: 2, overflow: TextOverflow.ellipsis),
                   ]),
                 ),
-                IconButton(tooltip: paused ? 'Seguir' : 'Pausar', onPressed: paused ? n.resume : n.pause, icon: Icon(paused ? Icons.play_arrow : Icons.pause)),
-                IconButton(tooltip: 'Detener', onPressed: n.stop, icon: const Icon(Icons.stop)),
-              ]),
-            ),
+              ),
+              action(paused ? 'Seguir leyendo' : 'Pausar la lectura', paused ? Icons.play_arrow : Icons.pause, paused ? n.resume : n.pause, primary: true),
+              action('Detener la lectura', Icons.stop, n.stop),
+            ]),
           ),
         ),
       ),

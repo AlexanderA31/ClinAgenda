@@ -447,8 +447,8 @@ class _MyAccountPageState extends ConsumerState<MyAccountPage> {
                 for (final x in e.value) Text('• ${x.label}'),
               ],
             ]),
-            const SectionCard(title: 'Contraseña', children: [ChangePasswordForm(path: '/auth/change-password')]),
-            SectionCard(title: 'Sesiones', children: [
+            const FoldCard(title: 'Cambiar contraseña', icon: Icons.key_outlined, children: [ChangePasswordForm(path: '/auth/change-password')]),
+            FoldCard(title: 'Sesiones abiertas', subtitle: 'Otros teléfonos o computadoras', icon: Icons.devices_other, children: [
               const Text('Si ingresó en otro equipo y no cerró la sesión, ciérrela desde aquí.'),
               const SizedBox(height: 10),
               BusyButton(

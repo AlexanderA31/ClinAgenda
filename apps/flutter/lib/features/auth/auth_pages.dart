@@ -133,6 +133,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   bool _busy = false;
   String? _error;
 
+  /// Al volver a escribir se quita el aviso de error anterior.
+  void _clearError() {
+    if (_error != null) setState(() => _error = null);
+  }
+
   Future<void> _submit() async {
     if (_id.text.trim().isEmpty || _pw.text.isEmpty) return setState(() => _error = 'Escriba su usuario o documento y su contraseña.');
     setState(() {
@@ -166,6 +171,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             autofillHints: const [AutofillHints.username],
             textInputAction: TextInputAction.next,
             autocorrect: false,
+            onChanged: (_) => _clearError(),
             decoration: const InputDecoration(labelText: 'Usuario, cédula o pasaporte', prefixIcon: Icon(Icons.person_outline)),
           ),
           const SizedBox(height: 16),
@@ -174,6 +180,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             obscureText: !_show,
             autofillHints: const [AutofillHints.password],
             textInputAction: TextInputAction.done,
+            onChanged: (_) => _clearError(),
             onSubmitted: (_) => _submit(),
             decoration: InputDecoration(
               labelText: 'Contraseña',
@@ -190,10 +197,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         label: const Text('Ingresar'),
       ),
       const SizedBox(height: 16),
-      Wrap(crossAxisAlignment: WrapCrossAlignment.center, children: [
-        const Text('¿Es paciente y no tiene cuenta?'),
-        TextButton(onPressed: () => context.push('/registro'), child: const Text('Crear mi cuenta')),
-      ]),
+      const SizedBox(height: 8),
+      Text('¿Es paciente y no tiene cuenta?', textAlign: TextAlign.center, style: TextStyle(color: muted)),
+      const SizedBox(height: 12),
+      OutlinedButton.icon(onPressed: () => context.push('/registro'), icon: const Icon(Icons.person_add_alt), label: const Text('Crear mi cuenta')),
+      const SizedBox(height: 20),
       Text('¿Olvidó su contraseña? Pacientes: llamen a su clínica. Personal: pídala a la dirección.', style: TextStyle(color: muted, fontSize: 13)),
     ]);
   }

@@ -22,13 +22,17 @@ class AsyncBody<T> extends StatelessWidget {
       skipLoadingOnReload: true,
       data: data,
       loading: () => const Padding(padding: EdgeInsets.all(40), child: Center(child: CircularProgressIndicator())),
-      error: (e, _) => Padding(
+      // Arriba y del tamaño de su texto (sin Align se estiraba a toda la pantalla).
+      error: (e, _) => Align(
+        alignment: Alignment.topCenter,
+        child: Padding(
         padding: const EdgeInsets.all(16),
         child: Notice(
           tone: Tone.danger,
           title: 'No se pudo cargar',
           body: errorText(e),
           action: onRetry == null ? null : OutlinedButton.icon(onPressed: onRetry, icon: const Icon(Icons.refresh), label: const Text('Reintentar')),
+        ),
         ),
       ),
     );
@@ -209,12 +213,15 @@ class InfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = Text(label, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant));
+    final v = Text(value, style: TextStyle(fontWeight: FontWeight.w600, fontFeatures: mono ? const [FontFeature.tabularFigures()] : null));
+    // Con letra grande la etiqueta va arriba del valor, para que ninguno quede apretado.
+    final stacked = MediaQuery.textScalerOf(context).scale(1) > 1.2;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        SizedBox(width: 110, child: Text(label, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant))),
-        Expanded(child: Text(value, style: TextStyle(fontWeight: FontWeight.w600, fontFeatures: mono ? const [FontFeature.tabularFigures()] : null))),
-      ]),
+      child: stacked
+          ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [l, v])
+          : Row(crossAxisAlignment: CrossAxisAlignment.start, children: [SizedBox(width: 110, child: l), Expanded(child: v)]),
     );
   }
 }
@@ -423,4 +430,60 @@ class PageList extends StatelessWidget {
   static List<Widget> _spaced(List<Widget> c) => [
         for (var i = 0; i < c.length; i++) ...[if (i > 0) const SizedBox(height: 14), c[i]],
       ];
+}
+
+/// Cifras cortas en una sola tarjeta: número grande y etiqueta debajo.
+class StatStrip extends StatelessWidget {
+  const StatStrip({super.key, required this.items});
+  final List<(String label, int value, Tone tone)> items;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 6),
+        child: Row(children: [
+          for (final (label, value, tone) in items)
+            Expanded(
+              child: Semantics(
+                label: '$label: $value',
+                excludeSemantics: true,
+                child: Column(children: [
+                  Text('$value', style: t.headlineSmall?.copyWith(color: value == 0 ? Theme.of(context).colorScheme.onSurfaceVariant : toneColor(context, tone))),
+                  const SizedBox(height: 2),
+                  FittedBox(fit: BoxFit.scaleDown, child: Text(label, maxLines: 1, style: t.bodySmall?.copyWith(fontWeight: FontWeight.w600))),
+                ]),
+              ),
+            ),
+        ]),
+      ),
+    );
+  }
+}
+
+/// Tarjeta que se abre al tocar su título: para lo que se usa poco (cambiar contraseña, sesiones).
+class FoldCard extends StatelessWidget {
+  const FoldCard({super.key, required this.title, this.subtitle, required this.icon, required this.children});
+  final String title;
+  final String? subtitle;
+  final IconData icon;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: ExpansionTile(
+        leading: Icon(icon),
+        title: Text(title, style: Theme.of(context).textTheme.titleMedium),
+        subtitle: subtitle == null ? null : Text(subtitle!),
+        shape: const Border(),
+        collapsedShape: const Border(),
+        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        expandedCrossAxisAlignment: CrossAxisAlignment.stretch,
+        children: children,
+      ),
+    );
+  }
 }

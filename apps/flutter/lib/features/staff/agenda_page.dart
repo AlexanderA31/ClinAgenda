@@ -159,11 +159,11 @@ class _Day extends StatelessWidget {
 
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       if (availability['closed'] != null) ...[Notice(tone: Tone.warn, title: 'La clínica no atiende este día', body: availability['closed']), const SizedBox(height: 12)],
-      Row(children: [
-        _Mini('Citas', active.length),
-        _Mini('Atendidas', attended),
-        _Mini('Por atender', pending),
-        _Mini('Libres', free),
+      StatStrip(items: [
+        ('Citas', active.length, Tone.info),
+        ('Atendidas', attended, Tone.good),
+        ('Por atender', pending, Tone.warn),
+        ('Libres', free, Tone.info),
       ]),
       const SizedBox(height: 12),
       if (doctors.length > 1)
@@ -197,19 +197,6 @@ class _Day extends StatelessWidget {
       ],
     ]);
   }
-}
-
-class _Mini extends StatelessWidget {
-  const _Mini(this.label, this.value);
-  final String label;
-  final int value;
-  @override
-  Widget build(BuildContext context) => Expanded(
-        child: Column(children: [
-          Text('$value', style: Theme.of(context).textTheme.titleLarge),
-          Text(label, style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant), textAlign: TextAlign.center),
-        ]),
-      );
 }
 
 class _DoctorBlock extends StatelessWidget {

@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/api.dart';
-import '../../core/config.dart';
 import '../../core/data.dart';
 import '../../core/format.dart';
 import '../../core/labels.dart';
@@ -73,20 +72,12 @@ class PortalHomePage extends ConsumerWidget {
               for (final a in s.upcoming.skip(1)) AppointmentCard(appt: a),
             ],
             if (atLimit) const Notice(tone: Tone.info, body: 'Ya tiene $maxUpcoming citas por venir, el máximo en línea. Para otra, cancele una o llame a la clínica.'),
-            GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 10,
-              crossAxisSpacing: 10,
-              childAspectRatio: 1.7,
-              children: [
-                _Stat('Por venir', s.upcoming.length, Icons.event, Tone.info),
-                _Stat('Por confirmar', count['REQUESTED']!, Icons.hourglass_top, count['REQUESTED']! > 0 ? Tone.warn : Tone.neutral),
-                _Stat('Atendidas', count['ATTENDED']!, Icons.check_circle_outline, Tone.good),
-                _Stat('Canceladas', count['CANCELLED']!, Icons.event_busy, Tone.neutral),
-              ],
-            ),
+            StatStrip(items: [
+              ('Por venir', s.upcoming.length, Tone.info),
+              ('Por confirmar', count['REQUESTED']!, Tone.warn),
+              ('Atendidas', count['ATTENDED']!, Tone.good),
+              ('Canceladas', count['CANCELLED']!, Tone.danger),
+            ]),
             const SectionCard(title: 'Antes de su cita', children: [
               _Tip('Llegue 10 minutos antes para registrarse con calma.'),
               _Tip('Traiga su cédula o pasaporte.'),
@@ -112,27 +103,6 @@ class _Tip extends StatelessWidget {
           Expanded(child: Text(text)),
         ]),
       );
-}
-
-class _Stat extends StatelessWidget {
-  const _Stat(this.label, this.value, this.icon, this.tone);
-  final String label;
-  final int value;
-  final IconData icon;
-  final Tone tone;
-  @override
-  Widget build(BuildContext context) {
-    final c = toneColor(context, tone);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Row(children: [Expanded(child: Text(label, style: const TextStyle(fontWeight: FontWeight.w600))), Icon(icon, color: c, size: 20)]),
-          Text('$value', style: Theme.of(context).textTheme.headlineSmall),
-        ]),
-      ),
-    );
-  }
 }
 
 /// La próxima cita, grande: cuánto falta, día, hora, dónde y qué hacer.
@@ -248,28 +218,40 @@ class _AppointmentBody extends ConsumerWidget {
         Notice(tone: Tone.danger, title: 'La clínica no pudo aceptarla', body: a['rejectedNote']),
       ],
       const SizedBox(height: 12),
-      Wrap(spacing: 8, runSpacing: 8, children: [
-        OutlinedButton.icon(
-          onPressed: () => run(context, () => api.openFile('/portal/appointments/${a['id']}/comprobante.pdf', 'comprobante-${a['code']}.pdf')),
-          icon: const Icon(Icons.picture_as_pdf_outlined),
-          label: const Text('Comprobante'),
+      // Acciones del mismo ancho; cancelar va aparte y en rojo, para no tocarlo sin querer.
+      Row(children: [
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: () => run(context, () => api.openFile('/portal/appointments/${a['id']}/comprobante.pdf', 'comprobante-${a['code']}.pdf')),
+            icon: const Icon(Icons.picture_as_pdf_outlined),
+            label: const FittedBox(child: Text('Comprobante')),
+          ),
         ),
-        if (upcoming && clinic['phone'] != null)
-          OutlinedButton.icon(onPressed: () => openExternal(context, telUri(clinic['phone'])), icon: const Icon(Icons.call_outlined), label: const Text('Llamar')),
-        if (upcoming && a['canCancel'] == true)
-          TextButton.icon(
+        if (upcoming && clinic['phone'] != null) ...[
+          const SizedBox(width: 8),
+          Expanded(child: OutlinedButton.icon(onPressed: () => openExternal(context, telUri(clinic['phone'])), icon: const Icon(Icons.call_outlined), label: const FittedBox(child: Text('Llamar')))),
+        ],
+      ]),
+      if (upcoming && a['canCancel'] == true)
+        Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: TextButton.icon(
+            style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error),
             onPressed: () async {
               if (!await confirm(context, title: '¿Cancelar esta cita?', body: '${longDate(a['startsAt'])} a las ${time(a['startsAt'])} con ${a['doctorName']}. El espacio pasará a otro paciente.', ok: 'Sí, cancelar', cancel: 'No', danger: true)) return;
               if (!context.mounted) return;
               final r = await run(context, () => api.post<Json>('/portal/appointments/${a['id']}/cancel'), success: 'Cita cancelada. Gracias por avisar: el espacio pasa a otro paciente.');
               if (r != null) ref.invalidate(portalAppointmentsProvider);
             },
-            icon: const Icon(Icons.cancel_outlined),
-            label: const Text('Cancelar cita'),
-          )
-        else if (upcoming)
-          Text('Falta poco: para cancelar, llame a la clínica.', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
-      ]),
+            icon: const Icon(Icons.event_busy_outlined),
+            label: const Text('Cancelar esta cita'),
+          ),
+        )
+      else if (upcoming)
+        Padding(
+          padding: const EdgeInsets.only(top: 10),
+          child: Text('Falta poco: para cancelar, llame a la clínica.', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+        ),
     ]);
   }
 }
@@ -377,9 +359,16 @@ class _PortalBookPageState extends ConsumerState<PortalBookPage> {
               onRetry: () => ref.invalidate(directoryProvider),
               data: (d) {
                 if (atLimit) {
-                  return const PageList(children: [
-                    PageHeader('Agendar una cita'),
-                    Notice(tone: Tone.info, title: 'Ya tiene $maxUpcoming citas por venir', body: 'Es el máximo para agendar en línea. Cancele una en "Citas" o llame a la clínica para otra.'),
+                  return PageList(children: [
+                    const PageHeader('Agendar una cita'),
+                    Card(
+                      child: EmptyState(
+                        icon: Icons.event_repeat,
+                        title: 'Ya tiene $maxUpcoming citas por venir',
+                        body: 'Es el máximo para agendar en línea. Si necesita otra, cancele una de sus citas o llame a la clínica.',
+                        action: FilledButton.icon(onPressed: () => context.go('/p/historial'), icon: const Icon(Icons.event_note), label: const Text('Ver mis citas')),
+                      ),
+                    ),
                   ]);
                 }
                 final clinics = (d['clinics'] as List).cast<Json>();
@@ -763,8 +752,8 @@ class _PortalProfilePageState extends ConsumerState<PortalProfilePage> {
                 },
               ),
             ]),
-            const SectionCard(title: 'Contraseña', children: [ChangePasswordForm(path: '/portal/me/password')]),
-            SectionCard(title: 'Sesiones', children: [
+            const FoldCard(title: 'Cambiar contraseña', icon: Icons.key_outlined, children: [ChangePasswordForm(path: '/portal/me/password')]),
+            FoldCard(title: 'Sesiones abiertas', subtitle: 'Otros teléfonos o computadoras', icon: Icons.devices_other, children: [
               const Text('Si ingresó en otro teléfono o computadora y no cerró la sesión, ciérrela desde aquí.'),
               const SizedBox(height: 10),
               BusyButton(
@@ -774,13 +763,13 @@ class _PortalProfilePageState extends ConsumerState<PortalProfilePage> {
                 onPressed: () async => run(context, () => ref.read(apiProvider).post<Json>('/portal/me/revoke-other-sessions'), success: 'Listo: se cerraron las demás sesiones.'),
               ),
             ]),
-            FilledButton.icon(
-              style: FilledButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error, foregroundColor: Theme.of(context).colorScheme.onError),
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error, side: BorderSide(color: Theme.of(context).colorScheme.error, width: 1.5)),
               onPressed: () async {
                 if (await confirm(context, title: '¿Cerrar sesión?', ok: 'Salir', cancel: 'Quedarme')) ref.read(sessionProvider.notifier).signOut();
               },
               icon: const Icon(Icons.logout),
-              label: const Text('Salir'),
+              label: const Text('Cerrar sesión'),
             ),
           ]);
         },

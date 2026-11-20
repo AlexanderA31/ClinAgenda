@@ -55,7 +55,8 @@ ThemeData buildTheme({required Brightness brightness, required bool highContrast
       elevation: 0,
       scrolledUnderElevation: 1,
       shape: Border(bottom: BorderSide(color: scheme.outlineVariant)),
-      titleTextStyle: text.titleLarge,
+      // Con tamaño fijo: el estilo del tema no trae tamaño y la barra lo dejaba en 14.
+      titleTextStyle: text.titleLarge?.copyWith(fontSize: 19, fontWeight: FontWeight.w700, color: scheme.onSurface),
     ),
     cardTheme: CardThemeData(
       color: scheme.surface,

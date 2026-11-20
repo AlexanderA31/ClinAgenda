@@ -34,7 +34,7 @@ const _public = {'/servidor', '/ingresar', '/registro'};
 final routerProvider = Provider<GoRouter>((ref) {
   final refresh = _RouterRefresh(ref);
   ref.onDispose(refresh.dispose);
-  return GoRouter(
+  final router = GoRouter(
     initialLocation: '/',
     refreshListenable: refresh,
     redirect: (context, state) {
@@ -88,6 +88,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/cuenta', builder: (_, _) => const MyAccountPage()),
     ],
   );
+  // "Leer esta pantalla" se detiene al ir a otra pantalla.
+  void onRoute() => ref.read(readerProvider.notifier).stopIfReading();
+  router.routerDelegate.addListener(onRoute);
+  ref.onDispose(() => router.routerDelegate.removeListener(onRoute));
+  return router;
 });
 
 class ClinAgendaApp extends ConsumerWidget {
@@ -97,6 +102,8 @@ class ClinAgendaApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final p = ref.watch(a11yProvider);
     final router = ref.watch(routerProvider);
+    // La barra "Leyendo…" va debajo de la app (no encima), así no tapa la barra inferior ni los botones.
+    final reading = ref.watch(readerProvider.select((r) => r.state != ReaderState.idle));
     // La API respondió 401: la sesión venció o se cerró en otro equipo.
     ref.listen(unauthorizedProvider, (_, _) => ref.read(sessionProvider.notifier).expired());
     final noMotion = p.reduceMotion ? const PageTransitionsTheme(builders: {TargetPlatform.android: _NoTransition(), TargetPlatform.iOS: _NoTransition()}) : null;
@@ -120,9 +127,13 @@ class ClinAgendaApp extends ConsumerWidget {
         final mq = MediaQuery.of(context);
         // La letra respeta la del teléfono y se agranda más con la opción de la app.
         final scale = mq.textScaler.scale(1) * p.textScale;
+        final data = mq.copyWith(textScaler: TextScaler.linear(scale.clamp(1.0, 2.2)), disableAnimations: p.reduceMotion || mq.disableAnimations);
         return MediaQuery(
-          data: mq.copyWith(textScaler: TextScaler.linear(scale.clamp(1.0, 2.2)), disableAnimations: p.reduceMotion || mq.disableAnimations),
-          child: Stack(children: [child!, const ReaderBar()]),
+          data: data,
+          child: Column(children: [
+            Expanded(child: MediaQuery(data: reading ? data.removePadding(removeBottom: true) : data, child: child!)),
+            const ReaderBar(),
+          ]),
         );
       },
     );
