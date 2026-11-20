@@ -65,6 +65,10 @@ services:
     environment:
       # La página pública consulta horarios y médicos a la API desde el servidor.
       API_INTERNAL_URL: http://api:4000
+      # La app de Android que se ofrece para descargar (la deja ahí apps/flutter/build-apk.sh).
+      APP_DOWNLOADS_DIR: /descargas
+    volumes:
+      - ./apps/flutter/dist:/descargas:ro,z
     depends_on:
       api:
         condition: service_healthy

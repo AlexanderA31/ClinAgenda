@@ -5,6 +5,7 @@ import { FileText, MapPin, Phone, Pill, Timer, UserRound, Users } from 'lucide-r
 import { WEEKDAY_LABELS, type PublicDirectory } from '@clinagenda/schemas';
 import e from '@/components/landing/editorial.module.css';
 import s from '@/components/landing/landing.module.css';
+import { AppDownload } from '@/components/landing/app-download';
 import { ContourFrame } from '@/components/landing/contour-frame';
 import { DoctorDirectory } from '@/components/landing/doctor-directory';
 import { OpenStatus } from '@/components/landing/open-status';
@@ -118,6 +119,9 @@ export default async function Landing() {
           <div className="flex items-center gap-7">
             <a href="#citas" className={cn(e.navLink, 'hidden md:inline')}>
               Su cita
+            </a>
+            <a href="#app" className={cn(e.navLink, 'hidden md:inline')}>
+              App
             </a>
             {session ? (
               // Con la sesión abierta, la página lo reconoce y lleva directo a su pantalla.
@@ -383,6 +387,8 @@ export default async function Landing() {
             </ol>
           </div>
         </section>
+
+        <AppDownload />
 
         <section className={cn(e.gutter, 'py-28')}>
           <div className="mx-auto flex max-w-[90rem] flex-col gap-12">

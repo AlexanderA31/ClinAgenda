@@ -7,7 +7,8 @@ const PUBLIC = ['/', '/ingresar', '/paciente/ingresar', '/paciente/registro'];
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   // /c/<token>: enlace que recibe el paciente para ver o cancelar su cita, sin usuario.
-  if (PUBLIC.includes(pathname) || pathname.startsWith('/c/')) return NextResponse.next();
+  // /descargar/...: la app de Android, para instalarla desde la página pública.
+  if (PUBLIC.includes(pathname) || pathname.startsWith('/c/') || pathname.startsWith('/descargar/')) return NextResponse.next();
   // Portal del paciente: su propia cookie, pero el mismo ingreso que el personal.
   if (isPortalPath(pathname)) {
     if (req.cookies.has('clinagenda_paciente')) return NextResponse.next();
