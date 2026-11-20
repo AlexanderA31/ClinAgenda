@@ -50,8 +50,8 @@ Navegador ──► web (Next.js 15, :3000) ──/api/*──► api (NestJS 11
  PWA, sin  ▲    página pública, portal del          módulos, guardias,         EXCLUDE, triggers,
  conexión  │    paciente y sistema interno          Swagger, Prisma            bitácora de solo agregar
            │
-App Android (Capacitor): abre la misma web dentro de la app
- + descargas, impresión y voz del teléfono
+App Android (Flutter) ──────/api/* con token Bearer─────┘
+ pantallas nativas, voz del teléfono
                                                                                     ▲
                                                                backup (pg_dump diario, verificado
                                                                y copiado fuera del servidor)
@@ -63,7 +63,8 @@ App Android (Capacitor): abre la misma web dentro de la app
 | **`apps/api`** | NestJS modular: `auth`, `users`, `roles`, `clinics`, `doctors`, `patients` (incluye la ficha médica), `appointments`, `waitlist`, `notifications`, `portal` (pacientes), `public` (enlace de la cita y página pública), `reports`, `imports`, `audit`, `system`, `health`. Guardias globales de sesión y de permisos (`@Can`), un filtro único de errores con mensajes en español, e idempotencia para reintentos. |
 | **`apps/web`** | Next.js App Router, Tailwind 4 y componentes al estilo shadcn/ui. Tablas con TanStack Table (paginación en servidor), gráficos con Recharts, datos con TanStack Query. La web reenvía `/api/*` a la API, así sesión y caché son del mismo origen y la API no queda expuesta a internet. |
 | **Base de datos** | PostgreSQL 17 con Prisma. Las reglas críticas viven en SQL (`apps/api/prisma/migrations`) y no dependen de que el programa no tenga errores: una restricción `EXCLUDE` impide citas solapadas por médico y por paciente; un trigger prohíbe borrar citas; otro impide editar la bitácora; y un índice de trigramas busca nombres aproximados. |
-| **`apps/mobile`** | App de Android con Capacitor 8. Abre la misma web del servidor dentro de la app, así que cada mejora llega al celular sin publicar otra versión. Agrega en Java lo que un WebView no trae solo (descargas, impresión, voz del teléfono, botón Atrás y la pantalla "sin conexión"). Ver [sección 7](#7-app-para-el-celular-android). |
+| **`apps/flutter`** | App nativa de Android con Flutter 3.41. Consume la misma API que la web con un token `Bearer` (la API no cambió de reglas: valida todo igual). Tiene todas las pantallas de todos los roles, con el mismo menú por permisos. Ver [sección 7](#7-app-para-el-celular-android). |
+| **`apps/mobile`** | Primera versión de la app (Capacitor: la web dentro de un WebView). Queda como respaldo; la reemplaza `apps/flutter`. |
 | **Docker Compose** | `db`, `api` (migra al arrancar), `web`, `backup` y `https` (Caddy con certificado automático, perfil `produccion`). Cada servicio se reinicia solo y reporta su salud. |
 
 **Tres sesiones separadas, un solo ingreso.** El personal entra con su usuario y el paciente con su cédula o pasaporte, por la misma pantalla. Cada sesión es una cookie distinta: la del paciente no abre el sistema interno y la del personal no abre el portal.
@@ -75,13 +76,14 @@ App Android (Capacitor): abre la misma web dentro de la app
 ├── apps/
 │   ├── api/            NestJS + Prisma (src/modules/*, prisma/schema.prisma, prisma/migrations, test/*.e2e.ts)
 │   ├── web/            Next.js (app/page.tsx página pública, app/(app)/* sistema, app/paciente/* portal, components/*)
-│   └── mobile/         App de Android con Capacitor (www/ pantalla de inicio, android/ proyecto nativo, build-apk.sh)
+│   ├── flutter/        App de Android nativa (lib/core, lib/widgets, lib/features/{auth,portal,staff}, build-apk.sh)
+│   └── mobile/         Primera versión con Capacitor (respaldo)
 ├── packages/schemas/   Zod + validadores + catálogo CIE-10 (con pruebas)
 ├── docker/             Dockerfiles, arranque de la API, script de respaldo, Caddyfile
 └── docker-compose.yml
 ```
 
-**Stack:** Node 22 · TypeScript · NestJS 11 · Prisma 6 · PostgreSQL 17 · Zod · Swagger · Next.js 15 · React 19 · Tailwind CSS 4 · TanStack Query y Table · Recharts · GSAP y Lenis (página pública) · pdfkit (comprobantes y recetas) · Capacitor 8 (app de Android) · Docker Compose.
+**Stack:** Node 22 · TypeScript · NestJS 11 · Prisma 6 · PostgreSQL 17 · Zod · Swagger · Next.js 15 · React 19 · Tailwind CSS 4 · TanStack Query y Table · Recharts · GSAP y Lenis (página pública) · pdfkit (comprobantes y recetas) · Flutter 3.41, Riverpod y go_router (app de Android) · Docker Compose.
 
 ---
 
@@ -416,46 +418,46 @@ Las tres clínicas entran al mismo sistema por internet, así que va en un servi
 
 ## 7. App para el celular (Android)
 
-La app se instala en el celular y abre el sistema sin pasar por el navegador. Sirve para todos: el paciente ve su portal, y el personal ve la agenda y la ficha médica según su rol. Por dentro es **la misma web del servidor**: lo que se corrige en el servidor se ve en la app al instante, sin publicar otra versión.
+Una app **nativa**, hecha con Flutter, que se instala en el celular y funciona sin abrir el navegador. Sirve para todos: el paciente ve su portal, y el personal ve lo que su rol le permite, con el mismo menú por permisos que la web. No tiene datos ni reglas propias: **consume la misma API** que la web, que valida todo igual.
 
 **Instalarla (primera entrega, sin tienda):**
-1. Pase el archivo `apps/mobile/dist/clinicas-paredes-1.0.0.apk` al celular (cable, Drive o WhatsApp).
+1. En el celular, abra la página pública de las clínicas y toque **Descargar para Android** (sección *Las clínicas en su celular*), o escanee su código QR desde una computadora. La descarga directa es `/descargar/android`. También puede pasar el archivo `apps/flutter/dist/clinicas-paredes-1.1.0.apk` por cable, Drive o WhatsApp.
 2. Ábralo. Android pregunta si permite instalar apps de ese origen: *Configuración → Permitir*.
-3. Abra **Clínicas Paredes**. La primera vez entra a la dirección con la que se compiló el APK. Si no hay ninguna, la pide.
+3. Abra **Clínicas Paredes** e ingrese con su usuario (personal) o su cédula o pasaporte (paciente). Si ya tenía la versión anterior, se instala encima como actualización.
 
-**Demostración en la red de la clínica:** el sistema corre en un computador (`docker compose up -d`) y el celular está en el **mismo Wi-Fi**. El APK se compila con la IP de ese computador: `build-apk.sh` la detecta sola (ej. `http://192.168.100.149:3000`). Si la IP cambia, no hace falta recompilar: en la pantalla "No pudimos conectar con la clínica" toque *Cambiar dirección*.
+**Demostración en la red de la clínica:** el sistema corre en un computador (`docker compose up -d`) y el celular está en el **mismo Wi-Fi**. El APK se compila con la IP de ese computador: `build-apk.sh` la detecta sola (ej. `http://192.168.100.149:3000`). Si la IP cambia, no hace falta recompilar: en el ingreso toque *Cambiar* junto a la dirección del servidor.
 
-**Lo que agrega la app** (en `MainActivity.java` y `puente.js`):
+**Qué tiene:**
 
-| En la app | Cómo |
+| Para | Pantallas |
 |---|---|
-| Descargar comprobantes, recetas y resultados | Van a *Descargas* con la sesión de la persona, y avisan en las notificaciones. |
-| Imprimir (comprobante de recepción) | Usa el servicio de impresión de Android, que también guarda como PDF. |
-| Leer en voz alta | Usa la voz del teléfono: el WebView de Android no trae voz propia. Pausar, seguir y detener funcionan igual que en la web. |
-| WhatsApp, teléfono y mapas | Se abren en su propia app. Solo el sistema de la clínica se abre dentro. |
-| Sin conexión | Una pantalla propia con *Intentar de nuevo* y *Cambiar dirección*. Lo que ya se abrió (como la agenda) sigue funcionando sin internet. |
-| Atrás | Vuelve a la pantalla anterior; en la primera, sale de la app. |
-| Privacidad | La sesión y los datos no se copian a la nube de Google (`allowBackup=false`). |
+| Pacientes | Inicio con su próxima cita · Agendar (clínica → médico → día → hora) · Sus citas, comprobante en PDF y cancelar · Su ficha (diagnósticos, recetas, resultados) · Perfil y contraseña · Avisos |
+| Recepción | Agenda del día con horas libres · Nueva cita en tres pasos con WhatsApp · Detalle de la cita (aceptar, rechazar, mover, cancelar con *Deshacer*, asistió) · Pacientes (buscar, registrar con aviso de duplicados) · Recordatorios · Lista de espera |
+| Médicos | Su agenda · Ficha médica: antecedentes, consulta con signos vitales, CIE-10, receta en PDF y resultados (subir fotos o PDF) · Nota clínica |
+| Dirección | Todo lo anterior · Panel de cifras · Clínicas (horarios y cierres) · Médicos · Usuarios · Roles y permisos · Bitácora · Importar CSV · Sistema y respaldos |
+| Todos | Accesibilidad: leer la pantalla en voz alta (voz del teléfono), letra grande, letra gruesa, tema claro u oscuro, alto contraste, menos movimiento. TalkBack funciona. |
 
-**Compilar el APK** (no hace falta Android Studio: se compila dentro de un contenedor con el SDK de Android):
+**Cómo se conecta:** la app guarda la dirección del servidor y, al ingresar, el token de la sesión en el almacén cifrado del teléfono (`flutter_secure_storage`), y lo envía como `Authorization: Bearer`. Las horas se muestran siempre en hora de Quito, sin importar la zona del teléfono. Los PDF y resultados se descargan con la sesión y se abren con el visor del teléfono. La sesión y los datos no se copian a la nube de Google (`allowBackup=false`).
+
+La página pública ofrece siempre el APK más reciente de `apps/flutter/dist/`: docker-compose monta esa carpeta en el contenedor web, así que basta con volver a compilar. El APK no entra en el repositorio ni en la imagen.
+
+**Compilar el APK** (no hace falta instalar Flutter ni Android Studio: todo corre en un contenedor):
 
 ```bash
-npm install
-sh apps/mobile/build-apk.sh                                               # con la IP de este equipo
-CLINAGENDA_URL=https://agenda.clinicasparedes.ec sh apps/mobile/build-apk.sh  # con el dominio de las clínicas
+sh apps/flutter/build-apk.sh                                            # con la IP de este equipo
+SERVIDOR=https://agenda.clinicasparedes.ec sh apps/flutter/build-apk.sh  # con el dominio de las clínicas
+sh apps/flutter/flutter.sh analyze && sh apps/flutter/flutter.sh test     # revisión y pruebas
 ```
 
-La primera vez crea la **llave de firma** en `apps/mobile/android/` (`clinicas-paredes.jks` y `keystore.properties`, con una clave aleatoria). Está en `.gitignore` y no se sube. **Guárdela junto a los respaldos:** sin ella no se pueden publicar actualizaciones de la app en Google Play.
+La **llave de firma** está en `apps/flutter/android/` (`clinicas-paredes.jks` y `keystore.properties`, con una clave aleatoria). Está en `.gitignore` y no se sube. **Guárdela junto a los respaldos:** sin ella no se pueden publicar actualizaciones en Google Play.
 
 **Siguiente etapa: tiendas.**
 - **Google Play.**
   - Compile con `PERMITIR_HTTP=false` y el dominio `https://`, para que la app solo use conexiones cifradas.
-  - Genere el paquete `.aab` con `./gradlew bundleRelease`.
+  - Genere el paquete con `sh apps/flutter/flutter.sh build appbundle`.
   - Complete la ficha de la tienda, la política de privacidad y la declaración de datos de salud.
-- **App Store.**
-  - Ejecute `npx cap add ios` en una Mac con Xcode y una cuenta de Apple Developer.
-  - Apple revisa que una app no sea "solo una página web" (regla 4.2). Lo que ya agrega la app (voz del teléfono, descargas, pantalla sin conexión) ayuda.
-  - Convendría sumar avisos push de las citas, que son el siguiente paso natural.
+- **App Store.** El mismo código de Flutter compila para iPhone. Hace falta una Mac con Xcode y una cuenta de Apple Developer. Como la app es nativa, no tiene el problema de las apps que son "solo una página web".
+- **Siguiente mejora natural:** avisos push de las citas.
 
 ---
 
@@ -503,8 +505,9 @@ npx prisma migrate deploy && npm run seed && npm run test:e2e   # 60 pruebas: ci
 npm run dev:api   # API en :4000, Swagger en /api/docs
 npm run dev:web   # Web en :3000
 
-# App de Android (APK en apps/mobile/dist/)
-sh apps/mobile/build-apk.sh
+# App de Android en Flutter (APK en apps/flutter/dist/)
+sh apps/flutter/flutter.sh analyze && sh apps/flutter/flutter.sh test
+sh apps/flutter/build-apk.sh
 ```
 
 | Decisión técnica | Por qué |
@@ -515,7 +518,7 @@ sh apps/mobile/build-apk.sh
 | Aplicación instalable con caché sin conexión | Por la Clínica Sur. |
 | Archivos clínicos dentro de la base, no en disco | Entran en el respaldo diario y se restauran juntos. Para una clínica pequeña, con el límite de 10 MB por archivo, es lo más seguro. |
 | Avisos internos (campana), no correo ni SMS | No dependen de servicios externos. Se guardan en la misma transacción que el cambio: no hay aviso de algo que no pasó. |
-| App de Android con Capacitor que abre la web del servidor | Un solo código para web y celular, con el mismo acceso por roles, la misma accesibilidad y el mismo modo sin conexión. Las mejoras llegan sin pasar por la tienda. Lo que el WebView no trae (descargas con sesión, impresión, voz) se agrega en Java. |
+| App nativa en Flutter que consume la API | Se siente como una app del teléfono y pasa la revisión de las tiendas (Apple rechaza apps que son solo una web). Las reglas siguen en un solo lugar, la API; la app solo muestra y envía. El mismo código sirve después para iPhone. |
 | Lectura en voz alta con la Web Speech API | Sin servicios externos ni costo, y el texto no sale del equipo. |
 | Página pública con GSAP y Lenis atados al scroll | Las animaciones avanzan y retroceden con la persona. Con "menos movimiento" la página se lee completa y quieta, y los textos siempre están en el HTML. |
 
